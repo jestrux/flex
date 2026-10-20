@@ -406,7 +406,9 @@ input[type=range]{accent-color:var(--accent-line)}
 .fkey:before{content:"";width:10px;height:6px;border-radius:2px;background:var(--line-2)}
 .fkey.built:before{background:var(--accent-line)}
 .fkey.building:before{background:repeating-linear-gradient(90deg,var(--accent-line) 0 3px,var(--line-2) 3px 6px)}
-.film-stage{display:flex;gap:32px;padding:28px 32px 48px;align-items:flex-start;max-width:1240px}
+.film-stage{display:flex;justify-content:center;padding:28px 32px 48px}
+.film-col{display:flex;flex-direction:column;gap:10px;max-width:100%}
+.film-col .filmplayer{align-self:center}
 .film-left{display:flex;flex-direction:column;gap:12px;align-items:flex-start;flex:0 0 auto;max-width:min(100%,720px)}
 .film-side{flex:1 1 300px;min-width:280px;max-width:440px;display:flex;flex-direction:column;gap:16px}
 .filmframe img,.filmframe video{transition:filter var(--m-base)}
@@ -427,6 +429,15 @@ input[type=range]{accent-color:var(--accent-line)}
 .customcard{position:relative;width:100%;border:1px solid var(--line);border-radius:10px;padding:6px;background:var(--surface)}
 .card .customcard{background:var(--bg)}
 .custom-tag{position:absolute;right:10px;top:-10px;display:inline-flex;align-items:center;gap:5px;font-size:10px;line-height:18px;padding:0 7px;border-radius:9px;background:var(--bg);border:1px solid var(--line-2);color:var(--ink-3)}
+#demo-panel{position:fixed;right:14px;bottom:14px;z-index:85;width:330px;border-radius:12px;background:var(--raised);border:1px solid var(--line-2);box-shadow:0 10px 30px rgba(0,0,0,.45);padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:12px}
+.demo-h{display:flex;align-items:center;gap:8px}
+.demo-h b{font-size:12px;font-weight:650}
+.demo-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:220px;overflow:auto}
+.demo-steps li{display:flex;align-items:flex-start;gap:8px;padding:4px 6px;border-radius:6px;color:var(--ink-2);line-height:16px}
+.demo-steps li.done{color:var(--ink-3)}
+.demo-steps li.next{background:var(--accent-soft);color:var(--ink);box-shadow:inset 0 0 0 1px var(--accent-line)}
+.demo-f{display:flex;gap:6px;align-items:center}
+.demo-f button:disabled{opacity:.45}
 /* notes */
 .notes{display:flex;flex-direction:column;gap:10px}
 .notes-h{display:flex;align-items:baseline;justify-content:space-between;font-size:13px;font-weight:600;color:var(--ink-2)}
@@ -2495,7 +2506,7 @@ function render() {
   app.appendChild(rail());
   if (UI.view === 'film' && !D.film) UI.view = 'inbox';
   if (UI.view === 'inbox') { app.appendChild(inboxList()); app.appendChild(readingPane()); }
-  else if (UI.view === 'film') app.appendChild(filmPane());
+  else if (UI.view === 'film') { app.appendChild(filmList()); app.appendChild(filmPane()); }
   else app.appendChild(stackPane());
   var layer = document.getElementById('layer'); layer.innerHTML = '';
   if (UI.review) layer.appendChild(reviewView());
@@ -2667,6 +2678,7 @@ function refreshLive() {
   var live = document.querySelector('.live .mono'); if (live) live.textContent = 'read ' + clock(UI.readAt, true);
 }
 function poll() {
+  if (UI.demo) return;  // a simulated session owns the data until Reset
   var s = document.createElement('script');
   s.src = 'data.js?t=' + now();
   s.onload = function () { s.remove(); ingest(window.FLEX_REVIEW); };
@@ -2774,54 +2786,67 @@ function filmPlayer(F) {
   p.F = F;
   return p;
 }
+function filmList() {
+  // the scene list: the film page's own list pane, the way Needs you has its list
+  var F = D.film, w = D.project.working;
+  var sec = h('section', { class: 'list', 'aria-label': 'Scenes' });
+  sec.appendChild(h('div', { class: 'list-head' },
+    h('div', { class: 'list-title' }, h('div', { style: 'display:flex;flex-direction:column' }, h('h1', { class: 'h-list' }, 'The film so far'),
+      h('span', { class: 'muted' }, F.built + ' of ' + F.scenes.length + ' scenes built, in film order'))),
+    h('div', { class: 'fsegs', style: 'height:6px;gap:3px' }, F.scenes.map(function (s) { return h('span', { class: 'fseg ' + s.status, style: 'flex:' + Math.max(0.5, s.end - s.at) }, s.status === 'building' ? h('i', { style: 'width:' + Math.round((s.progress || 0) * 100) + '%' }) : null); })),
+    h('span', { style: 'font-size:12px;line-height:17px;color:var(--ink-3)' }, F.built === F.scenes.length ? 'Every scene is built. This is the film.' : 'Built scenes play as they are now; the rest play their storyboard panel on the music, so it always runs end to end.')));
+  var body = h('div', { class: 'list-body', 'data-scroll': 'film-list' });
+  if (w && w.item) body.appendChild(h('div', { class: 'flexline', style: 'margin:8px 2px 4px;color:var(--ink-2);font-size:12px' }, h('span', { class: 'spin' }), h('span', { style: 'flex:1' }, plain(w.text || 'The agent is working')), w.progress != null ? h('span', { class: 'mono muted' }, Math.round(w.progress * 100) + '%') : null));
+  var g = h('div', { class: 'grp' });
+  F.scenes.forEach(function (s) {
+    var cur = UI.filmScene === s.id;
+    g.appendChild(h('button', { type: 'button', class: 'irow row' + (cur ? ' on' : '') + (UI.glow['scene:' + s.id] ? ' glow arrive' : ''), 'data-scene': s.id, onclick: function () { var p = PL['film|player']; if (p) p.seek(s.at); } },
+      s.status === 'built' ? h('span', { style: 'margin-top:3px;display:flex' }, I.check(13)) : s.status === 'building' ? h('span', { class: 'spin', style: 'margin-top:4px' }) : h('span', { class: 'ring see' }),
+      h('span', { style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:2px' },
+        h('span', { class: 'irow-t' }, h('span', { class: 'mono', style: 'color:var(--ink-3);font-weight:400;margin-right:8px' }, String(s.n)), h('span', { html: s.title })),
+        h('span', { class: 'irow-s' }, h('span', null, s.status === 'built' ? 'built' + (s.builtAt ? ' ' + ago(s.builtAt) : '') : s.status === 'building' ? 'building' + (s.progress != null ? ' · ' + Math.round(s.progress * 100) + '%' : '') : 'storyboard panel'))),
+      s.status === 'built' && s.builtAt > (UI.filmSeenBefore || 0) ? h('span', { class: 'pill new' }, 'New') : null,
+      h('span', { class: 'mono muted', style: 'font-size:11px;line-height:19px' }, fmtT(s.at, 1))));
+  });
+  body.appendChild(g); sec.appendChild(body);
+  return sec;
+}
 function filmPane() {
   var F = D.film, main = h('main', { class: 'main' });
   S.filmSeen = now(); saveSoon();
-  main.appendChild(h('div', { class: 'topbar' }, h('span', { class: 'crumb', style: 'font-weight:600;color:var(--ink)' }, 'The film so far'),
-    h('span', { class: 'muted' }, F.built + ' of ' + F.scenes.length + ' scenes built'), h('div', { class: 'right' }, sendBtn())));
-  statusBars().forEach(function (b) { main.appendChild(b); });
   var p = filmPlayer(F), a = D.aspect || 9 / 16;
-  p.frame.setAttribute('style', a < 1 ? 'height:min(640px,calc(100vh - 250px));width:auto;aspect-ratio:' + a : 'width:100%;aspect-ratio:' + a);
+  var cur = sceneAt(F, p.t);
+  main.appendChild(h('div', { class: 'topbar' }, h('span', { class: 'mono muted' }, String(cur.n)), h('span', { class: 'crumb' }, 'Scene'),
+    h('span', { style: 'color:var(--ink-3);display:flex' }, I.chev()), h('span', { class: 'crumb-t', 'data-film-title': '1', html: cur.title }),
+    h('div', { class: 'right' }, sendBtn())));
+  statusBars().forEach(function (b) { main.appendChild(b); });
+  p.frame.setAttribute('style', a < 1 ? 'height:min(640px,calc(100vh - 230px));width:auto;aspect-ratio:' + a : 'width:100%;aspect-ratio:' + a);
   var tNow = h('span', { class: 't' }), barR = h('span', { class: 'bar' }), sceneR = h('span', { class: 'muted', style: 'font-size:12px' });
   var playB = h('button', { type: 'button', class: 'b play ib', 'aria-label': 'Play (Space)', onclick: function () { p.toggle(); render(); } }, p.playing ? I.pause() : I.play());
-  // the strip: one segment per scene, sized by its length, coloured by how far along it is
   var ph = h('span', { class: 'ph' });
   var strip = h('div', { class: 'fstrip', role: 'slider', 'aria-label': 'The film so far, by scene' }, F.scenes.map(function (s) {
     return h('span', { class: 'fseg big ' + s.status, title: s.n + ' · ' + plain(s.title) + ' · ' + s.status, style: 'flex:' + Math.max(0.5, s.end - s.at) }, s.status === 'building' ? h('i', { style: 'width:' + Math.round((s.progress || 0) * 100) + '%' }) : null);
   }), ph);
   strip.addEventListener('pointerdown', function (e) { var r = strip.getBoundingClientRect(); p.seek(clamp((e.clientX - r.left) / r.width, 0, 1) * F.duration); });
-  var list = h('ol', { class: 'scenes' });
-  F.scenes.forEach(function (s) {
-    list.appendChild(h('li', null, h('button', { type: 'button', class: 'srow2 row', 'data-scene': s.id, onclick: function () { p.seek(s.at); } },
-      s.status === 'built' ? I.check(14) : s.status === 'building' ? h('span', { class: 'spin' }) : h('span', { class: 'ring see' }),
-      h('span', { class: 'mono muted', style: 'width:16px;font-size:11px' }, String(s.n)),
-      h('span', { style: 'flex:1;min-width:0;display:flex;flex-direction:column' }, h('span', { style: 'font-size:13px;font-weight:550', html: s.title }),
-        h('span', { class: 'muted', style: 'font-size:11px' }, s.status === 'built' ? 'built' + (s.builtAt ? ' ' + ago(s.builtAt) : '') : s.status === 'building' ? 'building' + (s.progress != null ? ' · ' + Math.round(s.progress * 100) + '%' : '') : 'storyboard panel')),
-      s.status === 'built' && s.builtAt > (UI.filmSeenBefore || 0) ? h('span', { class: 'pill new' }, 'New') : null,
-      h('span', { class: 'mono muted', style: 'font-size:11px' }, fmtT(s.at, 1)))));
-  });
   p.onTime = function (t, s) {
     tNow.textContent = fmtT(t) + ' / ' + fmtT(F.duration);
     barR.textContent = D.song ? 'bar ' + barBeat(D.song.start + t) : '';
-    sceneR.textContent = 'Scene ' + s.n + ' · ' + plain(s.title);
+    sceneR.textContent = s.status === 'built' ? '' : s.status === 'building' ? 'building' : 'storyboard panel';
     ph.style.left = (t / F.duration * 100) + '%';
-    list.querySelectorAll('.srow2').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-scene') === s.id); });
+    if (UI.filmScene !== s.id) {
+      UI.filmScene = s.id;
+      document.querySelectorAll('[data-scene]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-scene') === s.id); });
+      var on = document.querySelector('[data-scene="' + s.id + '"]'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+      var tt = document.querySelector('[data-film-title]'); if (tt) { tt.innerHTML = s.title; tt.previousSibling.previousSibling.previousSibling.textContent = String(s.n); }
+    }
     playB.innerHTML = ''; playB.appendChild(p.playing ? I.pause() : I.play());
   };
-  var w = D.project.working;
-  var side = h('div', { class: 'film-side' },
-    h('div', { style: 'display:flex;flex-direction:column;gap:4px' }, h('h1', { class: 'h-stage', style: 'font-size:20px;line-height:26px' }, 'The film so far'),
-      h('span', { style: 'font-size:13px;line-height:19px;color:var(--ink-2)' }, F.built === F.scenes.length ? 'Every scene is built. This is the film.' : 'Built scenes play as they are now; the rest play their storyboard panel on the music, so it always runs end to end.')),
-    w ? h('div', { class: 'flexline', style: 'color:var(--ink-2)' }, h('span', { class: 'spin' }), h('span', { style: 'flex:1' }, plain(w.text || 'The agent is working')), w.progress != null ? h('span', { class: 'mono muted' }, Math.round(w.progress * 100) + '%') : null) : null,
-    list);
-  var stage = h('div', { class: 'film-stage' }, h('div', { class: 'film-left' }, p.el,
-    h('div', { style: 'display:flex;flex-direction:column;gap:6px;width:100%' }, strip,
-      h('div', { class: 'ctl' }, playB, tNow, sceneR, barR,
-        h('button', { type: 'button', class: 'oif', style: 'margin-left:6px', title: 'Open this moment in Flex (O)', onclick: function () { openInFlex(p.t); } }, I.flex(), 'Flex')),
-      h('div', { class: 'hints' }, h('span', { class: 'fkey built' }, 'built'), h('span', { class: 'fkey building' }, 'building'), h('span', { class: 'fkey panel' }, 'storyboard panel'),
-        h('span', { style: 'margin-left:auto' }, h('span', { class: 'kbd' }, 'Space'), ' play · ', h('span', { class: 'kbd' }, '['), h('span', { class: 'kbd' }, ']'), ' bar')))), side);
-  var sc = h('div', { class: 'scroll', 'data-scroll': 'film' }, stage);
-  main.appendChild(sc);
+  var col = h('div', { class: 'film-col', style: 'width:' + (a < 1 ? 'calc(min(640px,calc(100vh - 230px)) * ' + a + ')' : 'min(100%,960px)') + ';min-width:360px' }, p.el, strip,
+    h('div', { class: 'ctl' }, playB, tNow, sceneR, barR,
+      h('button', { type: 'button', class: 'oif', style: 'margin-left:6px', title: 'Open this moment in Flex (O)', onclick: function () { openInFlex(p.t); } }, I.flex(), 'Flex')),
+    h('div', { class: 'hints' }, h('span', { class: 'fkey built' }, 'built'), h('span', { class: 'fkey building' }, 'building'), h('span', { class: 'fkey panel' }, 'panel'),
+      h('span', { style: 'margin-left:auto' }, h('span', { class: 'kbd' }, 'Space'), ' play · ', h('span', { class: 'kbd' }, '['), h('span', { class: 'kbd' }, ']'), ' bar')));
+  main.appendChild(h('div', { class: 'scroll', 'data-scroll': 'film' }, h('div', { class: 'film-stage' }, col)));
   requestAnimationFrame(function () { p.paint(true); });
   return main;
 }
@@ -2854,6 +2879,7 @@ function notifyChanges(old, nd, arrived, changed) {
   changed.forEach(function (it) { notify({ title: 'Updated · v' + it.version, body: plain(it.title), sub: plain(it.changed || ''), thumb: posterOfItem(it), open: function () { openItem(it.id); } }); });
   if (old && old.film && nd.film) nd.film.scenes.forEach(function (s) {
     var o = old.film.scenes.filter(function (x) { return x.id === s.id; })[0];
+    if (s.status === 'built' && o && o.status !== 'built') { UI.glow['scene:' + s.id] = true; setTimeout(function () { delete UI.glow['scene:' + s.id]; }, 2400); }
     if (s.status === 'built' && o && o.status !== 'built') notify({ title: 'Scene ' + s.n + ' is in', body: plain(s.title) + ' · the film so far is ' + nd.film.built + ' of ' + nd.film.scenes.length + ' scenes', thumb: s.panel, open: function () { setView('film'); var p = PL['film|player']; if (p) { p.seek(s.at); p.play(); } } });
   });
 }
@@ -2897,26 +2923,59 @@ window.addEventListener('message', function (e) {
 });
 
 /* ───────────────────────── demo: an agent at work (open index.html#demo) ───────────────────────── */
-function runDemo() {
-  var base = JSON.parse(JSON.stringify(RAW)), t0 = Date.now();
-  var steps = (base.project.demo || []);
-  if (!steps.length) return;
-  UI.demo = true;
-  steps.forEach(function (st) {
-    setTimeout(function () {
-      var raw = JSON.parse(JSON.stringify(RAW));
-      var pr = raw.project, sc = pr.film && pr.film.scenes;
-      var find = function (id) { return sc.filter(function (s) { return s.id === id; })[0]; };
-      if (st.work) pr.working = { stage: st.work.stage || 'scenes', item: st.work.item, text: st.work.text, since: Date.now(), progress: st.work.progress || 0 };
-      if (st.progress != null && pr.working) pr.working.progress = st.progress;
-      if (st.built) { var s = find(st.built); if (s) { s.status = 'built'; s.builtAt = Date.now(); delete s.progress; } pr.working = null; }
-      if (st.add) { var c = JSON.parse(JSON.stringify(st.add)); c.updated = Date.now(); c.version = 1; raw.items.push(c); }
-      if (st.bump) { raw.items.forEach(function (x) { if (x.id === st.bump.id) { x.version = (x.version || 1) + 1; x.updated = Date.now(); x.changed = st.bump.changed; } }); }
-      if (st.log) raw.log.push({ t: Date.now(), text: st.log, item: st.logItem || null });
-      if (st.clear) pr.working = null;
-      ingest(raw);
-    }, st.at * 1000);
-  });
+// A prototype aid: project.demo lists agent events; the panel fires them one by one (or plays them) without
+// touching data.js, so you can see how each one lands. The real board never shows it (no project.demo).
+var DEMO = { i: 0, timer: null, steps: [] };
+function demoLabel(st) {
+  if (st.label) return st.label;
+  var sc = function (id) { var f = D.film && D.film.scenes.filter(function (x) { return x.id === id; })[0]; return f ? 'scene ' + f.n + ' (' + plain(f.title) + ')' : id; };
+  if (st.built) return 'The agent finishes ' + sc(st.built);
+  if (st.work) return 'It starts building ' + sc(st.work.item);
+  if (st.add) return 'A new card arrives: ' + plain(st.add.title);
+  if (st.bump) return 'A card comes back as a new version: ' + plain((D.byId[st.bump.id] || {}).title || st.bump.id);
+  if (st.progress != null) return 'The scene it\'s building reaches ' + Math.round(st.progress * 100) + '%';
+  return st.log || 'An event';
+}
+function demoApply(st) {
+  var raw = JSON.parse(JSON.stringify(RAW));
+  var pr = raw.project, sc = (pr.film && pr.film.scenes) || [];
+  var find = function (id) { return sc.filter(function (s) { return s.id === id; })[0]; };
+  if (st.work) pr.working = { stage: st.work.stage || 'scenes', item: st.work.item, text: st.work.text, since: Date.now(), progress: st.work.progress || 0 };
+  if (st.progress != null && pr.working) pr.working.progress = st.progress;
+  if (st.built) { var s = find(st.built); if (s) { s.status = 'built'; s.builtAt = Date.now(); delete s.progress; } pr.working = null; }
+  if (st.add) { var c = JSON.parse(JSON.stringify(st.add)); c.updated = Date.now(); c.version = 1; raw.items = raw.items.filter(function (x) { return x.id !== c.id; }); raw.items.push(c); }
+  if (st.bump) raw.items.forEach(function (x) { if (x.id === st.bump.id) { x.version = (x.version || 1) + 1; x.updated = Date.now(); x.changed = st.bump.changed; } });
+  if (st.log) raw.log.push({ t: Date.now(), text: st.log, item: st.logItem || null });
+  if (st.clear) pr.working = null;
+  ingest(raw);
+}
+function demoNext() { if (DEMO.i >= DEMO.steps.length) return; UI.demo = true; demoApply(DEMO.steps[DEMO.i++]); demoPanel(); }
+function demoPlay() {
+  if (DEMO.timer) { clearInterval(DEMO.timer); DEMO.timer = null; demoPanel(); return; }
+  demoNext(); DEMO.timer = setInterval(function () { if (DEMO.i >= DEMO.steps.length) { clearInterval(DEMO.timer); DEMO.timer = null; demoPanel(); return; } demoNext(); }, 4000); demoPanel();
+}
+function demoPanel() {
+  var box = document.getElementById('demo-panel');
+  if (!DEMO.steps.length) { if (box) box.remove(); return; }
+  if (!box) { box = h('aside', { id: 'demo-panel', 'aria-label': 'Simulate the agent' }); document.body.appendChild(box); }
+  box.innerHTML = '';
+  var open = !UI.demoMin, done = DEMO.i >= DEMO.steps.length;
+  box.appendChild(h('div', { class: 'demo-h' }, h('span', { class: 'spin', style: DEMO.timer ? '' : 'animation:none;border-top-color:var(--line-2)' }), h('b', null, 'Simulate the agent'), h('span', { class: 'muted', style: 'font-size:11px' }, DEMO.i + ' / ' + DEMO.steps.length),
+    h('button', { type: 'button', class: 'xbtn', style: 'margin-left:auto;width:22px;height:22px', 'aria-label': open ? 'Minimise' : 'Expand', onclick: function () { UI.demoMin = !UI.demoMin; demoPanel(); } }, open ? I.down() : I.up())));
+  if (open) {
+    var ol = h('ol', { class: 'demo-steps' });
+    DEMO.steps.forEach(function (st, i) { ol.appendChild(h('li', { class: i < DEMO.i ? 'done' : i === DEMO.i ? 'next' : '' }, i < DEMO.i ? I.check(11, 'var(--ink-3)') : h('span', { class: 'mono', style: 'width:11px;font-size:10px;text-align:center' }, String(i + 1)), h('span', null, demoLabel(st)))); });
+    box.appendChild(ol);
+  }
+  box.appendChild(h('div', { class: 'demo-f' },
+    h('button', { type: 'button', class: 'btn-primary', style: 'height:30px;padding:0 12px;font-size:12px', disabled: done, onclick: demoNext }, done ? 'All sent' : 'Next event'),
+    h('button', { type: 'button', class: 'btn', style: 'height:30px', disabled: done && !DEMO.timer, onclick: demoPlay }, DEMO.timer ? 'Pause' : 'Play the rest'),
+    h('button', { type: 'button', class: 'btn ghost', style: 'height:30px;margin-left:auto', title: 'Reload the board as data.js has it', onclick: function () { location.hash = ''; location.reload(); } }, 'Reset')));
+}
+function demoInit() {
+  DEMO.steps = ((RAW && RAW.project && RAW.project.demo) || []).slice();
+  demoPanel();
+  if (location.hash === '#demo') demoPlay();
 }
 
 /* ───────────────────────── boot ───────────────────────── */
@@ -2932,7 +2991,8 @@ function boot() {
   var demo = location.hash === '#demo';
   if (demo) { UI.welcome = false; }
   render();
-  if (demo) runDemo(); else setInterval(poll, 3000);
+  setInterval(poll, 3000);
+  demoInit();
   if (SERVED) { pollFlex(); setInterval(pollFlex, 3000); }
   setInterval(function () { S.lastVisit = now(); save(); if (!isTyping() && !UI.review) refreshRail(); }, 30000);
   window.addEventListener('beforeunload', function () { S.lastVisit = now(); save(); });

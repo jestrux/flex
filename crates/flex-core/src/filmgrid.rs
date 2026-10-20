@@ -24,13 +24,19 @@ pub struct FilmGrid {
     pub corrected: bool,
 }
 
+/// a bundled track's grid (the pipeline's assets/music/<key>.grid.json)
+fn bundled_grid(key: &str) -> Option<serde_json::Value> {
+    let p = crate::project::bundled_pipeline().ok()?.join("assets/music").join(format!("{key}.grid.json"));
+    serde_json::from_str(&std::fs::read_to_string(p).ok()?).ok()
+}
+
 impl FilmGrid {
     /// The project's film grid: each stretch's track grid through the music edit (or from `music.from`), over `duration` s.
     /// With `music.tracks` the film can change songs at a join: each side's bars and beats come from its own song, and
     /// `beat` / `bpm` are the first track's.
     pub fn load(dir: &Path, music: &Music, duration: f64) -> Result<FilmGrid, ProjectError> {
         let audio: serde_json::Value = std::fs::read_to_string(dir.join("audio.json")).ok().and_then(|s| serde_json::from_str(&s).ok())
-            .ok_or_else(|| ProjectError::Invalid("no audio.json in the project".into()))?;
+            .unwrap_or_default();
         let segments = match &music.segments {
             Some(s) if !s.is_empty() => s.clone(),
             _ => { let f = music.from.unwrap_or(0.0); vec![[f, f + duration]] }
@@ -39,11 +45,16 @@ impl FilmGrid {
         let mut grids: std::collections::HashMap<&str, serde_json::Value> = std::collections::HashMap::new();
         for k in &tracks {
             if grids.contains_key(k.as_str()) { continue; }
-            let file = audio["music"][k]["file"].as_str()
-                .ok_or_else(|| ProjectError::Invalid(format!("the music \"{k}\" isn't in the project's audio.json")))?;
-            let gp = dir.join(file).with_extension("grid.json");
-            let g: serde_json::Value = std::fs::read_to_string(&gp).ok().and_then(|s| serde_json::from_str(&s).ok())
-                .ok_or_else(|| ProjectError::Invalid(format!("no beat grid for the track yet ({}): run flex music", gp.display())))?;
+            let g = match audio["music"][k]["file"].as_str() {
+                Some(file) => {
+                    let gp = dir.join(file).with_extension("grid.json");
+                    std::fs::read_to_string(&gp).ok().and_then(|s| serde_json::from_str(&s).ok())
+                        .ok_or_else(|| ProjectError::Invalid(format!("no beat grid for the track yet ({}): run flex music", gp.display())))?
+                }
+                // not the project's own: a song from Flex's library, or one of the pipeline's bundled tracks
+                None => crate::library::grid(k).or_else(|| bundled_grid(k))
+                    .ok_or_else(|| ProjectError::Invalid(format!("the music \"{k}\" isn't in the project's audio.json or Flex's library")))?,
+            };
             grids.insert(k, g);
         }
         let nums = |g: &serde_json::Value, k: &str| g[k].as_array().map(|a| a.iter().filter_map(|x| x.as_f64()).collect::<Vec<_>>()).unwrap_or_default();

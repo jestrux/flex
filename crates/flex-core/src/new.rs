@@ -14,7 +14,9 @@ use std::path::{Path, PathBuf};
 fn pipeline_source() -> PathBuf {
     crate::project::bundled_pipeline().ok()
         .and_then(|p| std::fs::read_to_string(p.join("SOURCE")).ok())
-        .and_then(|s| s.lines().find_map(|l| l.strip_prefix("source: ").map(|x| PathBuf::from(x.trim()))))
+        .and_then(|s| s.lines().find_map(|l| l.strip_prefix("source: ").map(|x| x.trim().to_string())))
+        // written ~-relative (scripts/sync-pipeline.sh)
+        .map(|x| match x.strip_prefix("~/") { Some(rest) => dirs::home_dir().unwrap_or_default().join(rest), None => PathBuf::from(x) })
         .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join("Documents/web/fancy-e2e-videos"))
 }
 
