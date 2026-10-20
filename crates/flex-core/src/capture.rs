@@ -31,6 +31,7 @@ pub fn command(dir: &Path, cmd: &str, rest: &[String]) -> Result<Command, Projec
         .env("FLEX_PROJECTS", crate::tools::projects_link(&dir)?.0);
     crate::secrets::apply(&mut c, &dir);
     crate::project::apply_frame(&mut c, &dir);
+    crate::library::apply(&mut c); // Flex's songs (FLEX_LIBRARY)
     Ok(c)
 }
 

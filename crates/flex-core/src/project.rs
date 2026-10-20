@@ -179,7 +179,8 @@ fn scene_files(dir: &Path, scenes: &mut [Scene]) {
     }
 }
 
-/// The track's file: from the project's audio.json, else the pipeline's own library.
+/// The track's file: from the project's audio.json, else the pipeline's own library, else Flex's song library (downloaded
+/// now if it isn't here yet; offline, the film opens without it).
 fn music_file(dir: &Path, pipeline: &Path, key: &str) -> Option<PathBuf> {
     let look = |manifest: PathBuf, base: &Path| -> Option<PathBuf> {
         let raw: serde_json::Value = serde_json::from_str(&fs::read_to_string(manifest).ok()?).ok()?;
@@ -188,6 +189,12 @@ fn music_file(dir: &Path, pipeline: &Path, key: &str) -> Option<PathBuf> {
         p.exists().then_some(p)
     };
     look(dir.join("audio.json"), dir).or_else(|| look(pipeline.join("assets/library.json"), &pipeline.join("assets")))
+        .or_else(|| song_file(key))
+}
+
+/// A song from Flex's library, downloaded if need be.
+fn song_file(key: &str) -> Option<PathBuf> {
+    crate::library::ensure(key).unwrap_or_else(|e| { eprintln!("flex: song \"{key}\": {e}"); None })
 }
 
 impl Project {
@@ -198,7 +205,9 @@ impl Project {
         let pipeline = find_pipeline(&dir)?;
         let tsx = pipeline.join("node_modules/.bin/tsx");
         if !tsx.exists() { return Err(ProjectError::PipelineNotInstalled(pipeline)); }
-        let out = Command::new(&tsx)
+        let mut outline = Command::new(&tsx);
+        crate::library::apply(&mut outline); // Flex's songs: a film can name one before it's downloaded
+        let out = outline
             .arg("--import").arg(redirect_script()?)
             .arg(outline_script()?)
             .arg(&dir)
@@ -215,6 +224,8 @@ impl Project {
         let mut scenes = o.scenes.unwrap_or_default();
         scene_files(&dir, &mut scenes);
         let music = o.music.unwrap_or(Music { key: String::new(), segments: None, from: None, tracks: None });
+        // a film across songs: each of its library songs is fetched too
+        for k in music.tracks.iter().flatten().filter(|k| **k != music.key) { if music_file(&dir, &pipeline, k).is_none() { eprintln!("flex: no file for track \"{k}\""); } }
         Ok(Project {
             music_file: music_file(&dir, &pipeline, &music.key),
             name: o.name.unwrap_or_default(),

@@ -17,7 +17,8 @@ takes a project folder.
 | `flex frame <dir> <frame\|12.5s> -o x.png [--width 960]` | Paint one frame |
 | `flex warm <dir> [--scene id] [--width 960]` | Paint every frame (or a scene's) into the cache, on all cores |
 | `flex status [<dir>] [--json]` | With the app running: the projects it has open, the author's playhead (time, frame, scene), what's painted, any render running. Without it: how much of each scene is painted, and scenes that didn't draw |
-| `flex library [--json]` | Flex's own music library: each track's key, tempo, length, mood and licence |
+| `flex library [--json]` | Flex's own music library: each track's and song's key, tempo, length, mood and licence, and whether a song is downloaded |
+| `flex library pull <key>… [--all] [--stems]` | Download songs now (they download the first time a film uses them anyway), with their stems |
 | `flex show <dir> [AT \| --scene <id>]` | Open the project in the app (starting it if needed) and move its playhead: a frame, film seconds (`22.5s`) or a bar.beat |
 | `flex diff <dir> [frame…] [--keep dir]` | Compare Flex's painting with the pipeline's |
 | `flex watch <dir> [--at 8s]` | Keep the cache painted and print each reload, as the app does |

@@ -65,7 +65,7 @@ the take's scene, cards).
 
 ```sh
 flex new <dir> --music <song.mp3> [--name <film>] [--feel clean|modern|professional]
-flex library                     # or one of Flex's own tracks: tempo, length, mood, licence (music: { key } in project.ts)
+flex library                     # or one of Flex's own tracks and songs: tempo, length, mood, licence (music: { key } in project.ts)
 ```
 
 This creates:
@@ -92,8 +92,11 @@ their licence. Three ways:
   | YouTube Audio Library | per track; some need attribution |
   | Free Music Archive | per track; avoid NC (non-commercial) for anything commercial |
 
-  `flex library` lists the tracks Flex ships with (`music: { key: "carefree" }` in `project.ts`): a good start for a
-  walkthrough, but every Flex film can use them, so a film that should sound like its own picks a track of its own.
+  `flex library` lists the tracks Flex ships with (`music: { key: "carefree" }` in `project.ts`) and Flex's own songs
+  (made in Suno for Flex, with vocals, chants or instrumental; free to use in your films). A song downloads the first time
+  a film names it, with its grid; `flex library pull <key> --stems` fetches it ahead with its stems (in
+  `~/Library/Application Support/Flex/library/<key>/stems/`). A good start, but every Flex film can use them, so a film
+  that should sound like its own picks a track of its own.
 - **Generated in Suno**, on the author's account. Write them the prompt: the style and mood, the tempo (BPM), the length,
   and the structure the plan needs (an intro, the build, the drop where the reveal lands, a clean ending), instrumental
   under narration. Ask for the stems too (drums, bass, vocals) and put them in the `stems/` folder `flex new` makes:
@@ -132,8 +135,8 @@ its take is otherwise only caught when the project loads.
 
 ### Two songs, sound effects and a hand mix
 
-**A film across two songs.** The music edit can name a track per stretch: `music: { key: "dsd", segments: [[0, 66.184],
-[65.695, 119.16]], tracks: ["dsd", "dak"] }` plays DSD from 0 to 66.184, then DAK from its own 65.695 (both keys in
+**A film across two songs.** The music edit can name a track per stretch: `music: { key: "intro", segments: [[0, 66.184],
+[65.695, 119.16]], tracks: ["intro", "main"] }` plays `intro` from 0 to 66.184, then `main` from its own 65.695 (both keys in
 `audio.json`, each with its `<track>.grid.json`). The joins crossfade (120 ms), so switch songs where they match: the
 same key, a drumless gap, a bar line. The film grid follows: `flex grid` shows the switch, and after it the bars and
 beats are the second song's own (so `cuts`, `narration` and bar.beat everywhere are right on both sides).

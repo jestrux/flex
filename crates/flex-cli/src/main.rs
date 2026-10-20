@@ -33,15 +33,32 @@ fn set_variants(v: &[String]) -> Result<()> {
 }
 
 #[derive(Subcommand)]
+enum LibraryCmd {
+    /// Download songs now (they download on first use anyway): into <support>/library/<key>/
+    Pull {
+        /// the songs' keys (flex library lists them)
+        keys: Vec<String>,
+        /// every song
+        #[arg(long)]
+        all: bool,
+        /// their stems too (a few hundred MB each), into <key>/stems/
+        #[arg(long)]
+        stems: bool,
+    },
+}
+
+#[derive(Subcommand)]
 enum Cmd {
     /// The project's assets: the song and stems, takes, freezes and stills, cards, looks, labs, renders
     Assets(assets::Args),
     /// Flex's own music library: tracks a film can use without a song of its own (`music: { key: "<key>" }` in
-    /// project.ts), with their tempo, length, mood and licence
+    /// project.ts), with their tempo, length, mood and licence. The songs download the first time a film uses them
     Library {
         /// print JSON
         #[arg(long)]
         json: bool,
+        #[command(subcommand)]
+        cmd: Option<LibraryCmd>,
     },
     /// The project's activity trail: flex commands, file changes and the agents' sessions, on one clock
     Activity(activity::Args),
@@ -647,23 +664,44 @@ fn run() -> Result<()> {
     if !cli.takes.is_empty() { std::env::set_var("FLEX_TAKE_VERSIONS", cli.takes.join(",")); }
     match cli.cmd {
         Cmd::Assets(a) => assets::run(a)?,
-        Cmd::Library { json } => {
+        Cmd::Library { cmd: Some(LibraryCmd::Pull { keys, all, stems }), .. } => {
+            use flex_core::library;
+            let songs = library::songs();
+            let keys: Vec<String> = if all { songs.iter().map(|s| s.key.clone()).collect() } else { keys };
+            if keys.is_empty() { anyhow::bail!("name the songs to pull (flex library lists them), or --all"); }
+            for k in &keys {
+                let Some(p) = library::ensure(k)? else { anyhow::bail!("no song \"{k}\" in Flex's library (flex library lists them)") };
+                println!("{k:<20} {}", p.display());
+                if stems { println!("{:<20} {}", "", library::ensure_stems(k)?.display()); }
+            }
+        }
+        Cmd::Library { json, cmd: None } => {
             let assets = flex_core::project::bundled_pipeline()?.join("assets");
             let lib: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(assets.join("library.json"))?)?;
             let mut rows = vec![];
             for (key, t) in lib["music"].as_object().into_iter().flatten() {
                 // the tempo and length from the track's grid when the library doesn't say
                 let grid: serde_json::Value = std::fs::read_to_string(assets.join("music").join(format!("{key}.grid.json"))).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
-                rows.push(serde_json::json!({ "key": key, "bpm": t["bpm"].as_f64().or(grid["bpm"].as_f64()), "duration": grid["duration"].as_f64(),
-                    "mood": t["mood"], "feel": t["feel"], "licence": t["licence"], "attribution": t["attribution"] }));
+                rows.push(serde_json::json!({ "key": key, "kind": "bundled", "bpm": t["bpm"].as_f64().or(grid["bpm"].as_f64()), "duration": grid["duration"].as_f64(),
+                    "mood": t["mood"], "feel": t["feel"], "licence": t["licence"], "attribution": t["attribution"], "downloaded": true }));
+            }
+            // Flex's songs: downloaded on first use
+            for s in flex_core::library::songs() {
+                let mut r = serde_json::to_value(&s)?;
+                r["kind"] = "song".into();
+                r["downloaded"] = flex_core::library::downloaded(&s).into();
+                r["hasStems"] = flex_core::library::has_stems(&s.key).into();
+                rows.push(r);
             }
             if json { println!("{}", serde_json::to_string_pretty(&rows)?); } else {
                 for r in &rows {
                     let bpm = r["bpm"].as_f64().map(|b| format!("{b:.0} BPM")).unwrap_or_else(|| "? BPM".into());
                     let len = r["duration"].as_f64().map(|d| format!("{}:{:02}", d as u32 / 60, d as u32 % 60)).unwrap_or_default();
-                    println!("  {:<24} {:>8} {:>6}  {}  ({})", r["key"].as_str().unwrap_or(""), bpm, len, r["mood"].as_str().unwrap_or(""), r["licence"].as_str().unwrap_or(""));
+                    let kind = match (r["kind"].as_str(), r["downloaded"].as_bool()) { (Some("song"), Some(true)) => "song, here", (Some("song"), _) => "song", _ => "bundled" };
+                    let vocals = r["vocals"].as_str().map(|v| format!("{v} · ")).unwrap_or_default();
+                    println!("  {:<24} {:>8} {:>6}  {:<10}  {vocals}{}  ({})", r["key"].as_str().unwrap_or(""), bpm, len, kind, r["mood"].as_str().unwrap_or(""), r["licence"].as_str().unwrap_or(""));
                 }
-                println!("use one: music: {{ key: \"<key>\" }} in project.ts (a CC BY track's attribution goes into the film's credits)");
+                println!("use one: music: {{ key: \"<key>\" }} in project.ts (a song downloads the first time a film uses it; a track's attribution goes into the film's credits)");
             }
         }
         Cmd::Script { dir, json } => {

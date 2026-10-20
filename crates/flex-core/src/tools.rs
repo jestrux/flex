@@ -121,5 +121,6 @@ fn with_env(dir: &Path, pipeline: &Path, args: &[String]) -> Result<Command, Pro
     if dir.join("takes").is_dir() { c.env("FLEX_TAKES", dir.join("takes")); }
     crate::secrets::apply(&mut c, &dir);
     crate::project::apply_frame(&mut c, &dir);
+    crate::library::apply(&mut c); // Flex's songs (FLEX_LIBRARY)
     Ok(c)
 }

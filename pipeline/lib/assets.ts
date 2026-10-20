@@ -24,6 +24,9 @@ export function projectAudio(): ProjectAudio[] {
     return { manifest, lib };
   });
 }
+// Flex: its own song library ($FLEX_LIBRARY/library.json, songs downloaded on first use; paths relative to it). A
+// project's own key of the same name wins.
+const SONGS = process.env.FLEX_LIBRARY ? join(process.env.FLEX_LIBRARY, "library.json") : undefined;
 export const library = (): Library => {
   const base = JSON.parse(readFileSync(LIB, "utf8")) as Library;
   for (const p of projectAudio()) for (const kind of ["sfx", "music"] as const)
@@ -31,11 +34,15 @@ export const library = (): Library => {
       if (base[kind][k]) throw new Error(`audio key "${k}" in ${p.manifest} is already in the library — keys must be unique`);
       base[kind][k] = a;
     }
+  if (SONGS && existsSync(SONGS)) {
+    const songs = JSON.parse(readFileSync(SONGS, "utf8")) as Partial<Library>;
+    for (const [k, a] of Object.entries(songs.music ?? {})) if (!base.music[k]) base.music[k] = { ...a, file: resolve(dirname(SONGS), a.file) };
+  }
   return base;
 };
 const get = (kind: "sfx" | "music", key: string) => {
   const a = library()[kind][key];
-  if (!a) throw new Error(`unknown ${kind} "${key}". Known: ${Object.keys(library()[kind]).join(", ")} (assets/library.json, projects/*/audio.json)`);
+  if (!a) throw new Error(`unknown ${kind} "${key}". Known: ${Object.keys(library()[kind]).join(", ")} (assets/library.json, projects/*/audio.json, $FLEX_LIBRARY/library.json)`);
   return { ...a, key, path: resolve(ASSETS, a.file) }; // a project's entries are already absolute
 };
 export const sfx = (key: string) => get("sfx", key);

@@ -86,7 +86,8 @@ flex sheet <mp4|folder> --from 20 --to 30 [--ref other.mp4]   # a labelled conta
 flex cuts <dir>                         # each cut's distance from the beat and the declared hits
 flex grid <dir> --at 15.2               # film bar.beat ↔ seconds through the music edit
 flex music <dir>                        # tempo, grid, stems, the vocal's words (once per track)
-flex library                            # Flex's own tracks: tempo, length, mood, licence
+flex library                            # Flex's own tracks and songs: tempo, length, mood, licence
+flex library pull <key> --stems         # a song (and its stems) now; songs otherwise download on first use
 flex render <dir> --range 20s:30s       # an excerpt with its sound, for review (seconds or bar.beat)
 flex render <dir> [--scene <id>]        # the film → ~/Downloads/flex-videos/<film>/<film>.mp4 (+ .srt, .credits.txt)
 flex accept <dir> --film <mp4>          # paint frames across every scene and compare with a render; the mix's loudness

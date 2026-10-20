@@ -177,6 +177,7 @@ impl Server {
         for (k, v) in variants { cmd.env(k, v); }
         crate::secrets::apply(&mut cmd, &dir); // the stored OpenAI key, unless the project pins Kokoro
         crate::project::apply_frame(&mut cmd, &dir); // a vertical film's frame (frame.json)
+        crate::library::apply(&mut cmd); // Flex's songs (FLEX_LIBRARY)
         let mut child = cmd
             .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
             .spawn().map_err(|e| ProjectError::Run(e.to_string()))?;
