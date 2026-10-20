@@ -387,6 +387,46 @@ input[type=range]{accent-color:var(--accent-line)}
 .oif:hover{background:var(--hover);color:var(--ink)}
 .flexline{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:13px;color:var(--ink-2)}
 .flexline svg{color:var(--ok)}
+.filmcard{display:flex;gap:10px;align-items:center;margin:4px 12px 14px;padding:10px;border-radius:8px;background:var(--surface);border:1px solid var(--line);text-align:left;color:var(--ink);transition:border-color var(--m-fast),background var(--m-fast)}
+.filmcard:hover{border-color:var(--line-2)}
+.filmcard.on{border-color:transparent;box-shadow:inset 0 0 0 1.5px var(--accent-line);background:var(--accent-soft)}
+.filmcard-poster{position:relative;flex:0 0 34px;height:60px;border-radius:4px;background:#1a1420 center/cover}
+.filmcard-poster.wide{flex-basis:60px;height:34px}
+.fplay{position:absolute;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:10px;background:rgba(10,10,12,.6);color:#fff;display:flex;align-items:center;justify-content:center}
+.fsegs{display:flex;gap:2px;height:4px;margin-top:2px}
+.fseg{position:relative;border-radius:2px;background:var(--line-2);overflow:hidden;min-width:2px}
+.fseg.built{background:var(--accent-line)}
+.fseg.building{background:var(--line-2)}
+.fseg.building i{position:absolute;left:0;top:0;bottom:0;background:var(--accent-line);opacity:.55;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+.fstrip{position:relative;display:flex;gap:3px;height:14px;cursor:pointer;touch-action:none}
+.fseg.big{border-radius:3px}
+.fstrip .ph{position:absolute;top:-5px;bottom:-5px;width:2px;margin-left:-1px;background:var(--ink);border-radius:1px;pointer-events:none}
+.fkey{display:inline-flex;align-items:center;gap:5px}
+.fkey:before{content:"";width:10px;height:6px;border-radius:2px;background:var(--line-2)}
+.fkey.built:before{background:var(--accent-line)}
+.fkey.building:before{background:repeating-linear-gradient(90deg,var(--accent-line) 0 3px,var(--line-2) 3px 6px)}
+.film-stage{display:flex;gap:32px;padding:28px 32px 48px;align-items:flex-start;max-width:1240px}
+.film-left{display:flex;flex-direction:column;gap:12px;align-items:flex-start;flex:0 0 auto;max-width:min(100%,720px)}
+.film-side{flex:1 1 300px;min-width:280px;max-width:440px;display:flex;flex-direction:column;gap:16px}
+.filmframe img,.filmframe video{transition:filter var(--m-base)}
+.filmframe.is-panel img{filter:grayscale(.85) contrast(.9) brightness(.8)}
+.fslate{position:absolute;left:0;right:0;bottom:0;pointer-events:none}
+.fslate-in{margin:12px;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:rgba(10,10,12,.72);color:#f2f1ec;font-size:12px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.scenes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px;border:1px solid var(--line);border-radius:10px;padding:4px;background:var(--surface)}
+.srow2{width:100%;display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:7px;text-align:left;color:var(--ink)}
+.srow2.on{background:var(--raised);box-shadow:inset 0 0 0 1px var(--line-2)}
+#notifs{position:fixed;top:14px;right:14px;z-index:90;display:flex;flex-direction:column;gap:8px;width:356px}
+.notif{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:rgba(242,241,236,.86);color:#141417;backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 .5px rgba(0,0,0,.12);animation:notifin 420ms cubic-bezier(.2,.9,.25,1.05);width:100%}
+:root[data-theme="dark"] .notif,:root:not([data-theme="light"]) .notif{background:rgba(40,40,46,.82);color:#f2f1ec;box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 .5px rgba(255,255,255,.12)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .notif{background:rgba(242,241,236,.86);color:#141417}}
+.notif.out{opacity:0;transform:translateX(24px);transition:opacity 240ms,transform 240ms}
+@keyframes notifin{from{opacity:0;transform:translateX(40px)}}
+.notif-icon{flex:0 0 30px;display:flex}
+.notif-thumb{flex:0 0 34px;height:44px;border-radius:5px;background:center/cover}
+.customcard{position:relative;width:100%;border:1px solid var(--line);border-radius:10px;padding:6px;background:var(--surface)}
+.card .customcard{background:var(--bg)}
+.custom-tag{position:absolute;right:10px;top:-10px;display:inline-flex;align-items:center;gap:5px;font-size:10px;line-height:18px;padding:0 7px;border-radius:9px;background:var(--bg);border:1px solid var(--line-2);color:var(--ink-3)}
 /* notes */
 .notes{display:flex;flex-direction:column;gap:10px}
 .notes-h{display:flex;align-items:baseline;justify-content:space-between;font-size:13px;font-weight:600;color:var(--ink-2)}
@@ -625,7 +665,7 @@ function normItem(it, i) {
   var body = {
     html: b.html || '', checks: toArr(b.checks), beats: toArr(b.beats), fields: toArr(b.fields),
     audio: audioOf(b.audio), image: b.image || null, gallery: toArr(b.gallery), video: b.video || null, poster: b.poster || null,
-    compare: toArr(b.compare), takes: toArr(b.takes).map(function (t) { return { label: t.label || '', src: t.src || (t.audio && (t.audio.src || t.audio)) || '', peaks: t.peaks || (t.audio && t.audio.peaks) || null, facts: t.facts || '', star: !!t.star, video: t.video || null }; }),
+    custom: b.custom || null, compare: toArr(b.compare), takes: toArr(b.takes).map(function (t) { return { label: t.label || '', src: t.src || (t.audio && (t.audio.src || t.audio)) || '', peaks: t.peaks || (t.audio && t.audio.peaks) || null, facts: t.facts || '', star: !!t.star, video: t.video || null }; }),
     filmAt: b.at != null ? Number(b.at) : b.filmAt != null ? Number(b.filmAt) : (b.film === true ? 0 : null), fps: b.fps || null, size: b.size || null, master: b.master || null,
     make: b.make ? { tool: b.make.tool || 'other', name: b.make.name || String(it.id || 'take'), versions: +b.make.versions || 1, stems: !!b.make.stems } : null,
     results: toArr(b.results).map(function (r, k) { var au = audioOf(r.audio || r.src); return { id: String(r.id || LETTERS[k].toLowerCase()), label: r.label || 'Take ' + (k + 1), src: au ? au.src : '', peaks: r.peaks || (au && au.peaks) || null, bpm: r.bpm || null, duration: r.duration || null, sections: toArr(r.sections), stems: toArr(r.stems) }; })
@@ -636,7 +676,7 @@ function normItem(it, i) {
     tags: toArr(it.tags).map(String), wide: !!it.wide, version: +it.version || 1, updated: +it.updated || 0, changed: it.changed || '',
     notePrompt: it.notePrompt || '', body: body, decision: d, kind: body.make ? (body.results.length ? 'audio' : 'fields') : kind, order: i,
     at: Array.isArray(it.at) ? it.at.map(Number) : it.at != null ? [Number(it.at)] : null,
-    visual: !!(body.video || body.image || body.compare.length || body.gallery.length)
+    visual: !!(body.video || body.image || body.compare.length || body.gallery.length || body.custom)
   };
 }
 function norm(raw) {
@@ -663,7 +703,9 @@ function norm(raw) {
   });
   var fps = 30, m = String(p.meta || '').match(/(\d+(?:\.\d+)?)\s*fps/i); if (m) fps = +m[1];
   var dims = String(p.meta || '').match(/(\d{3,5})\s*[×x]\s*(\d{3,5})/);
+  var film = filmOf(raw, song);
   return {
+    film: film,
     project: { name: p.name || 'Untitled film', meta: p.meta || '', intro: p.intro || '', dir: p.dir || p.name || 'flex-review', stagesLabel: p.stagesLabel || raw.stagesLabel || 'The film', working: p.working && p.working.stage ? p.working : null },
     stages: stages, items: ordered, byStage: byStage, song: song, settled: settled, fps: fps,
     aspect: dims ? (+dims[1] / +dims[2]) : null,
@@ -1232,13 +1274,14 @@ function galleryPlain(it) {
 function layoutOf(it) {
   var b = it.body;
   if (!it.visual) return 'none';
-  if (b.gallery.length || b.compare.length) return 'horiz';
+  if (b.gallery.length || b.compare.length || b.custom) return 'horiz';
   if (it.wide && !(b.video || b.image)) return 'horiz';
   return isVertical(b.video || b.image) ? 'vert' : 'horiz';  // vertical frames stand beside the text, even on wide cards
 }
 function bodyMedia(it, opts) {
   opts = opts || {};
   var b = it.body;
+  if (b.custom) return customFrame(it);
   if (b.video) return videoPlayer(it, b.video, { poster: b.poster, big: opts.big });
   if (b.compare.length) {
     return compare(it, opts);
@@ -1906,7 +1949,7 @@ function rail() {
   var nav = h('nav', { class: 'rail', 'aria-label': 'Board' },
     h('div', { class: 'rail-head' }, h('div', { class: 'brand' }, I.mark(22), 'Flex Review'),
       h('button', { type: 'button', class: 'iconbtn ib', 'aria-label': 'Switch to ' + (themeNow === 'light' ? 'dark' : 'light') + ' theme', onclick: function () { S.theme = themeNow === 'light' ? 'dark' : 'light'; applyTheme(); save(); render(); } }, themeNow === 'light' ? I.moon() : I.sun())),
-    h('div', { class: 'proj' }, h('div', { class: 'proj-poster' + (wide ? ' wide' : ''), style: poster ? 'background-image:url("' + poster.replace(/"/g, '%22') + '")' : '' }),
+    D.film ? filmCard() : h('div', { class: 'proj' }, h('div', { class: 'proj-poster' + (wide ? ' wide' : ''), style: poster ? 'background-image:url("' + poster.replace(/"/g, '%22') + '")' : '' }),
       h('div', { style: 'display:flex;flex-direction:column;min-width:0' }, h('span', { class: 'proj-name', title: D.project.name }, D.project.name), D.project.meta ? h('span', { class: 'proj-meta', html: D.project.meta }) : null)));
   var navs = h('div', { class: 'nav' },
     h('button', { type: 'button', class: 'nav-a row' + (UI.view === 'inbox' && !UI.review ? ' on' : ''), onclick: function () { setView('inbox'); } }, I.inbox(), h('span', { class: 'grow' }, 'Needs you'), t.open ? h('span', { class: 'badge-count' }, String(t.open)) : h('span', { class: 'mono muted', style: 'font-size:11px' }, '0')),
@@ -2450,7 +2493,9 @@ function render() {
   if (UI.view === 'stage' && !stageOf(UI.stage)) UI.view = 'inbox';
   var app = document.getElementById('app'); app.innerHTML = '';
   app.appendChild(rail());
+  if (UI.view === 'film' && !D.film) UI.view = 'inbox';
   if (UI.view === 'inbox') { app.appendChild(inboxList()); app.appendChild(readingPane()); }
+  else if (UI.view === 'film') app.appendChild(filmPane());
   else app.appendChild(stackPane());
   var layer = document.getElementById('layer'); layer.innerHTML = '';
   if (UI.review) layer.appendChild(reviewView());
@@ -2524,6 +2569,13 @@ document.addEventListener('keydown', function (e) {
     case 's': case 'S': e.preventDefault(); openDrawer(); return;
     case 'r': case 'R': e.preventDefault(); if (!UI.review) startReview(); return;
     case 'v': case 'V': if (UI.toast) { e.preventDefault(); openToast(); } return;
+  }
+  if (UI.view === 'film' && !UI.review) {
+    var fp = PL['film|player'];
+    if (fp && k === ' ') { e.preventDefault(); fp.toggle(); render(); return; }
+    if (fp && (k === '[' || k === ']')) { e.preventDefault(); fp.barStep(k === ']' ? 1 : -1); return; }
+    if (fp && (k === ',' || k === '.')) { e.preventDefault(); fp.step(k === '.' ? 1 : -1); return; }
+    if (fp && (k === 'o' || k === 'O')) { e.preventDefault(); openInFlex(fp.t); return; }
   }
   if (!it) return;
   var ms = makeStep(it);
@@ -2606,11 +2658,8 @@ function apply(raw, sig) {
   if (old) nd.items.forEach(function (it) { var o = old.byId[it.id]; if (!o) arrived.push(it); else if (o.version !== it.version) changed.push(it); });
   D = nd;
   arrived.concat(changed).forEach(function (it) { UI.glow[it.id] = true; setTimeout(function () { delete UI.glow[it.id]; var r = document.querySelector('[data-row="' + it.id + '"]'); if (r) r.classList.remove('glow', 'arrive'); var c = document.getElementById('card-' + it.id); if (c) c.classList.remove('glow'); }, 2400); });
-  var first = arrived[0] || changed[0];
-  if (first) {
-    UI.toast = { id: first.id, changed: !arrived.length, more: arrived.length + changed.length - 1 };
-    clearTimeout(toastT); toastT = setTimeout(function () { UI.toast = null; var t = document.querySelector('.toast'); if (t) t.remove(); }, 6000);
-  }
+  if (old) notifyChanges(old, nd, arrived, changed);
+  var fp = PL['film|player']; if (fp && nd.film) fp.F = nd.film;
   render();
 }
 function applyPending() { if (UI.pending && !isTyping()) apply(UI.pending); }
@@ -2625,6 +2674,251 @@ function poll() {
   document.head.appendChild(s);
 }
 
+
+/* ───────────────────────── the film so far ───────────────────────── */
+// project.film: { src?: the latest cut, scenes: [{ id, title, at, end?, status: built|building|panel, panel, video?, videoAt?, progress? }] }
+function filmOf(raw, song) {
+  var p = (raw && raw.project) || {}, f = p.film; if (!f || !toArr(f.scenes).length) return null;
+  var w = p.working || null;
+  var scenes = toArr(f.scenes).map(function (s, i) {
+    var st = s.status || (s.video || f.src ? 'built' : 'panel');
+    var prog = s.progress != null ? +s.progress : null;
+    if (w && w.item === s.id && st !== 'built') { st = 'building'; if (w.progress != null) prog = +w.progress; }
+    return { id: String(s.id || 'scene-' + (i + 1)), n: i + 1, title: s.title || 'Scene ' + (i + 1), at: +s.at || 0, end: s.end != null ? +s.end : null, status: st, panel: s.panel || null, video: s.video || null, videoAt: +s.videoAt || 0, progress: prog, builtAt: +s.builtAt || 0 };
+  }).sort(function (a, b) { return a.at - b.at; });
+  var dur = +f.duration || (song && song.end != null ? song.end - song.start : 0);
+  if (!dur) { var m = String(p.meta || '').match(/(\d+(?:\.\d+)?)\s*s\b/); if (m) dur = +m[1]; }
+  scenes.forEach(function (s, i) { if (s.end == null) s.end = i + 1 < scenes.length ? scenes[i + 1].at : (dur || s.at + 4); });
+  if (!dur) dur = scenes[scenes.length - 1].end;
+  var built = scenes.filter(function (s) { return s.status === 'built'; }).length;
+  return { src: f.src || null, scenes: scenes, duration: dur, built: built, updated: +f.updated || 0 };
+}
+function sceneAt(F, t) { for (var i = F.scenes.length - 1; i >= 0; i--) if (t >= F.scenes[i].at - 1e-3) return F.scenes[i]; return F.scenes[0]; }
+function filmNew(F) { return F && F.scenes.some(function (s) { return s.status === 'built' && s.builtAt > (S.filmSeen || S.prevVisit || 0); }); }
+function filmPoster(F) {
+  var last = null; F.scenes.forEach(function (s) { if (s.status === 'built') last = s; });
+  return (last || F.scenes[0]).panel;
+}
+function filmCard() {
+  var F = D.film, on = UI.view === 'film' && !UI.review, poster = filmPoster(F), a = poster ? aspectOf(poster) : (D.aspect || 0.56);
+  var segs = h('div', { class: 'fsegs' }, F.scenes.map(function (s) {
+    return h('span', { class: 'fseg ' + s.status, style: 'flex:' + Math.max(0.5, s.end - s.at) }, s.status === 'building' ? h('i', { style: 'width:' + Math.round((s.progress || 0) * 100) + '%' }) : null);
+  }));
+  return h('button', { type: 'button', class: 'filmcard' + (on ? ' on' : ''), onclick: function () { setView('film'); } },
+    h('div', { class: 'filmcard-poster' + (a >= 1 ? ' wide' : ''), style: poster ? 'background-image:url("' + poster.replace(/"/g, '%22') + '")' : '' }, h('span', { class: 'fplay' }, I.play(10))),
+    h('div', { style: 'display:flex;flex-direction:column;min-width:0;flex:1;gap:3px' },
+      h('span', { style: 'display:flex;align-items:center;gap:6px;min-width:0' }, h('span', { class: 'proj-name', style: 'flex:1', title: D.project.name }, D.project.name), filmNew(F) ? h('span', { class: 'pill new' }, 'New') : null),
+      h('span', { class: 'proj-meta' }, 'The film so far · ' + F.built + ' of ' + F.scenes.length + ' scenes'),
+      segs));
+}
+
+/* the player: the song is the clock; built scenes play the cut, the rest show their storyboard panel */
+function filmPlayer(F) {
+  var p = getPlayer('film|player', function () {
+    var p = { kind: 'film', item: '__film', t: 0, playing: false, last: 0 };
+    var song = D.song;
+    var au = song && song.src ? h('audio', { src: song.src, preload: 'auto' }) : null;
+    var vid = h('video', { muted: true, playsinline: true, preload: 'auto' }); vid.muted = true;
+    var img = h('img', { alt: '', draggable: 'false' });
+    var slate = h('div', { class: 'fslate' });
+    var frame = h('div', { class: 'frame filmframe' }, img, vid, slate, h('button', { type: 'button', class: 'bigplay', 'aria-label': 'Play the film so far', onclick: function () { p.toggle(); } }, I.play(20)));
+    p.media = au || vid;
+    p.F = F;
+    p.duration = function () { return p.F.duration; };
+    p.time = function () { return p.t; };
+    function songT() { return song.start + p.t; }
+    p.seek = function (t) { p.t = clamp(t, 0, p.duration()); if (au) au.currentTime = songT(); p.paint(true); };
+    p.play = function () { pauseOthers(p); if (p.t >= p.duration() - 0.05) p.t = 0; p.playing = true; p.last = performance.now(); if (au) { au.currentTime = songT(); au.play().catch(function () {}); } frame.classList.add('playing'); loop(); };
+    p.pause = function () { p.playing = false; if (au) au.pause(); vid.pause(); frame.classList.remove('playing'); p.paint(true); };
+    p.toggle = function () { if (p.playing) p.pause(); else p.play(); };
+    p.step = function (n) { p.pause(); p.seek(p.t + n / (D.fps || 30)); };
+    p.barStep = function (n) { if (!song) { p.seek(p.t + 2 * n); return; } var b = barAtSong(songT()), nb = n > 0 ? Math.floor(b + 1e-3) + 1 : Math.ceil(b - 1e-3) - 1; p.pause(); p.seek(songAtBar(nb) - song.start); };
+    p.film = function () { return 0; };
+    if (au) au.addEventListener('pause', function () { if (p.playing && !au.ended) { /* paused by another player */ p.playing = false; frame.classList.remove('playing'); vid.pause(); p.paint(true); } });
+    function loop() {
+      if (!p.playing) return;
+      var nowT = performance.now();
+      if (au && !au.paused) p.t = au.currentTime - song.start; else p.t += (nowT - p.last) / 1000;
+      p.last = nowT;
+      if (p.t >= p.duration()) { p.t = p.duration(); p.pause(); return; }
+      p.paint(); requestAnimationFrame(loop);
+    }
+    var curScene = null;
+    p.paint = function (force) {
+      var F = p.F, s = sceneAt(F, p.t), src = s.video || F.src;
+      if (s !== curScene || force) {
+        curScene = s;
+        var built = s.status === 'built' && src;
+        vid.style.visibility = built ? 'visible' : 'hidden';
+        img.style.visibility = built ? 'hidden' : 'visible';
+        if (s.panel && img.getAttribute('src') !== s.panel) img.src = s.panel;
+        frame.classList.toggle('is-panel', !built);
+        slate.innerHTML = '';
+        if (!built) slate.appendChild(h('div', { class: 'fslate-in' }, s.status === 'building' ? h('span', { class: 'spin', style: 'border-top-color:#f2f1ec' }) : null,
+          h('span', null, s.status === 'building' ? 'Building scene ' + s.n + (s.progress != null ? ' · ' + Math.round(s.progress * 100) + '%' : '') : 'Storyboard panel · scene ' + s.n + ' isn\'t built yet')));
+        if (built && vid.getAttribute('src') !== src) { vid.src = src; }
+        p.onScene && p.onScene(s);
+      }
+      if (curScene.status === 'built' && src) {
+        var want = s.video ? p.t - s.at + s.videoAt : p.t;
+        if (Math.abs((vid.currentTime || 0) - want) > 0.25 || !p.playing) { try { vid.currentTime = want; } catch (e) {} }
+        if (p.playing && vid.paused) vid.play().catch(function () {});
+        if (!p.playing && !vid.paused) vid.pause();
+      } else if (!vid.paused) vid.pause();
+      p.onTime && p.onTime(p.t, s);
+    };
+    p.frame = frame;
+    p.el = h('div', { class: 'filmplayer' }, frame, au);
+    return p;
+  });
+  p.F = F;
+  return p;
+}
+function filmPane() {
+  var F = D.film, main = h('main', { class: 'main' });
+  S.filmSeen = now(); saveSoon();
+  main.appendChild(h('div', { class: 'topbar' }, h('span', { class: 'crumb', style: 'font-weight:600;color:var(--ink)' }, 'The film so far'),
+    h('span', { class: 'muted' }, F.built + ' of ' + F.scenes.length + ' scenes built'), h('div', { class: 'right' }, sendBtn())));
+  statusBars().forEach(function (b) { main.appendChild(b); });
+  var p = filmPlayer(F), a = D.aspect || 9 / 16;
+  p.frame.setAttribute('style', a < 1 ? 'height:min(640px,calc(100vh - 250px));width:auto;aspect-ratio:' + a : 'width:100%;aspect-ratio:' + a);
+  var tNow = h('span', { class: 't' }), barR = h('span', { class: 'bar' }), sceneR = h('span', { class: 'muted', style: 'font-size:12px' });
+  var playB = h('button', { type: 'button', class: 'b play ib', 'aria-label': 'Play (Space)', onclick: function () { p.toggle(); render(); } }, p.playing ? I.pause() : I.play());
+  // the strip: one segment per scene, sized by its length, coloured by how far along it is
+  var ph = h('span', { class: 'ph' });
+  var strip = h('div', { class: 'fstrip', role: 'slider', 'aria-label': 'The film so far, by scene' }, F.scenes.map(function (s) {
+    return h('span', { class: 'fseg big ' + s.status, title: s.n + ' · ' + plain(s.title) + ' · ' + s.status, style: 'flex:' + Math.max(0.5, s.end - s.at) }, s.status === 'building' ? h('i', { style: 'width:' + Math.round((s.progress || 0) * 100) + '%' }) : null);
+  }), ph);
+  strip.addEventListener('pointerdown', function (e) { var r = strip.getBoundingClientRect(); p.seek(clamp((e.clientX - r.left) / r.width, 0, 1) * F.duration); });
+  var list = h('ol', { class: 'scenes' });
+  F.scenes.forEach(function (s) {
+    list.appendChild(h('li', null, h('button', { type: 'button', class: 'srow2 row', 'data-scene': s.id, onclick: function () { p.seek(s.at); } },
+      s.status === 'built' ? I.check(14) : s.status === 'building' ? h('span', { class: 'spin' }) : h('span', { class: 'ring see' }),
+      h('span', { class: 'mono muted', style: 'width:16px;font-size:11px' }, String(s.n)),
+      h('span', { style: 'flex:1;min-width:0;display:flex;flex-direction:column' }, h('span', { style: 'font-size:13px;font-weight:550', html: s.title }),
+        h('span', { class: 'muted', style: 'font-size:11px' }, s.status === 'built' ? 'built' + (s.builtAt ? ' ' + ago(s.builtAt) : '') : s.status === 'building' ? 'building' + (s.progress != null ? ' · ' + Math.round(s.progress * 100) + '%' : '') : 'storyboard panel')),
+      s.status === 'built' && s.builtAt > (UI.filmSeenBefore || 0) ? h('span', { class: 'pill new' }, 'New') : null,
+      h('span', { class: 'mono muted', style: 'font-size:11px' }, fmtT(s.at, 1)))));
+  });
+  p.onTime = function (t, s) {
+    tNow.textContent = fmtT(t) + ' / ' + fmtT(F.duration);
+    barR.textContent = D.song ? 'bar ' + barBeat(D.song.start + t) : '';
+    sceneR.textContent = 'Scene ' + s.n + ' · ' + plain(s.title);
+    ph.style.left = (t / F.duration * 100) + '%';
+    list.querySelectorAll('.srow2').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-scene') === s.id); });
+    playB.innerHTML = ''; playB.appendChild(p.playing ? I.pause() : I.play());
+  };
+  var w = D.project.working;
+  var side = h('div', { class: 'film-side' },
+    h('div', { style: 'display:flex;flex-direction:column;gap:4px' }, h('h1', { class: 'h-stage', style: 'font-size:20px;line-height:26px' }, 'The film so far'),
+      h('span', { style: 'font-size:13px;line-height:19px;color:var(--ink-2)' }, F.built === F.scenes.length ? 'Every scene is built. This is the film.' : 'Built scenes play as they are now; the rest play their storyboard panel on the music, so it always runs end to end.')),
+    w ? h('div', { class: 'flexline', style: 'color:var(--ink-2)' }, h('span', { class: 'spin' }), h('span', { style: 'flex:1' }, plain(w.text || 'The agent is working')), w.progress != null ? h('span', { class: 'mono muted' }, Math.round(w.progress * 100) + '%') : null) : null,
+    list);
+  var stage = h('div', { class: 'film-stage' }, h('div', { class: 'film-left' }, p.el,
+    h('div', { style: 'display:flex;flex-direction:column;gap:6px;width:100%' }, strip,
+      h('div', { class: 'ctl' }, playB, tNow, sceneR, barR,
+        h('button', { type: 'button', class: 'oif', style: 'margin-left:6px', title: 'Open this moment in Flex (O)', onclick: function () { openInFlex(p.t); } }, I.flex(), 'Flex')),
+      h('div', { class: 'hints' }, h('span', { class: 'fkey built' }, 'built'), h('span', { class: 'fkey building' }, 'building'), h('span', { class: 'fkey panel' }, 'storyboard panel'),
+        h('span', { style: 'margin-left:auto' }, h('span', { class: 'kbd' }, 'Space'), ' play · ', h('span', { class: 'kbd' }, '['), h('span', { class: 'kbd' }, ']'), ' bar')))), side);
+  var sc = h('div', { class: 'scroll', 'data-scroll': 'film' }, stage);
+  main.appendChild(sc);
+  requestAnimationFrame(function () { p.paint(true); });
+  return main;
+}
+
+/* ───────────────────────── notifications ───────────────────────── */
+// In the app these are macOS notifications; here they come in where the app's would.
+function notify(n) {
+  var box = document.getElementById('notifs');
+  if (!box) { box = h('div', { id: 'notifs', 'aria-live': 'polite' }); document.body.appendChild(box); }
+  var el = h('button', { type: 'button', class: 'notif' },
+    h('span', { class: 'notif-icon' }, I.mark(30)),
+    h('span', { style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;text-align:left' },
+      h('span', { style: 'display:flex;align-items:baseline;gap:8px' }, h('b', { style: 'flex:1;font-size:13px' }, n.title), h('span', { style: 'font-size:11px;opacity:.6' }, 'now')),
+      h('span', { style: 'font-size:13px;line-height:17px;opacity:.85', text: n.body }),
+      n.sub ? h('span', { style: 'font-size:11px;opacity:.55', text: n.sub }) : null),
+    n.thumb ? h('span', { class: 'notif-thumb', style: 'background-image:url("' + n.thumb + '")' }) : null);
+  var gone = function () { el.classList.add('out'); setTimeout(function () { el.remove(); }, 260); };
+  el.addEventListener('click', function () { gone(); if (n.open) n.open(); });
+  var tm = setTimeout(gone, 7000);
+  el.addEventListener('mouseenter', function () { clearTimeout(tm); });
+  el.addEventListener('mouseleave', function () { tm = setTimeout(gone, 2500); });
+  box.insertBefore(el, box.firstChild);
+  while (box.children.length > 4) box.lastChild.remove();
+}
+function notifyChanges(old, nd, arrived, changed) {
+  arrived.forEach(function (it) {
+    var st = nd.stages.filter(function (s) { return s.id === it.stage; })[0];
+    notify({ title: it.decision || it.body.make ? 'Needs you · ' + (st ? st.title : '') : 'New to see · ' + (st ? st.title : ''), body: plain(it.title), sub: it.decision && it.decision.rec ? 'I\'d go with “' + plain(it.decision.rec.label) + '”' : it.decision && it.decision.unsure ? 'I\'m not sure: have a look' : '', thumb: posterOfItem(it), open: function () { openItem(it.id); } });
+  });
+  changed.forEach(function (it) { notify({ title: 'Updated · v' + it.version, body: plain(it.title), sub: plain(it.changed || ''), thumb: posterOfItem(it), open: function () { openItem(it.id); } }); });
+  if (old && old.film && nd.film) nd.film.scenes.forEach(function (s) {
+    var o = old.film.scenes.filter(function (x) { return x.id === s.id; })[0];
+    if (s.status === 'built' && o && o.status !== 'built') notify({ title: 'Scene ' + s.n + ' is in', body: plain(s.title) + ' · the film so far is ' + nd.film.built + ' of ' + nd.film.scenes.length + ' scenes', thumb: s.panel, open: function () { setView('film'); var p = PL['film|player']; if (p) { p.seek(s.at); p.play(); } } });
+  });
+}
+function posterOfItem(it) { var b = it.body; return b.poster || b.image || (b.gallery[0] && (b.gallery[0].src || b.gallery[0])) || (b.compare[0] && b.compare[0].image) || null; }
+function openItem(id) { var it = D.byId[id]; if (!it) return; UI.review = null; UI.drawer = false; UI.view = 'inbox'; if (!isOpen(it)) UI.seg = 'all'; select(id); }
+
+/* ───────────────────────── agent-drawn cards ───────────────────────── */
+// body.custom: "cards/<id>.html" (or { src, height }). It runs in a walled-off frame; the board keeps the
+// decision, notes and handled mark. The frame talks to the board with postMessage:
+//   { type: "height", h }  · { type: "pick", o }  · { type: "note", text?, at? }  · { type: "show", at }   (film seconds)
+// and hears { type: "theme", vars } on load.
+function customFrame(it) {
+  var c = it.body.custom, src = typeof c === 'string' ? c : c.src, h0 = (typeof c === 'object' && c.height) || 320;
+  var key = it.id + '|custom|' + src;
+  var p = getPlayer(key, function () {
+    var fr = h('iframe', { src: src, sandbox: 'allow-scripts', title: plain(it.title), style: 'width:100%;height:' + h0 + 'px;border:0;display:block;border-radius:8px;background:var(--bg)' });
+    var p = { kind: 'custom', item: it.id, media: { paused: true, pause: function () {} }, el: h('div', { class: 'customcard' }, fr, h('span', { class: 'custom-tag' }, I.agent(11), 'Drawn by the agent')), frame: fr };
+    p.duration = function () { return 0; }; p.time = function () { return 0; };
+    fr.addEventListener('load', function () { sendTheme(fr); });
+    return p;
+  });
+  return p.el;
+}
+function sendTheme(fr) {
+  var cs = getComputedStyle(document.documentElement), vars = {};
+  ['--bg', '--surface', '--raised', '--line', '--line-2', '--ink', '--ink-2', '--ink-3', '--wave', '--accent', '--accent-line', '--accent-soft', '--time', '--warn', '--ok'].forEach(function (k) { vars[k] = cs.getPropertyValue(k).trim(); });
+  try { fr.contentWindow.postMessage({ type: 'theme', vars: vars }, '*'); } catch (e) {}
+}
+window.addEventListener('message', function (e) {
+  var d = e.data || {}, it = null;
+  Object.keys(PL).forEach(function (k) { var p = PL[k]; if (p.kind === 'custom' && p.frame.contentWindow === e.source) it = D.byId[p.item] && { it: D.byId[p.item], p: p }; });
+  if (!it) return;
+  if (d.type === 'height') it.p.frame.style.height = clamp(+d.h || 0, 80, 2000) + 'px';
+  else if (d.type === 'pick' && it.it.decision) pick(it.it, String(d.o));
+  else if (d.type === 'show') { if (D.film) { setView('film'); var fp = PL['film|player']; if (fp) { fp.seek(+d.at || 0); } } else openInFlex(+d.at || 0); }
+  else if (d.type === 'note') {
+    if (d.at != null) UI.pinAt[it.it.id] = { at: +d.at, label: 'Pin to ' + fmtT(+d.at) };
+    if (d.text) S.drafts[it.it.id] = String(d.text);
+    render(); focusNote(it.it);
+  }
+});
+
+/* ───────────────────────── demo: an agent at work (open index.html#demo) ───────────────────────── */
+function runDemo() {
+  var base = JSON.parse(JSON.stringify(RAW)), t0 = Date.now();
+  var steps = (base.project.demo || []);
+  if (!steps.length) return;
+  UI.demo = true;
+  steps.forEach(function (st) {
+    setTimeout(function () {
+      var raw = JSON.parse(JSON.stringify(RAW));
+      var pr = raw.project, sc = pr.film && pr.film.scenes;
+      var find = function (id) { return sc.filter(function (s) { return s.id === id; })[0]; };
+      if (st.work) pr.working = { stage: st.work.stage || 'scenes', item: st.work.item, text: st.work.text, since: Date.now(), progress: st.work.progress || 0 };
+      if (st.progress != null && pr.working) pr.working.progress = st.progress;
+      if (st.built) { var s = find(st.built); if (s) { s.status = 'built'; s.builtAt = Date.now(); delete s.progress; } pr.working = null; }
+      if (st.add) { var c = JSON.parse(JSON.stringify(st.add)); c.updated = Date.now(); c.version = 1; raw.items.push(c); }
+      if (st.bump) { raw.items.forEach(function (x) { if (x.id === st.bump.id) { x.version = (x.version || 1) + 1; x.updated = Date.now(); x.changed = st.bump.changed; } }); }
+      if (st.log) raw.log.push({ t: Date.now(), text: st.log, item: st.logItem || null });
+      if (st.clear) pr.working = null;
+      ingest(raw);
+    }, st.at * 1000);
+  });
+}
+
 /* ───────────────────────── boot ───────────────────────── */
 function boot() {
   RAW = window.FLEX_REVIEW || null;
@@ -2633,8 +2927,12 @@ function boot() {
   loadState(); applyTheme();
   UI.readAt = RAW ? now() : 0; UI.offline = !RAW; if (!RAW) UI.offlineSince = now();
   if (!S.welcomed && D.items.length) UI.welcome = true;
+  UI.filmSeenBefore = S.filmSeen || S.prevVisit || 0;
+  if (D.film && !totals().open) UI.view = 'film';
+  var demo = location.hash === '#demo';
+  if (demo) { UI.welcome = false; }
   render();
-  setInterval(poll, 3000);
+  if (demo) runDemo(); else setInterval(poll, 3000);
   if (SERVED) { pollFlex(); setInterval(pollFlex, 3000); }
   setInterval(function () { S.lastVisit = now(); save(); if (!isTyping() && !UI.review) refreshRail(); }, 30000);
   window.addEventListener('beforeunload', function () { S.lastVisit = now(); save(); });
