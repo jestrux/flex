@@ -50,3 +50,7 @@ in from a fancy-e2e-videos checkout (only needed to refresh it; the copy is in t
 
 `scripts/release.sh minor --publish` builds, signs, notarizes and publishes. Details in the
 [agent guide](docs/agent-guide.md#releasing).
+
+## License
+
+[MIT](LICENSE)
