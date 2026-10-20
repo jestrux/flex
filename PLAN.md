@@ -18,6 +18,13 @@ Decided with the author (2026-10-16):
   told the playhead. The timeline is drawn in SwiftUI.
 - The sample lives in `samples/circles-overview`, out of git.
 
+## Next (2026-10-20): the film's home, the board as the project window
+
+The review board (`review/index.html`, prototype done) becomes the window a project opens in: hosted in the app, live,
+the film so far playing end to end as scenes get built, notifications when something needs the author, agent-drawn
+cards, `flex review` in the CLI. The editor view stays one step away. Plan, phases and verifiables:
+[plans/the-film-home.md](plans/the-film-home.md).
+
 ## Done (2026-10-19): a composite music film as a Flex project
 
 Turn a Python-assembled vertical music film (Final 1, below) into one Flex project. The Flex side delivers
