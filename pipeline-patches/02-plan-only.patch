@@ -1,0 +1,96 @@
+diff --git a/lib/sequence.ts b/lib/sequence.ts
+index def7e51..4a79603 100644
+--- a/lib/sequence.ts
++++ b/lib/sequence.ts
+@@ -105,8 +105,16 @@ function resolveAt(take: string, at: number | string | undefined, ev: Events, ed
+   return +((k ? k.t : g!.start) / 1000 + off).toFixed(3);
+ }
+ 
+-export async function renderSequence(seq: Sequence) {
+-  needDisk(ROOT, 0.8, "video render");
++/** Flex: what plan-only mode returns (the timeline, its clips and their cues; nothing rendered, nothing deleted) */
++export type PlannedClip = { dur: number; voice: VoiceLine[]; sfx: SfxLine[]; label: string; item: number;
++  card?: { type: string; params: Record<string, unknown>; cardDur: number; held: boolean; cutNext: boolean; uid: string };
++  take?: { take: string; from: number; to: number; pad: number; effects: Edl["effects"]; segments?: Edl["segments"]; edl?: unknown } };
++export type Planned = { name: string; feel: string; music: Sequence["music"]; clips: PlannedClip[]; starts: number[];
++  joins: { type: string; ms: number; params: Record<string, any> }[]; voice: VoiceLine[]; sfx: SfxLine[]; total: number };
++
++export async function renderSequence(seq: Sequence, opts: { planOnly?: boolean } = {}): Promise<any> {
++  const planOnly = !!opts.planOnly; // Flex: plan and collect the cues; render nothing, delete nothing
++  if (!planOnly) needDisk(ROOT, 0.8, "video render");
+   const feel = feelNamed(seq.feel);
+   const k0 = seq.music === false ? null : musicKey(seq.music ?? "carefree"), g0 = k0 ? musicGrid(k0) : null, unit = { bar: g0?.bar, beat: g0?.beat };
+   seq = { ...seq, items: seq.items.map((it) => {
+@@ -116,9 +124,9 @@ export async function renderSequence(seq: Sequence) {
+   }) };
+   seq.items.forEach((it, i) => { if (it.kind !== "take" && it.type) validate(it.type, it.params as Record<string, unknown>, `${seq.name} item ${i + 1}`);
+     if (it.kind === "take") { const e: Edl = JSON.parse(readFileSync(join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), it.take, "edl.json"), "utf8")); (it.patch ? it.patch(e) : e).effects?.forEach((f, j) => validate(f.type, f.params, `${it.take} edl effect ${j + 1}`)); } });
+-  const dir = join(ROOT, "build", seq.name + SIZE_TAG); mkdirSync(dir, { recursive: true });
++  const dir = join(ROOT, "build", seq.name + SIZE_TAG); if (!planOnly) mkdirSync(dir, { recursive: true });
+   // a failed render must never leave the previous film behind for `check` to pass against
+-  if (!process.argv.includes("--plan")) for (const ext of [".mp4", ".srt", ".credits.txt"]) rmSync(finalPath(seq.name).replace(/\.mp4$/, ext), { force: true });
++  if (!planOnly && !process.argv.includes("--plan")) for (const ext of [".mp4", ".srt", ".credits.txt"]) rmSync(finalPath(seq.name).replace(/\.mp4$/, ext), { force: true });
+   console.log(`● sequence "${seq.name}" · feel ${feel.label} · canvas ${seq.canvas ?? "feel"}`);
+ 
+   // the length of the transition after item i (0 for a cut or the end)
+@@ -302,7 +310,7 @@ export async function renderSequence(seq: Sequence) {
+   }
+ 
+   // 1 · clips + the transitions between them
+-  type Clip = { file: string; dur: number; voice: VoiceLine[]; sfx: SfxLine[]; label: string; take?: { take: string; from: number; to: number; effects: Edl["effects"]; segments?: Edl["segments"] } };
++  type Clip = { file: string; dur: number; voice: VoiceLine[]; sfx: SfxLine[]; label: string; take?: { take: string; from: number; to: number; effects: Edl["effects"]; segments?: Edl["segments"] }; flex?: Partial<PlannedClip> };
+   const lastIdx = seq.items.reduce((acc, x, i) => (x.kind !== "transition" ? i : acc), -1);
+   const clips: Clip[] = [], joins: { type: string; ms: number; params: Record<string, any> }[] = [];
+   let pending: SeqItem | null = null;
+@@ -338,10 +346,12 @@ export async function renderSequence(seq: Sequence) {
+           ...(feel.stage?.border ? { border: feel.stage.border } : {}), ...(it.bgPhase !== undefined ? { phase: it.bgPhase } : {}) }; // bgPhase: the animated background's phase (ms) at the take's start
+       const pl = plans.get(i)!, from = (it.from as number | undefined) ?? 0, to = from + Math.min(pl.base, pl.dur), pad = Math.max(0, pl.dur - pl.base);
+       console.log(`  · take ${it.take} [${from}–${to.toFixed(2)}s${pad ? ` + hold ${pad.toFixed(2)}s` : ""}]`);
+-      await render(it.take, { edl: { feel: seq.feel, canvas: canvas as Edl["canvas"], effects: edl.effects, segments: edl.segments, transition: edl.transition, cursor: it.cursor ?? edl.cursor }, out: file, from, to, pad });
++      const takeEdl = { feel: seq.feel, canvas: canvas as Edl["canvas"], effects: edl.effects, segments: edl.segments, transition: edl.transition, cursor: it.cursor ?? edl.cursor };
++      if (!planOnly) await render(it.take, { edl: takeEdl, out: file, from, to, pad });
+       const inRange = <T extends { t: number }>(l: T) => l.t / 1000 >= from - 0.05 && l.t / 1000 < to;
+       const shift = <T extends { t: number }>(l: T) => ({ ...l, t: l.t - from * 1000 });
+       clips.push({ file, dur: Math.round((to - from + pad) * FPS) / FPS, label: `take ${it.take}`, take: { take: it.take, from, to, effects: edl.effects, segments: edl.segments },
++        flex: { item: i, take: { take: it.take, from, to, pad, effects: edl.effects, segments: edl.segments, edl: takeEdl } },
+         voice: (it.mute ? [] : ev.narration).filter(inRange).map(shift),
+         // the look's click sound (feel.click.sound) on every click of the take
+         // and the look's typing sounds (feel.typing) on every keystroke
+@@ -360,8 +370,8 @@ export async function renderSequence(seq: Sequence) {
+       const last = i === lastIdx, held = last || cutNext, cardDur = last ? dur + feel.motion.out + 400 : dur;
+       console.log(`  · ${it.kind} ${it.type} (${dur}ms${last ? ", held to the end" : cutNext ? ", holds to the hard cut" : ""})`);
+       const n = Math.round((dur / 1000) * FPS);
+-      await encode(file, n, (f) => paint(m.render(params, { t: (f * 1000) / FPS, dur: cardDur, out: OUT, feel, uid: `c${i}`, last: held, cutNext, asset: (p) => (p.startsWith("/") ? p : join(ROOT, p)) }), OUT));
+-      clips.push({ file, dur: n / FPS, label: `${it.kind} ${it.type}`, voice: v ? [{ t: it.sayAt ?? 300, ...v, text: it.say! }] : [], sfx: (it.sfx ?? []).filter((x) => x.at < dur).map((x) => ({ t: x.at, key: x.sound, db: x.db })) });
++      if (!planOnly) await encode(file, n, (f) => paint(m.render(params, { t: (f * 1000) / FPS, dur: cardDur, out: OUT, feel, uid: `c${i}`, last: held, cutNext, asset: (p) => (p.startsWith("/") ? p : join(ROOT, p)) }), OUT));
++      clips.push({ file, dur: n / FPS, label: `${it.kind} ${it.type}`, flex: { item: i, card: { type: it.type, params, cardDur, held, cutNext, uid: `c${i}` } }, voice: v ? [{ t: it.sayAt ?? 300, ...v, text: it.say! }] : [], sfx: (it.sfx ?? []).filter((x) => x.at < dur).map((x) => ({ t: x.at, key: x.sound, db: x.db })) });
+     }
+   }
+ 
+@@ -376,16 +386,23 @@ export async function renderSequence(seq: Sequence) {
+     tl += c.dur - headCut - ov;
+     if (j && ov > 0) {
+       const tf = join(dir, `tx-${String(i).padStart(2, "0")}-${j.type}.mp4`);
+-      const A = rawFrames(c.file, c.dur - ov, ov), B = rawFrames(clips[i + 1].file, 0, ov);
+-      const n = Math.min(A.length, B.length);
++      const A = planOnly ? [] : rawFrames(c.file, c.dur - ov, ov), B = planOnly ? [] : rawFrames(clips[i + 1].file, 0, ov);
++      const n = planOnly ? Math.round(ov * FPS) : Math.min(A.length, B.length);
+       const m = TRANSITIONS[j.type];
+       console.log(`  ⇢ ${j.type} ${j.ms}ms`);
+-      await encode(tf, n, (f) => m.mix(A[f], B[f], n <= 1 ? 1 : f / (n - 1), { out: OUT, feel, params: j.params }));
++      if (!planOnly) await encode(tf, n, (f) => m.mix(A[f], B[f], n <= 1 ? 1 : f / (n - 1), { out: OUT, feel, params: j.params }));
+       parts.push({ file: tf, inS: 0, outS: n / FPS });
+       tl += n / FPS; headCut = n / FPS;
+     } else headCut = 0;
+   }
+ 
++  if (planOnly) {
++    const voice = clips.flatMap((c, i) => c.voice.map((l) => ({ ...l, t: starts[i] * 1000 + l.t }))).sort((a, b) => a.t - b.t);
++    const sfx = clips.flatMap((c, i) => c.sfx.map((l) => ({ ...l, t: starts[i] * 1000 + l.t }))).sort((a, b) => a.t - b.t);
++    const planned: Planned = { name: seq.name, feel: seq.feel, music: seq.music, starts, joins, voice, sfx, total: tl,
++      clips: clips.map((c) => ({ dur: c.dur, voice: c.voice, sfx: c.sfx, label: c.label, item: c.flex?.item ?? -1, card: c.flex?.card, take: c.flex?.take })) };
++    return planned;
++  }
+   // 3 · join the parts into one silent video
+   const silent = join(dir, "video.mp4");
+   const inputs = parts.flatMap((p) => ["-i", p.file]);

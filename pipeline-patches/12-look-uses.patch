@@ -1,0 +1,22 @@
+diff --git a/lib/looks.ts b/lib/looks.ts
+index 697818e..148e214 100644
+--- a/lib/looks.ts
++++ b/lib/looks.ts
+@@ -51,9 +51,14 @@ for (const { name, file, rel } of lookFiles) {
+     const m = await import(pathToFileURL(file).href);
+     if (!m.default?.tokens) throw new Error("default-export defineLook({...})");
+     if (m.default.name !== name) throw new Error(`the look's name must be "${name}" (its file name, or its project's folder name)`);
+-    registerLook(m.default);
+-    const fnt = (m.default as Look).tokens.font;
+-    for (const fam of [fnt.sans, fnt.display, fnt.mono].filter((x): x is string => !!x)) await calibrateFont(fam);
++    // Flex (patch 12): a composite film's look names the looks it borrows cards from (`export const uses = [filmB, …]`),
++    // so another project's scenes render here under their own card names
++    const used: Look[] = Array.isArray(m.uses) ? m.uses : [];
++    for (const u of [m.default as Look, ...used.filter((u) => u?.tokens && u.name !== name && !LOOKS[u.name])]) {
++      registerLook(u);
++      const fnt = u.tokens.font;
++      for (const fam of [fnt.sans, fnt.display, fnt.mono].filter((x): x is string => !!x)) await calibrateFont(fam);
++    }
+   } catch (e) {
+     BROKEN[name] = (e as Error).message.split("\n")[0];
+     console.warn(`  ! ${rel} failed to load (skipped): ${BROKEN[name]}`);

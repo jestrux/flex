@@ -1,0 +1,157 @@
+diff --git a/lib/build.ts b/lib/build.ts
+index 397f861..4d13fe8 100644
+--- a/lib/build.ts
++++ b/lib/build.ts
+@@ -19,7 +19,8 @@ export const OUT_DIR = process.env.OUT_DIR ?? join(homedir(), "Downloads", "fanc
+  *  read from the source so every command — video, check, stills, sheet — agrees without importing the project).
+  *  Names are "<project>" or "<project>--<scene>". */
+ export function outDirFor(name: string) {
+-  const f = join(import.meta.dirname, "..", "projects", name.split("--")[0], "project.ts");
++  if (process.env.FLEX_OUT) return process.env.FLEX_OUT; // Flex: ~/Downloads/flex-videos/<project>/
++  const f = join(process.env.FLEX_PROJECTS ?? join(import.meta.dirname, "..", "projects"), name.split("--")[0], "project.ts");
+   const m = existsSync(f) ? readFileSync(f, "utf8").match(/^\s*out:\s*["']([^"']+)["']/m) : null;
+   return m ? join(OUT_DIR, m[1]) : OUT_DIR;
+ }
+diff --git a/lib/capture.ts b/lib/capture.ts
+index c781354..6a08885 100644
+--- a/lib/capture.ts
++++ b/lib/capture.ts
+@@ -68,7 +68,7 @@ export const DPR = Number(process.env.CAPTURE_DPR ?? 2);
+  *  a missing target stops the run; a screenshot at every c.mark() (and every click with shots)
+  *  and at the end in build/dry/<take>/; takes/<take> is untouched */
+ export async function capture(take: string, journey: (c: Cam) => Promise<void>, o: { dry?: boolean; shots?: boolean } = {}) {
+-  const dir = o.dry ? join(process.env.FLEX_DRY ?? join(import.meta.dirname, "..", "build", "dry"), take) : join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take);
++  const dir = o.dry ? join(process.env.FLEX_DRY ?? join(process.env.FLEX_WORK ?? join(import.meta.dirname, ".."), "build", "dry"), take) : join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take);
+   needDisk(join(import.meta.dirname, ".."), o.dry ? 0.3 : 0.8, o.dry ? "dry run" : "capture");
+   // fresh frames + events; keep edl.json (hand edits survive a re-capture; plan respects "locked")
+   rmSync(join(dir, o.dry ? "." : "frames"), { recursive: true, force: true });
+diff --git a/lib/check.ts b/lib/check.ts
+index 03a6ab5..bab5af3 100644
+--- a/lib/check.ts
++++ b/lib/check.ts
+@@ -37,7 +37,7 @@ export const RULES = {
+ };
+ 
+ export function check(name: string) {
+-  const tl = [join(ROOT, "build", name + SIZE_TAG, "timeline.json"), join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), name, "timeline.json")].find(existsSync);
++  const tl = [join(process.env.FLEX_WORK ?? ROOT, "build", name + SIZE_TAG, "timeline.json"), join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), name, "timeline.json")].find(existsSync);
+   if (!tl) throw new Error(`no timeline for "${name}" — build it first (npm run video ${name} / npm run build ${name})`);
+   const T = JSON.parse(readFileSync(tl, "utf8")) as { name: string; out: string; total: number; voice: VoiceLine[]; sfx: SfxLine[]; music: string | null; audio: Record<string, string>; credits: string[];
+     clips?: { label: string; start: number; dur: number; take?: string; from?: number; to?: number; effects?: Edl["effects"]; segments?: Edl["segments"] }[]; lastCard?: boolean; joins?: { after: number; type: string; ms: number }[] };
+diff --git a/lib/events.ts b/lib/events.ts
+index 23c86ae..474cc4c 100644
+--- a/lib/events.ts
++++ b/lib/events.ts
+@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
+ import { join } from "node:path";
+ const take = process.argv[2]; if (!take) { console.error("usage: npm run events <take> [-- --dry]"); process.exit(1); }
+ const dry = process.argv.includes("--dry") || process.env.npm_config_dry === "true";
+-const p = dry ? join(import.meta.dirname, "..", "build", "dry", take, "events.json") : join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take, "events.json");
++const p = dry ? join(process.env.FLEX_WORK ?? join(import.meta.dirname, ".."), "build", "dry", take, "events.json") : join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take, "events.json");
+ if (!existsSync(p)) { console.error(`no capture for "${take}" (takes/${take}/events.json)`); process.exit(1); }
+ const ev = JSON.parse(readFileSync(p, "utf8"));
+ const rows: [number, string][] = [];
+diff --git a/lib/look-preview.ts b/lib/look-preview.ts
+index 4c923b9..64485ae 100644
+--- a/lib/look-preview.ts
++++ b/lib/look-preview.ts
+@@ -23,7 +23,7 @@ const opt = (k: string, d: string) => F.get(k) ?? d;
+ const look = LOOKS[name];
+ if (!look) { console.error(`unknown look "${name}". Looks: ${Object.keys(LOOKS).join(", ") || "(none in looks/)"}`); process.exit(1); }
+ const ROOT = join(import.meta.dirname, ".."), OUT = { w: 1920, h: 1080 }, feel = FEELS[name];
+-const dir = join(ROOT, "build", "looks", name); rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
++const dir = join(process.env.FLEX_WORK ?? ROOT, "build", "looks", name); rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
+ const shots: { file: string; label: string }[] = [];
+ const save = async (buf: Buffer, file: string, label: string) => {
+   await sharp(buf, { raw: { width: OUT.w, height: OUT.h, channels: 3 } }).png().toFile(join(dir, file)); shots.push({ file, label });
+diff --git a/lib/look-tokens.ts b/lib/look-tokens.ts
+index fef3530..76a32be 100644
+--- a/lib/look-tokens.ts
++++ b/lib/look-tokens.ts
+@@ -19,7 +19,7 @@ if (wait) await page.locator(wait).first().waitFor({ timeout: 15_000 });
+ // background exists only in Hero mode); "surfaces" below lists what's on the page as sampled
+ for (let i = 0; i < a.length; i++) if (a[i] === "--click") { await page.locator(a[i + 1]).first().click({ timeout: 8_000 }); await page.waitForTimeout(700); console.log(`· clicked ${a[i + 1]}`); }
+ await page.waitForTimeout(600);
+-const dir = join(import.meta.dirname, "..", "build", "looks"); mkdirSync(dir, { recursive: true });
++const dir = join(process.env.FLEX_WORK ?? join(import.meta.dirname, ".."), "build", "looks"); mkdirSync(dir, { recursive: true });
+ const ni = a.indexOf("--name"), tag = ni > 0 ? a[ni + 1] : new URL(url).hostname.replace(/\W+/g, "-");
+ if (ni < 0) console.warn(`  ! no --name: the screenshot is build/looks/tokens-${tag}.png, shared with anyone sampling this URL — pass --name <your-look>`);
+ const shot = join(dir, `tokens-${tag}.png`); // --name <your-look> keeps parallel runs apart
+diff --git a/lib/presets/layers.ts b/lib/presets/layers.ts
+index f6fc5d3..33818c7 100644
+--- a/lib/presets/layers.ts
++++ b/lib/presets/layers.ts
+@@ -17,7 +17,7 @@ async function decoded(file: string) {
+ 
+ /** frames of a video file at `fps`, extracted once; returns the jpg for time `at` (s) */
+ export function videoFrame(file: string, at: number, fps = 30) {
+-  const dir = join(ROOT, ".cache", "frames", createHash("sha1").update(`${file}|${fps}`).digest("hex").slice(0, 12));
++  const dir = join(process.env.FLEX_WORK ?? ROOT, ".cache", "frames", createHash("sha1").update(`${file}|${fps}`).digest("hex").slice(0, 12));
+   if (!existsSync(dir) || !readdirSync(dir).length) {
+     mkdirSync(dir, { recursive: true });
+     execFileSync("ffmpeg", ["-v", "error", "-y", "-i", file, "-vf", `fps=${fps}`, "-q:v", "2", join(dir, "f%06d.jpg")]);
+diff --git a/lib/probe.ts b/lib/probe.ts
+index 4efcf3c..0b6bc62 100644
+--- a/lib/probe.ts
++++ b/lib/probe.ts
+@@ -20,7 +20,7 @@ let tag = "probe";
+ for (let i = 1; i < a.length; i++) if (a[i] === "--name") tag = a[++i]; else if (a[i].startsWith("--") && a[i] !== "--all") steps.push([a[i].slice(2), a[++i]]);
+ const browser = await chromium.launch({ headless: true });
+ const page = await browser.newPage({ viewport: { width: VIEWPORT.w, height: VIEWPORT.h }, deviceScaleFactor: 2 });
+-const out = join(import.meta.dirname, "..", "build", "probe"); mkdirSync(out, { recursive: true });
++const out = join(process.env.FLEX_WORK ?? join(import.meta.dirname, ".."), "build", "probe"); mkdirSync(out, { recursive: true });
+ try {
+   await page.goto(url, { waitUntil: "networkidle" }).catch(() => {});
+   await page.waitForTimeout(500);
+diff --git a/lib/sequence.ts b/lib/sequence.ts
+index a2533bf..9683dc2 100644
+--- a/lib/sequence.ts
++++ b/lib/sequence.ts
+@@ -124,7 +124,7 @@ export async function renderSequence(seq: Sequence, opts: { planOnly?: boolean }
+   }) };
+   seq.items.forEach((it, i) => { if (it.kind !== "take" && it.type) validate(it.type, it.params as Record<string, unknown>, `${seq.name} item ${i + 1}`);
+     if (it.kind === "take") { const e: Edl = JSON.parse(readFileSync(join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), it.take, "edl.json"), "utf8")); (it.patch ? it.patch(e) : e).effects?.forEach((f, j) => validate(f.type, f.params, `${it.take} edl effect ${j + 1}`)); } });
+-  const dir = join(ROOT, "build", seq.name + SIZE_TAG); if (!planOnly) mkdirSync(dir, { recursive: true });
++  const dir = join(process.env.FLEX_WORK ?? ROOT, "build", seq.name + SIZE_TAG); if (!planOnly) mkdirSync(dir, { recursive: true });
+   // a failed render must never leave the previous film behind for `check` to pass against
+   if (!planOnly && !process.argv.includes("--plan")) for (const ext of [".mp4", ".srt", ".credits.txt"]) rmSync(finalPath(seq.name).replace(/\.mp4$/, ext), { force: true });
+   console.log(`● sequence "${seq.name}" · feel ${feel.label} · canvas ${seq.canvas ?? "feel"}`);
+diff --git a/lib/sheet.ts b/lib/sheet.ts
+index 188d253..6cffd9a 100644
+--- a/lib/sheet.ts
++++ b/lib/sheet.ts
+@@ -9,7 +9,7 @@ const F = flags("sheet", ["every"]), name = F.positional[0], every = Number(F.ge
+ if (!name) { console.error("usage: npm run sheet <video> [-- --every 2]"); process.exit(1); }
+ const src = finalPath(name);
+ if (!existsSync(src)) { console.error(`no film at ${src} — render it first (npm run video ${name})`); process.exit(1); }
+-const out = join(import.meta.dirname, "..", "build", "sheets"); mkdirSync(out, { recursive: true });
++const out = join(process.env.FLEX_WORK ?? join(import.meta.dirname, ".."), "build", "sheets"); mkdirSync(out, { recursive: true });
+ const file = join(out, `${name}.png`);
+ const dur = parseFloat(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", src]).toString());
+ const n = Math.floor((dur - 0.05) / every) + 1, cols = 6, rows = Math.ceil(n / cols); // tiles at exactly 0, every, 2·every … (never past the end)
+diff --git a/lib/stills.ts b/lib/stills.ts
+index 7ce2d3c..96f9cd0 100644
+--- a/lib/stills.ts
++++ b/lib/stills.ts
+@@ -15,7 +15,7 @@ const ei = rest.indexOf("--every");
+ const montage = rest.includes("--montage");
+ const times = ei >= 0 ? Array.from({ length: Math.floor(dur / +rest[ei + 1]) + 1 }, (_, i) => +(i * +rest[ei + 1]).toFixed(2)) : rest.filter((x) => x !== "--montage").map(Number).filter((t) => !Number.isNaN(t));
+ const shots: [number, string][] = [];
+-const out = join(import.meta.dirname, "..", "build", "stills", name.replace(/^.*\//, "").replace(/\.mp4$/, "")); mkdirSync(out, { recursive: true });
++const out = join(process.env.FLEX_WORK ?? join(import.meta.dirname, ".."), "build", "stills", name.replace(/^.*\//, "").replace(/\.mp4$/, "")); mkdirSync(out, { recursive: true });
+ for (const t of times) {
+   if (t > dur) { console.warn(`  ! ${t}s is past the end (${dur.toFixed(2)}s)`); continue; }
+   const f = join(out, `${t.toFixed(2).padStart(6, "0")}.png`);
+diff --git a/lib/video-run.ts b/lib/video-run.ts
+index 24d22fa..e4cfed1 100644
+--- a/lib/video-run.ts
++++ b/lib/video-run.ts
+@@ -13,7 +13,7 @@ const { recap } = await import("./warn-recap.ts");
+ const { renderSequence } = await import("./sequence.ts");
+ const { existsSync } = await import("node:fs");
+ const { join } = await import("node:path");
+-const projectFile = join(import.meta.dirname, "..", "projects", name, "project.ts");
++const projectFile = join(process.env.FLEX_PROJECTS ?? join(import.meta.dirname, "..", "projects"), name, "project.ts");
+ let seq: Sequence;
+ if (existsSync(projectFile)) {
+   const { toSequence } = await import("./project.ts");

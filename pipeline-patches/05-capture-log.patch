@@ -1,0 +1,64 @@
+diff --git a/lib/capture.ts b/lib/capture.ts
+index a830bee..c781354 100644
+--- a/lib/capture.ts
++++ b/lib/capture.ts
+@@ -53,6 +53,10 @@ export type Events = {
+   freeze?: { from: number; to: number }[];
+   /** stretches of typing (c.type / replace / b.type): motion the still-picture check can't see in pixels */
+   typing?: { from: number; to: number; keys?: number[] }[];
++  /** the take's metronome (c.beat) and every beat-timed step on it: due = when beat n fell, t = when it happened (a click's
++   *  mark: when the change shows); t − due is how late the step was (Flex's timing report) */
++  beat?: { bpm: number; mark: string; t0: number };
++  beats?: { n: number; label: string; t: number; due: number }[];
+ };
+ type Target = string | Locator;
+ 
+@@ -64,7 +68,7 @@ export const DPR = Number(process.env.CAPTURE_DPR ?? 2);
+  *  a missing target stops the run; a screenshot at every c.mark() (and every click with shots)
+  *  and at the end in build/dry/<take>/; takes/<take> is untouched */
+ export async function capture(take: string, journey: (c: Cam) => Promise<void>, o: { dry?: boolean; shots?: boolean } = {}) {
+-  const dir = o.dry ? join(import.meta.dirname, "..", "build", "dry", take) : join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take);
++  const dir = o.dry ? join(process.env.FLEX_DRY ?? join(import.meta.dirname, "..", "build", "dry"), take) : join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take);
+   needDisk(join(import.meta.dirname, ".."), o.dry ? 0.3 : 0.8, o.dry ? "dry run" : "capture");
+   // fresh frames + events; keep edl.json (hand edits survive a re-capture; plan respects "locked")
+   rmSync(join(dir, o.dry ? "." : "frames"), { recursive: true, force: true });
+@@ -349,6 +353,8 @@ export class Cam {
+     if (++this.beats > 1) console.warn(`  ! a second c.beat() in this take ("${mark}") — only the grid the sequence aligns lands on the music; reuse the first one (b.next(), b.at())`);
+     await this.mark(mark);
+     const t0 = this.now(), beatMs = 60_000 / bpm, lag = o.lag ?? 0;
++    this.ev.beat = { bpm, mark, t0 }; this.ev.beats ??= [];
++    const log = (n: number, label: string, t: number) => this.ev.beats!.push({ n, label, t, due: Math.round(t0 + n * beatMs) });
+     const until = async (n: number) => { const wait = t0 + n * beatMs - lag - this.now(); if (wait > 0) await this.pause(wait); };
+     return {
+       beatMs,
+@@ -360,7 +366,7 @@ export class Cam {
+         // inside a held picture this beat IS the release: ask for a fresh frame now, so the freeze can end on the
+         // beat rather than after the cut's rect lookups (~120 ms later, example-guide)
+         if (this.paintDepth > 0) { this.beatAt = this.now(); this.beatWaited = this.beatAt - w0; void this.page.evaluate(() => { document.body.animate([{ opacity: 0.999 }, { opacity: 1 }], { duration: 120 }); }).catch(() => {}); }
+-        if (label) await this.mark(label);
++        if (label) { await this.mark(label); log(n, label, this.now()); }
+       },
+       /** the first whole beat at least minAheadMs from now (room for a glide or a paint). Pass the text
+        *  you'll b.type() on it and the typing time is added for you: b.type(b.next(400, text), text) */
+@@ -381,10 +387,10 @@ export class Cam {
+           const w2 = t0 + n * beatMs - lg - this.now(); if (w2 > 0) await this.pause(w2);
+           if (last) { this.lastKey(); await this.page.keyboard.type(last); }
+           await until(n);
+-          await this.mark(label.startsWith("beat") ? label : `beat-${label}`);
++          await this.mark(label.startsWith("beat") ? label : `beat-${label}`); log(n, label, this.now());
+         } else {
+           await until(n);
+-          await this.mark(label.startsWith("beat") ? label : `beat-${label}`);
++          await this.mark(label.startsWith("beat") ? label : `beat-${label}`); log(n, label, this.now());
+           if (last) { this.lastKey(); await this.page.keyboard.type(last); }
+         }
+       },
+@@ -400,7 +406,7 @@ export class Cam {
+         else if (wait < -40) console.warn(`  ! beat ${n} "${label}": the cursor arrived ${Math.round(-wait)} ms late — the change misses the beat. Pre-position with c.moveTo(target) a beat earlier, or click on a later beat.`);
+         this.ev.clicks.push({ t: this.now(), x: this.pos.x, y: this.pos.y, rect: r, label });
+         // the mark records when the CHANGE shows (click + lag) — that's what should sit on the beat
+-        this.ev.marks.push({ t: this.now() + lg, label: label.startsWith("beat") ? label : `beat-${label}` });
++        this.ev.marks.push({ t: this.now() + lg, label: label.startsWith("beat") ? label : `beat-${label}` }); log(n, label, this.now() + lg);
+         await this.page.mouse.click(this.pos.x, this.pos.y);
+         await this.pause(120);
+       },

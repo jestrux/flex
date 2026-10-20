@@ -1,0 +1,5 @@
+source: ~/Documents/web/fancy-e2e-videos
+commit: c19dcf4
+uncommitted files copied (lib, looks, assets): 0
+synced: 2026-10-17T05:02:49Z
+patches: 01-paths.patch 02-plan-only.patch 03-render-exports.patch 04-projects-dir.patch 05-capture-log.patch 06-work-dir.patch 07-look-name-clash.patch 

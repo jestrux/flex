@@ -1,0 +1,24 @@
+/target
+/dist
+.DS_Store
+app/build
+app/Flex.xcodeproj
+app/Frameworks
+app/Generated
+*.xcuserstate
+xcuserdata/
+DerivedData/
+# the sample film is KinPay product content (136 MB): scripts/copy-sample.sh copies it in
+/samples/circles-overview/
+docs-site/node_modules
+docs-site/dist
+docs-site/*.tsbuildinfo
+.gstack/
+
+# the vendored pipeline: code in git, its packages and sound files synced (scripts/sync-pipeline.sh)
+/pipeline/node_modules/
+/pipeline/assets/
+/pipeline/.cache/
+
+# a project's activity trail and its shadow of the files (Flex writes them; never shared)
+.flex/

@@ -1,0 +1,16 @@
+[package]
+name = "flex-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "UniFFI bridge for the Flex engine"
+
+[lib]
+crate-type = ["staticlib", "cdylib", "lib"]
+name = "flex_ffi"
+
+[dependencies]
+serde_json.workspace = true
+flex-core.workspace = true
+uniffi.workspace = true
+thiserror.workspace = true

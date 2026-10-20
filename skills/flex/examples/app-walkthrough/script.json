@@ -1,0 +1,28 @@
+{
+  "beats": [
+    {
+      "id": "intro",
+      "title": "Who it's for",
+      "at": "0s",
+      "status": "built",
+      "picture": "A title card: what the walkthrough shows",
+      "narration": []
+    },
+    {
+      "id": "tour",
+      "title": "Home, then Settings",
+      "at": "5.597s",
+      "status": "planned",
+      "picture": "The member's home; Settings opens on beat 8; a name typed and saved; back home",
+      "narration": []
+    },
+    {
+      "id": "outro",
+      "title": "The close",
+      "at": "25.597s",
+      "status": "built",
+      "picture": "A closing card",
+      "narration": []
+    }
+  ]
+}

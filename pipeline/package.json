@@ -1,0 +1,38 @@
+{
+  "name": "fancy-e2e-videos",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "capture": "tsx lib/capture-run.ts",
+    "plan": "tsx lib/plan.ts",
+    "render": "tsx lib/render.ts",
+    "build": "tsx lib/build.ts",
+    "all": "tsx lib/all.ts",
+    "edit": "tsx lib/editor.ts",
+    "video": "tsx lib/video-run.ts",
+    "assets:measure": "tsx lib/assets.ts measure",
+    "check": "tsx lib/check.ts",
+    "fx:list": "tsx lib/fx-list.ts",
+    "music:analyse": "tsx lib/music.ts",
+    "music:show": "tsx lib/music-show.ts",
+    "say": "tsx lib/say.ts",
+    "probe": "tsx lib/probe.ts",
+    "sheet": "tsx lib/sheet.ts",
+    "stills": "tsx lib/stills.ts",
+    "typecheck": "tsx lib/typecheck.ts",
+    "events": "tsx lib/events.ts",
+    "lag": "tsx lib/lag.ts",
+    "look:tokens": "tsx lib/look-tokens.ts",
+    "look:preview": "tsx lib/look-preview.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "playwright": "^1.48.0",
+    "sharp": "^0.34.5",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

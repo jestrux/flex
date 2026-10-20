@@ -1,0 +1,5 @@
+[bindings.swift]
+module_name = "FlexCore"
+ffi_module_name = "FlexCoreFFI"
+generate_immutable_records = true
+omit_argument_labels = false

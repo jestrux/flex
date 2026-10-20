@@ -1,0 +1,71 @@
+{
+  "beats": [
+    {
+      "id": "opening",
+      "title": "Opening",
+      "at": "0s",
+      "status": "built",
+      "picture": "The film's name on a title card",
+      "narration": [
+        {
+          "text": "Hello, Flex.",
+          "at": "0.6s"
+        }
+      ],
+      "panels": [
+        {
+          "sketch": "storyboard/sketches/01-title.svg",
+          "caption": "The title card"
+        }
+      ]
+    },
+    {
+      "id": "chapter",
+      "title": "Chapter",
+      "at": "3.5s",
+      "status": "built"
+    },
+    {
+      "id": "closing",
+      "title": "Closing",
+      "at": "6s",
+      "status": "built"
+    },
+    {
+      "id": "walkthrough",
+      "title": "Walkthrough",
+      "at": "10s",
+      "status": "sketch",
+      "picture": "The app's window, then close on one card",
+      "narration": [
+        {
+          "text": "Here's how it works.",
+          "at": "10.4s"
+        }
+      ],
+      "panels": [
+        {
+          "sketch": "storyboard/sketches/02-app.svg",
+          "caption": "Push in on the card"
+        },
+        {
+          "sketch": "storyboard/sketches/03-detail.svg",
+          "caption": "The step marker"
+        }
+      ]
+    },
+    {
+      "id": "outro",
+      "title": "Outro",
+      "at": "14s",
+      "to": "17s",
+      "status": "sketch",
+      "panels": [
+        {
+          "sketch": "storyboard/sketches/04-outro.svg",
+          "caption": "The mark"
+        }
+      ]
+    }
+  ]
+}

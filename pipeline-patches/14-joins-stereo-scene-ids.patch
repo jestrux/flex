@@ -1,0 +1,121 @@
+diff --git a/lib/audio.ts b/lib/audio.ts
+index efac19d..cfe0754 100644
+--- a/lib/audio.ts
++++ b/lib/audio.ts
+@@ -48,13 +48,21 @@ export type MusicRef = string | false | { key: string; from?: number; ending?: "
+    *  the narration's share of the video. A song-led film with narrated stretches wants "lead" + underVoice. */
+   role?: "lead" | "bed";
+   /** Flex (patch 09): play the music at this gain (dB) as it is, not levelled to its role (a film mixed by hand) */
+-  gain?: number };
++  gain?: number;
++  /** Flex (patch 14): the shape of each join of the edit (n − 1 entries): the outgoing stretch plays `out` s past its end,
++   *  fading to silence, while the incoming one fades in over `in` s from the join (linear); null = a butt cut. Without
++   *  `joins`, every join is a 120 ms crossfade centred on it. */
++  joins?: ({ out: number; in: number } | null)[];
++  /** Flex (patch 14): keep the music and sound effects in stereo (the voice stays mono, centred). Default: mono stems */
++  stereo?: boolean };
+ export const musicKey = (m?: MusicRef) => (m ? (typeof m === "string" ? m : m.key) : null);
+ 
+ /** dB the mono stems lose when the sum spreads them to stereo (patch 09) */
+ const PAN_LAW = 3.01;
+ 
+ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sfx: SfxLine[]; music?: MusicRef }) {
++  // mono stems by default; a stereo film keeps its music and sounds in stereo (and needs no pan-law make-up)
++  const stereo = typeof o.music === "object" && !!o.music.stereo, CL = stereo ? "stereo" : "mono", PAN = stereo ? 0 : PAN_LAW;
+   const A = join(dir, "audio"); mkdirSync(A, { recursive: true });
+   const P = { voiceRaw: join(A, "voice-raw.wav"), voice: join(A, "voice.wav"), sfx: join(A, "sfx.wav"), music: join(A, "music.wav"), mix: join(A, "mix.wav") };
+   const T = o.total.toFixed(3);
+@@ -73,10 +81,10 @@ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sf
+   if (o.sfx.length) {
+     const args: string[] = [], f: string[] = [];
+     o.sfx.forEach((s, i) => {
+-      const a = sfxAsset(s.key), g = s.gain !== undefined ? s.gain + PAN_LAW : AUDIO.sfx - (a.lufs ?? AUDIO.sfx) + (s.db ?? 0);
++      const a = sfxAsset(s.key), g = s.gain !== undefined ? s.gain + PAN : AUDIO.sfx - (a.lufs ?? AUDIO.sfx) + (s.db ?? 0);
+       const trim = s.cut ? `,atrim=0:${s.cut / 1000},afade=t=out:st=${Math.max(0, (s.cut - (s.fade ?? 600)) / 1000)}:d=${(s.fade ?? 600) / 1000}` : "";
+       args.push("-i", a.path);
+-      f.push(`[${i}:a]aresample=48000,aformat=channel_layouts=mono,volume=${g.toFixed(2)}dB${trim},adelay=${Math.round(s.t)}:all=1[s${i}]`);
++      f.push(`[${i}:a]aresample=48000,aformat=channel_layouts=${CL},volume=${g.toFixed(2)}dB${trim},adelay=${Math.round(s.t)}:all=1[s${i}]`);
+     });
+     f.push(`${o.sfx.map((_, i) => `[s${i}]`).join("")}amix=inputs=${o.sfx.length}:normalize=0,apad=whole_dur=${T},atrim=0:${T}[out]`);
+     ff([...args, "-filter_complex", f.join(";"), "-map", "[out]", P.sfx]);
+@@ -91,19 +99,33 @@ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sf
+     const thr = Math.pow(10, -32 / 20).toFixed(4), ratio = (1 / (1 - AUDIO.duckDb / 12)).toFixed(2);
+     const splice = typeof o.music === "object" && o.music.splice ? o.music.splice : null;
+     const segs = typeof o.music === "object" && o.music.segments?.length ? o.music.segments : null;
+-    if (segs) { // the edit: each stretch, widened 60 ms into each join, crossfaded 120 ms → exactly the stretches' lengths end to end
++    const joins = typeof o.music === "object" ? o.music.joins : undefined;
++    if (segs && joins) { // the edit with shaped joins: each stretch faded and placed at its film start, then summed
++      const bed = join(A, "music-edited.wav"), n = segs.length;
++      const trk = typeof o.music === "object" ? o.music.tracks : undefined;
++      const pathOf = (i: number) => (trk?.[i] && trk[i] !== musicKey(o.music) ? musicAsset(trk[i]).path : m.path);
++      let F = 0; const args: string[] = [], f: string[] = [];
++      segs.forEach(([a, b], i) => {
++        const jIn = i > 0 ? joins[i - 1] : null, jOut = i < n - 1 ? joins[i] : null, out = jOut?.out ?? 0, inn = jIn?.in ?? 0, len = b - a + out;
++        args.push("-ss", String(a), "-t", String(len), "-i", pathOf(i));
++        f.push(`[${i}:a]aresample=48000,aformat=channel_layouts=${CL}${inn > 0 ? `,afade=t=in:st=0:d=${inn}:curve=tri` : ""}${out > 0 ? `,afade=t=out:st=${(b - a).toFixed(4)}:d=${out}:curve=tri` : ""},adelay=${Math.round(F * 1000)}:all=1[j${i}]`);
++        F += b - a;
++      });
++      ff([...args, "-filter_complex", `${f.join(";")};${segs.map((_, i) => `[j${i}]`).join("")}amix=inputs=${n}:normalize=0,atrim=0:${F.toFixed(4)}[out]`, "-map", "[out]", bed]);
++      m.path = bed;
++    } else if (segs) { // the edit: each stretch, widened 60 ms into each join, crossfaded 120 ms → exactly the stretches' lengths end to end
+       const bed = join(A, "music-edited.wav"), X = 0.06, n = segs.length;
+       const trk = typeof o.music === "object" ? o.music.tracks : undefined;
+       const pathOf = (i: number) => (trk?.[i] && trk[i] !== musicKey(o.music) ? musicAsset(trk[i]).path : m.path);
+       const inputs = segs.flatMap(([a, b], i) => { const s0 = i > 0 ? a - X : a, e0 = i < n - 1 ? b + X : b; return ["-ss", String(Math.max(0, s0)), "-t", String(e0 - Math.max(0, s0)), "-i", pathOf(i)]; });
+       const f = n === 1 ? ["[0:a]anull[x0]"] : segs.slice(1).map((_, i) => `${i === 0 ? "[0:a]" : `[x${i - 1}]`}[${i + 1}:a]acrossfade=d=${2 * X}:c1=tri:c2=tri[x${i}]`);
+-      ff([...inputs, "-filter_complex", `${f.join(";")};[x${Math.max(0, n - 2)}]aresample=48000,aformat=channel_layouts=mono[out]`, "-map", "[out]", bed]);
++      ff([...inputs, "-filter_complex", `${f.join(";")};[x${Math.max(0, n - 2)}]aresample=48000,aformat=channel_layouts=${CL}[out]`, "-map", "[out]", bed]);
+       m.path = bed;
+     }
+     if (splice) { // A = [from, from+at) then B = the track's ending from trackFrom, 120 ms crossfade on the bar
+       const bed = join(A, "music-spliced.wav");
+       ff(["-ss", String(mFrom), "-t", String(splice.at + 0.12), "-i", m.path, "-ss", String(splice.trackFrom - 0.12), "-i", m.path, "-filter_complex",
+-        `[0:a][1:a]acrossfade=d=0.12:c1=tri:c2=tri,aresample=48000,aformat=channel_layouts=mono[out]`, "-map", "[out]", bed]);
++        `[0:a][1:a]acrossfade=d=0.12:c1=tri:c2=tri,aresample=48000,aformat=channel_layouts=${CL}[out]`, "-map", "[out]", bed]);
+       m.path = bed; // the rest of the chain (gain, duck) runs on the spliced bed
+     }
+     // the exact stretch of music the video uses (trimmed, faded), measured, then gained to target:
+@@ -113,10 +135,10 @@ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sf
+     const fixed = typeof o.music === "object" ? o.music.gain : undefined;
+     const fades = fixed !== undefined ? "apad" : `afade=t=in:d=${AUDIO.musicFadeIn},${splice ? "apad" : `afade=t=out:st=${Math.max(0, o.total - AUDIO.musicFadeOut).toFixed(3)}:d=${AUDIO.musicFadeOut}`}`;
+     ff([...(mFrom && !splice && !segs ? ["-ss", String(mFrom)] : []), ...(splice || segs ? [] : ["-stream_loop", "-1"]), "-i", m.path, "-af",
+-      `aresample=48000,aformat=channel_layouts=mono,atrim=0:${T},${fades}`, "-t", T, raw]);
++      `aresample=48000,aformat=channel_layouts=${CL},atrim=0:${T},${fades}`, "-t", T, raw]);
+     // (the stems are mono and the sum spreads them to stereo at -3 dB: a fixed gain puts that back, so gain 0 plays the
+     // file at its own level)
+-    const g2 = fixed !== undefined ? fixed + PAN_LAW : AUDIO[role] - loudness(raw).lufs;
++    const g2 = fixed !== undefined ? fixed + PAN : AUDIO[role] - loudness(raw).lufs;
+     // adaptive dip: where the track gets louder under a line (a drop, a chorus), bring it down
+     // further for that line, with 300 ms ramps; the sidechain duck then works on top
+     const dips: string[] = [];
+@@ -153,14 +175,14 @@ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sf
+     // (volume re-evaluates once per audio frame, ~85 ms here: 5 ms frames keep a duck's edges where they were asked for)
+     const dip = dips.length ? `,asetnsamples=n=240:p=0,volume='${dips.join("*")}':eval=frame` : "";
+     ff(["-i", raw, "-i", P.voice, "-filter_complex",
+-      `[0:a]volume=${g2.toFixed(2)}dB${dip}[bed];[bed][1:a]sidechaincompress=threshold=${thr}:ratio=${ratio}:attack=40:release=500:makeup=1[out]`, "-map", "[out]", "-t", T, P.music]);
++      `[0:a]volume=${g2.toFixed(2)}dB${dip}[bed];[1:a]aformat=channel_layouts=${CL}[key];[bed][key]sidechaincompress=threshold=${thr}:ratio=${ratio}:attack=40:release=500:makeup=1[out]`, "-map", "[out]", "-t", T, P.music]);
+     void g;
+   } else silent(P.music, o.total);
+ 
+   // 4 · sum + true-peak limit, stereo 48 kHz
+   const lim = Math.pow(10, AUDIO.truePeak / 20).toFixed(4);
+   ff(["-i", P.voice, "-i", P.sfx, "-i", P.music, "-filter_complex",
+-    `[0:a][1:a][2:a]amix=inputs=3:normalize=0,alimiter=limit=${lim}:attack=5:release=60:level=disabled,aformat=sample_rates=48000:channel_layouts=stereo[out]`, "-map", "[out]", "-t", T, P.mix]);
++    `[0:a]aformat=channel_layouts=${CL}[v0];[1:a]aformat=channel_layouts=${CL}[s0];[2:a]aformat=channel_layouts=${CL}[m0];[v0][s0][m0]amix=inputs=3:normalize=0,alimiter=limit=${lim}:attack=5:release=60:level=disabled,aformat=sample_rates=48000:channel_layouts=stereo[out]`, "-map", "[out]", "-t", T, P.mix]);
+   return P;
+ }
+ 
+diff --git a/lib/project.ts b/lib/project.ts
+index 971c9d0..382c38b 100644
+--- a/lib/project.ts
++++ b/lib/project.ts
+@@ -24,6 +24,9 @@ const itemsMs = (s: Scene) => s.items.reduce((a, it) => a + ("dur" in it && type
+ 
+ /** the project as a Sequence: every scene end to end, or just one (`--scene <id>`) */
+ export function toSequence(p: Project, sceneId?: string): Sequence {
++  // scene ids name scenes everywhere (--scene, Flex's outline, renders): two alike would answer for each other (Flex, patch 14)
++  const seen = new Set<string>();
++  for (const s of p.scenes) { if (seen.has(s.id)) throw new Error(`project ${p.name}: two scenes are called "${s.id}" (scene ids must be unique)`); seen.add(s.id); }
+   // scenes tile the song: each starts where the last ended
+   p.scenes.forEach((s, i) => {
+     const prev = p.scenes[i - 1];

@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Zoom editor</title>
+<style>
+  :root { --bg:#0f0f12; --panel:#17171c; --line:#2a2a33; --ink:#ecebf2; --dim:#8d8b99; --accent:#a78bfa;
+    --control:#f59e0b; --section:#a78bfa; --stage:#34d399; }
+  * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--ink); font:13px/1.4 -apple-system, system-ui, sans-serif; }
+  .wrap { display:grid; grid-template-columns: 1fr 300px; gap:16px; padding:16px; height:100vh; grid-template-rows: auto 1fr; }
+  header { grid-column:1/-1; display:flex; gap:10px; align-items:center }
+  header h1 { font-size:14px; margin:0 12px 0 0 } header .sp { flex:1 }
+  button { background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:7px; padding:6px 11px; font:inherit; cursor:pointer }
+  button.primary { background:var(--accent); color:#120a1e; border-color:var(--accent); font-weight:600 }
+  button:disabled { opacity:.4 }
+  .main { display:flex; flex-direction:column; gap:12px; min-width:0 }
+  canvas#view { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; cursor:crosshair }
+  #tl { position:relative; height:150px; background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; user-select:none }
+  .seg { position:absolute; top:10px; height:38px; border-radius:6px; padding:3px 6px; font-size:11px; overflow:hidden; white-space:nowrap; cursor:grab; border:1px solid rgba(0,0,0,.3) }
+  .seg.off { opacity:.3 } .seg.sel { outline:2px solid #fff }
+  .seg .h { position:absolute; top:0; bottom:0; width:7px; cursor:ew-resize } .seg .h.l { left:0 } .seg .h.r { right:0 }
+  .fx { position:absolute; top:56px; height:34px; border-radius:6px; padding:3px 6px; font-size:11px; overflow:hidden; white-space:nowrap; cursor:grab; background:#38bdf8; color:#04121c; border:1px solid rgba(0,0,0,.3) }
+  .fx.off { opacity:.3 } .fx.sel { outline:2px solid #fff } .fx .h { position:absolute; top:0; bottom:0; width:7px; cursor:ew-resize } .fx .h.l { left:0 } .fx .h.r { right:0 }
+  .say { position:absolute; top:104px; height:10px; background:#3b3b48; border-radius:3px }
+  .clk { position:absolute; top:122px; width:2px; height:12px; background:#f472b6 }
+  .lane { position:absolute; left:6px; font-size:10px; color:var(--dim); pointer-events:none; text-transform:uppercase; letter-spacing:.06em }
+  textarea { width:100%; min-height:120px; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px; font:11px/1.4 ui-monospace, Menlo, monospace }
+  #ph { position:absolute; top:0; bottom:0; width:2px; background:#fff; pointer-events:none }
+  .row { display:flex; align-items:center; gap:10px; color:var(--dim) } .row b { color:var(--ink); font-weight:600 }
+  aside { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; overflow:auto }
+  aside h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:0 0 10px }
+  label { display:block; color:var(--dim); margin:10px 0 4px } input[type=range] { width:100% } input[type=number], select { width:100%; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:5px }
+  .say-now { margin-top:14px; color:var(--dim); font-style:italic; min-height:3em }
+  pre { white-space:pre-wrap; font-size:11px; color:var(--dim); max-height:120px; overflow:auto }
+  video { width:100%; border-radius:10px; display:none }
+  kbd { background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:0 5px; font-size:11px }
+</style></head>
+<body><div class="wrap">
+<header>
+  <h1 id="title">Zoom editor</h1>
+  <button id="play">▶ Play</button>
+  <span class="row"><b id="time">0.0s</b> / <span id="dur"></span></span>
+  <span class="sp"></span>
+  <button id="add">+ Zoom at playhead</button>
+  <select id="fxType" title="Effect type" style="width:auto"></select>
+  <button id="addFx">+ Effect at playhead</button>
+  <button id="save">Save</button>
+  <button id="render" class="primary">Save & render</button>
+  <button id="showFinal">Watch render</button>
+</header>
+<div class="main">
+  <canvas id="view" width="1280" height="720"></canvas>
+  <video id="final" controls></video>
+  <div id="tl"><div id="ph"></div></div>
+  <div class="row"><span style="color:#a78bfa">■</span> zooms <span style="color:#38bdf8">■</span> effects <span style="color:#3b3b48">■</span> voice <span style="color:#f472b6">■</span> clicks · <kbd>Space</kbd> play · <kbd>←</kbd><kbd>→</kbd> 0.1s · drag blocks to move, edges to retime · click the preview to re-centre the selected zoom · <kbd>Del</kbd> remove</div>
+</div>
+<aside>
+  <h2 id="selTitle">Selected</h2>
+  <div id="none" style="color:var(--dim)">Click a zoom or effect block on the timeline.</div>
+  <div id="fxForm" hidden>
+    <div class="row"><b id="fid"></b> <span id="ftype"></span></div>
+    <label>Start (s)</label><input id="fstart" type="number" step="0.1">
+    <label>End (s) — exit plays after</label><input id="fend" type="number" step="0.1">
+    <label><input id="fenabled" type="checkbox"> enabled</label>
+    <label>Params (JSON)</label><textarea id="fparams" spellcheck="false"></textarea>
+    <label>Target (JSON, CSS px)</label><textarea id="ftarget" spellcheck="false" style="min-height:60px"></textarea>
+    <button id="fdel" style="margin-top:10px">Delete effect</button>
+  </div>
+  <div id="form" hidden>
+    <div class="row"><b id="sid"></b> <span id="skind"></span></div>
+    <label>Scale <span id="sv"></span></label><input id="scale" type="range" min="1.05" max="3" step="0.05">
+    <label>Kind</label><select id="kind"><option>control</option><option>section</option><option>stage</option></select>
+    <label>Start (s)</label><input id="start" type="number" step="0.1">
+    <label>End (s)</label><input id="end" type="number" step="0.1">
+    <label><input id="enabled" type="checkbox"> enabled</label>
+    <button id="del" style="margin-top:10px">Delete zoom</button>
+  </div>
+  <h2 style="margin-top:20px">Canvas</h2>
+  <label><input id="cvOn" type="checkbox"> background, padding, shadow, rounded window</label>
+  <label>Background</label><select id="cvPreset"></select>
+  <label>Padding <span id="cvPadV"></span></label><input id="cvPad" type="range" min="0.02" max="0.14" step="0.005">
+  <label>Corner radius <span id="cvRadV"></span></label><input id="cvRad" type="range" min="0" max="32" step="1">
+  <label><input id="cvShadow" type="checkbox"> window shadow</label>
+  <h2 style="margin-top:20px">Transitions (ms)</h2>
+  <label>In</label><input id="tin" type="number" step="50">
+  <label>Out</label><input id="tout" type="number" step="50">
+  <label>Pan (zoom → zoom)</label><input id="tpan" type="number" step="50">
+  <div class="say-now" id="sayNow"></div>
+  <h2 style="margin-top:20px">Render</h2><pre id="log">—</pre>
+</aside>
+</div>
+<script type="module">
+import { makeCamera, BACKGROUNDS, DEFAULT_CANVAS, backgroundOf, backgroundSvg } from "/camera.js";
+import { composeEffects } from "/effects.js";
+import { TYPES } from "/registry.js";
+const $ = (id) => document.getElementById(id);
+const ev = await (await fetch("/events.json")).json();
+let edl = await (await fetch("/edl.json")).json();
+edl.effects ??= [];
+edl.canvas ??= { ...DEFAULT_CANVAS, on: false };
+let selKind = null; // "zoom" | "fx"
+const W = ev.viewport.w, H = ev.viewport.h, D = ev.duration;
+$("title").textContent = `Zoom editor · ${edl.take}`; $("dur").textContent = (D / 1000).toFixed(1) + "s";
+const cv = $("view"), g = cv.getContext("2d");
+let t = 0, playing = false, sel = null, cam = makeCamera(edl, W, H);
+const rebuild = () => { cam = makeCamera(edl, W, H); drawTimeline(); draw(); };
+
+// frames: lazy image cache
+const imgs = new Map();
+const frameAt = (t) => { let lo = 0, hi = ev.frames.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (ev.frames[m].t <= t) lo = m; else hi = m - 1; } return ev.frames[lo]; };
+const img = (f) => { let i = imgs.get(f.file); if (!i) { i = new Image(); i.src = `/frames/${f.file}`; i.onload = () => draw(); imgs.set(f.file, i); } return i; };
+ev.frames.forEach((f, i) => { if (i % 4 === 0) img(f); }); // warm the cache
+const cursorAt = (t) => { const c = ev.cursor; if (!c.length) return null; let i = c.findIndex((p) => p.t > t); if (i === 0) return c[0]; if (i < 0) return c[c.length - 1]; const a = c[i - 1], b = c[i], u = (t - a.t) / Math.max(1, b.t - a.t); return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u }; };
+
+// canvas background, cached per settings (drawn as an SVG image)
+let bgImg = null, bgKey = "";
+function background() {
+  const c = edl.canvas, key = JSON.stringify([c.preset, c.background]);
+  if (key !== bgKey) { bgKey = key; bgImg = new Image(); bgImg.onload = () => draw(); bgImg.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(backgroundSvg(backgroundOf(c), 1600, 900)); }
+  return bgImg;
+}
+function draw() {
+  const f = frameAt(t), im = img(f), r = cam.crop(cam.at(t)), z = cv.width / r.w;
+  g.fillStyle = "#000"; g.fillRect(0, 0, cv.width, cv.height);
+  if (edl.canvas.on) {
+    // the stage: background over the world, then the rounded window with its shadow
+    const wd = cam.world, b = background();
+    if (b.complete) g.drawImage(b, (wd.x - r.x) * z, (wd.y - r.y) * z, wd.w * z, wd.h * z);
+    const x = -r.x * z, y = -r.y * z, w = W * z, h = H * z, rad = edl.canvas.radius * z;
+    g.save();
+    if (edl.canvas.shadow) { g.shadowColor = "rgba(0,0,0,.42)"; g.shadowBlur = 56 * z; g.shadowOffsetY = 18 * z; g.fillStyle = "#000"; g.beginPath(); g.roundRect(x, y, w, h, rad); g.fill(); }
+    g.restore(); g.save(); g.beginPath(); g.roundRect(x, y, w, h, rad); g.clip();
+    if (im.complete && im.naturalWidth) g.drawImage(im, x, y, w, h);
+    g.restore();
+  } else if (im.complete && im.naturalWidth) { const k = im.naturalWidth / W; g.drawImage(im, r.x * k, r.y * k, r.w * k, r.h * k, 0, 0, cv.width, cv.height); }
+  const p = cursorAt(t); if (p) { const z = cv.width / r.w; g.fillStyle = "#111"; g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc((p.x - r.x) * z, (p.y - r.y) * z, 7, 0, 7); g.fill(); g.stroke(); }
+  drawFx(r);
+  if (sel && selKind === "zoom") { const s = edl.segments.find((x) => x.id === sel); if (s && Math.abs(r.w - W) < 1) { /* show target box when wide */ const z = cv.width / W, w = W / s.scale, h = H / s.scale; g.strokeStyle = "rgba(167,139,250,.9)"; g.setLineDash([6, 5]); g.strokeRect((s.cx - w / 2) * z, (s.cy - h / 2) * z, w * z, h * z); g.setLineDash([]); } }
+  $("ph").style.left = (t / D) * 100 + "%"; $("time").textContent = (t / 1000).toFixed(1) + "s";
+  const line = ev.narration.find((l) => t >= l.t && t <= l.t + l.dur * 1000); $("sayNow").textContent = line ? `“${line.text}”` : "";
+}
+
+// effect overlay: same composer as the renderer, drawn as an SVG image over the canvas
+const fxCache = new Map();
+function drawFx(r) {
+  const svg = composeEffects(edl.effects, t, { crop: r, view: { w: W, h: H }, out: { w: 1920, h: 1080 }, cursor: ev.cursor });
+  if (!svg) return;
+  let im = fxCache.get(svg);
+  if (!im) { im = new Image(); im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); im.onload = () => draw(); if (fxCache.size > 60) fxCache.clear(); fxCache.set(svg, im); }
+  if (im.complete) g.drawImage(im, 0, 0, cv.width, cv.height);
+}
+
+// timeline
+const tl = $("tl"), pct = (ms) => (ms / D) * 100;
+function drawTimeline() {
+  tl.querySelectorAll(".seg,.say,.clk,.fx,.lane").forEach((n) => n.remove());
+  [["zooms", 2], ["effects", 48], ["voice · clicks", 96]].forEach(([l, y]) => { const d = document.createElement("div"); d.className = "lane"; d.style.top = y + "px"; d.textContent = l; tl.appendChild(d); });
+  edl.effects.forEach((f) => {
+    const d = document.createElement("div"); d.className = "fx" + (f.enabled ? "" : " off") + (f.id === sel ? " sel" : "");
+    d.style.left = pct(f.start) + "%"; d.style.width = pct(Math.max(200, f.end - f.start)) + "%";
+    d.innerHTML = `<b>${f.type}</b> ${f.label ?? f.params?.title ?? f.params?.text ?? ""}<span class="h l"></span><span class="h r"></span>`;
+    d.onpointerdown = (e) => startDrag(e, f, e.target.classList.contains("l") ? "l" : e.target.classList.contains("r") ? "r" : "m", "fx");
+    tl.appendChild(d);
+  });
+  ev.narration.forEach((l) => { const d = document.createElement("div"); d.className = "say"; d.style.left = pct(l.t) + "%"; d.style.width = pct(l.dur * 1000) + "%"; d.title = l.text; tl.appendChild(d); });
+  ev.clicks.forEach((c) => { const d = document.createElement("div"); d.className = "clk"; d.style.left = pct(c.t) + "%"; tl.appendChild(d); });
+  edl.segments.forEach((s) => {
+    const d = document.createElement("div"); d.className = "seg" + (s.enabled ? "" : " off") + (s.id === sel ? " sel" : "");
+    d.style.left = pct(s.start) + "%"; d.style.width = pct(s.end - s.start) + "%"; d.style.background = `var(--${s.kind})`; d.style.color = "#111";
+    d.innerHTML = `<b>${s.scale.toFixed(1)}×</b> ${s.label ?? s.kind}<span class="h l"></span><span class="h r"></span>`;
+    d.onpointerdown = (e) => startDrag(e, s, e.target.classList.contains("l") ? "l" : e.target.classList.contains("r") ? "r" : "m", "zoom");
+    tl.appendChild(d);
+  });
+}
+function startDrag(e, s, mode, kind) {
+  e.stopPropagation(); select(s.id, kind);
+  const x0 = e.clientX, a0 = s.start, b0 = s.end, msPerPx = D / tl.clientWidth;
+  const move = (m) => { const d = (m.clientX - x0) * msPerPx;
+    if (mode === "m") { s.start = Math.max(0, a0 + d); s.end = s.start + (b0 - a0); } else if (mode === "l") s.start = Math.min(s.end - 200, Math.max(0, a0 + d)); else s.end = Math.max(s.start + 200, b0 + d);
+    s.start = Math.round(s.start); s.end = Math.round(s.end); t = mode === "r" ? s.end : s.start; fill(); rebuild(); };
+  const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
+  addEventListener("pointermove", move); addEventListener("pointerup", up);
+}
+tl.addEventListener("pointerdown", (e) => { const scrub = (m) => { t = Math.max(0, Math.min(D, ((m.clientX - tl.getBoundingClientRect().left) / tl.clientWidth) * D)); draw(); }; scrub(e); const up = () => { removeEventListener("pointermove", scrub); removeEventListener("pointerup", up); }; addEventListener("pointermove", scrub); addEventListener("pointerup", up); });
+
+// selection + form
+function select(id, kind = "zoom") { sel = id; selKind = id ? kind : null; fill(); drawTimeline(); draw(); }
+function fill() {
+  const f = selKind === "fx" ? edl.effects.find((x) => x.id === sel) : null;
+  $("fxForm").hidden = !f;
+  if (f) { $("fid").textContent = f.id; $("ftype").textContent = f.type; $("fstart").value = (f.start / 1000).toFixed(1); $("fend").value = (f.end / 1000).toFixed(1); $("fenabled").checked = f.enabled;
+    if (document.activeElement !== $("fparams")) $("fparams").value = JSON.stringify(f.params, null, 1);
+    if (document.activeElement !== $("ftarget")) $("ftarget").value = JSON.stringify(f.target); }
+  $("selTitle").textContent = f ? "Selected effect" : "Selected zoom";
+  const s = selKind === "zoom" ? edl.segments.find((x) => x.id === sel) : null; $("form").hidden = !s; $("none").hidden = !!s || !!f; if (!s) return;
+  $("sid").textContent = s.id; $("skind").textContent = s.label ?? ""; $("scale").value = s.scale; $("sv").textContent = s.scale.toFixed(2) + "×";
+  $("kind").value = s.kind; $("start").value = (s.start / 1000).toFixed(1); $("end").value = (s.end / 1000).toFixed(1); $("enabled").checked = s.enabled;
+}
+const cur = () => edl.segments.find((x) => x.id === sel);
+const curFx = () => edl.effects.find((x) => x.id === sel);
+$("fstart").onchange = (e) => { curFx().start = Math.round(e.target.value * 1000); rebuild(); };
+$("fend").onchange = (e) => { curFx().end = Math.round(e.target.value * 1000); rebuild(); };
+$("fenabled").onchange = (e) => { curFx().enabled = e.target.checked; rebuild(); };
+const jsonInto = (el, key) => { el.oninput = () => { try { curFx()[key] = JSON.parse(el.value); el.style.borderColor = ""; rebuild(); } catch { el.style.borderColor = "#f87171"; } }; };
+jsonInto($("fparams"), "params"); jsonInto($("ftarget"), "target");
+$("fdel").onclick = () => { edl.effects = edl.effects.filter((x) => x.id !== sel); select(null); rebuild(); };
+$("fxType").innerHTML = TYPES.map((m) => `<option value="${m.type}">${m.label}</option>`).join("");
+$("addFx").onclick = () => { const m = TYPES.find((x) => x.type === $("fxType").value); const id = "f" + Date.now().toString(36).slice(-4);
+  const r = cam.crop(cam.at(t));
+  edl.effects.push({ id, type: m.type, start: Math.round(t), end: Math.round(Math.min(D, t + m.hold)), enabled: true, params: { ...m.defaults }, target: { rect: { x: Math.round(r.x + r.w / 2 - 80), y: Math.round(r.y + r.h / 2 - 30), w: 160, h: 60 } } });
+  select(id, "fx"); rebuild(); };
+$("scale").oninput = (e) => { cur().scale = +e.target.value; fill(); rebuild(); };
+$("kind").onchange = (e) => { cur().kind = e.target.value; rebuild(); };
+$("start").onchange = (e) => { cur().start = Math.round(e.target.value * 1000); rebuild(); };
+$("end").onchange = (e) => { cur().end = Math.round(e.target.value * 1000); rebuild(); };
+$("enabled").onchange = (e) => { cur().enabled = e.target.checked; rebuild(); };
+const remove = () => { edl.segments = edl.segments.filter((x) => x.id !== sel); select(null); rebuild(); };
+$("del").onclick = remove;
+cv.onclick = (e) => { if (selKind === "fx") { const f = curFx(); if (!f) return; const r = cam.crop(cam.at(t)), b = cv.getBoundingClientRect();
+    const x = r.x + ((e.clientX - b.left) / b.width) * r.w, y = r.y + ((e.clientY - b.top) / b.height) * r.h;
+    if (f.target.rect) { f.target.rect.x = Math.round(x - f.target.rect.w / 2); f.target.rect.y = Math.round(y - f.target.rect.h / 2); } else if (f.target.points?.length) { f.target.points[0] = { x: Math.round(x), y: Math.round(y) }; }
+    fill(); rebuild(); return; }
+  const s = cur(); if (!s) return; const r = cam.crop(cam.at(t)), b = cv.getBoundingClientRect();
+  s.cx = Math.round(r.x + ((e.clientX - b.left) / b.width) * r.w); s.cy = Math.round(r.y + ((e.clientY - b.top) / b.height) * r.h); rebuild(); };
+$("add").onclick = () => { const id = "u" + Date.now().toString(36).slice(-4); edl.segments.push({ id, start: Math.round(t), end: Math.round(Math.min(D, t + 2500)), cx: W / 2, cy: H / 2, scale: 1.6, kind: "section", label: "new", enabled: true }); select(id, "zoom"); rebuild(); };
+// canvas panel
+$("cvPreset").innerHTML = Object.entries(BACKGROUNDS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
+const fillCanvas = () => { const c = edl.canvas; $("cvOn").checked = c.on; $("cvPreset").value = c.preset; $("cvPad").value = c.padding; $("cvPadV").textContent = Math.round(c.padding * 100) + "%"; $("cvRad").value = c.radius; $("cvRadV").textContent = c.radius + "px"; $("cvShadow").checked = c.shadow;
+  for (const id of ["cvPreset", "cvPad", "cvRad", "cvShadow"]) $(id).disabled = !c.on; };
+$("cvOn").onchange = (e) => { edl.canvas.on = e.target.checked; fillCanvas(); rebuild(); };
+$("cvPreset").onchange = (e) => { edl.canvas.preset = e.target.value; rebuild(); };
+$("cvPad").oninput = (e) => { edl.canvas.padding = +e.target.value; fillCanvas(); rebuild(); };
+$("cvRad").oninput = (e) => { edl.canvas.radius = +e.target.value; fillCanvas(); rebuild(); };
+$("cvShadow").onchange = (e) => { edl.canvas.shadow = e.target.checked; rebuild(); };
+fillCanvas();
+for (const [k, el] of [["in", "tin"], ["out", "tout"], ["pan", "tpan"]]) { $(el).value = edl.transition[k]; $(el).onchange = (e) => { edl.transition[k] = +e.target.value; rebuild(); }; }
+
+// playback (silent preview at real speed)
+let last = 0;
+const tick = (now) => { if (!playing) return; t += now - last; last = now; if (t >= D) { t = D; playing = false; $("play").textContent = "▶ Play"; } draw(); requestAnimationFrame(tick); };
+const toggle = () => { playing = !playing; $("play").textContent = playing ? "❚❚ Pause" : "▶ Play"; if (playing) { if (t >= D) t = 0; last = performance.now(); requestAnimationFrame(tick); } };
+$("play").onclick = toggle;
+addEventListener("keydown", (e) => { if (e.target.tagName === "INPUT") return; if (e.code === "Space") { e.preventDefault(); toggle(); }
+  if (e.key === "ArrowRight") { t = Math.min(D, t + 100); draw(); } if (e.key === "ArrowLeft") { t = Math.max(0, t - 100); draw(); }
+  if ((e.key === "Delete" || e.key === "Backspace") && sel && e.target.tagName !== "TEXTAREA") { if (selKind === "fx") $("fdel").onclick(); else remove(); } });
+
+// save / render
+const save = async () => { await fetch("/edl.json", { method: "POST", body: JSON.stringify(edl) }); $("log").textContent = "saved (locked — plan won't overwrite it)"; };
+$("save").onclick = save;
+$("render").onclick = async () => { await save(); await fetch("/render", { method: "POST" }); $("render").disabled = true;
+  const poll = setInterval(async () => { const j = await (await fetch("/job")).json(); $("log").textContent = j.log.split("\r").pop().slice(-600) || "rendering…";
+    if (j.done) { clearInterval(poll); $("render").disabled = false; } }, 800); };
+$("showFinal").onclick = () => { const v = $("final"), show = v.style.display !== "block"; v.style.display = show ? "block" : "none"; cv.style.display = show ? "none" : "block"; if (show) { v.src = "/final.mp4?" + Date.now(); v.currentTime = t / 1000; } };
+
+drawTimeline(); draw();
+</script></body></html>

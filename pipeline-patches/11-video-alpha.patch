@@ -1,0 +1,73 @@
+diff --git a/lib/presets/layers.ts b/lib/presets/layers.ts
+index 33818c7..0ffbc34 100644
+--- a/lib/presets/layers.ts
++++ b/lib/presets/layers.ts
+@@ -3,7 +3,7 @@
+ import sharp from "sharp";
+ import { execFileSync } from "node:child_process";
+ import { createHash } from "node:crypto";
+-import { existsSync, mkdirSync, readdirSync } from "node:fs";
++import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from "node:fs";
+ import { join } from "node:path";
+ import type { Layer, Rect } from "./types.ts";
+ 
+@@ -15,21 +15,26 @@ async function decoded(file: string) {
+   return c;
+ }
+ 
+-/** frames of a video file at `fps`, extracted once; returns the jpg for time `at` (s) */
+-export function videoFrame(file: string, at: number, fps = 30) {
+-  const dir = join(process.env.FLEX_WORK ?? ROOT, ".cache", "frames", createHash("sha1").update(`${file}|${fps}`).digest("hex").slice(0, 12));
+-  if (!existsSync(dir) || !readdirSync(dir).length) {
+-    mkdirSync(dir, { recursive: true });
+-    execFileSync("ffmpeg", ["-v", "error", "-y", "-i", file, "-vf", `fps=${fps}`, "-q:v", "2", join(dir, "f%06d.jpg")]);
++/** frames of a video file at `fps`, extracted once; returns the jpg for time `at` (s). Flex (patch 11): `alpha` keeps
++ *  the clip's transparency as PNGs (a cut-out); extraction goes to a temp folder renamed when complete, as Flex's painter */
++export function videoFrame(file: string, at: number, fps = 30, alpha = false) {
++  const dir = join(process.env.FLEX_WORK ?? ROOT, ".cache", "frames", createHash("sha1").update(`${file}|${fps}${alpha ? "|alpha" : ""}`).digest("hex").slice(0, 12));
++  const ext = alpha ? "png" : "jpg", count = () => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(ext)).length : 0);
++  if (!count()) {
++    const tmp = `${dir}.partial`;
++    rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
++    execFileSync("ffmpeg", ["-v", "error", "-y", "-i", file, "-vf", `fps=${fps}`, ...(alpha ? ["-pix_fmt", "rgba"] : ["-q:v", "2"]), join(tmp, `f%06d.${ext}`)]);
++    rmSync(dir, { recursive: true, force: true }); renameSync(tmp, dir);
+   }
+-  const n = readdirSync(dir).length;
++  const n = count();
+   const i = Math.min(n, Math.max(1, Math.floor(at * fps) + 1));
+-  return join(dir, `f${String(i).padStart(6, "0")}.jpg`);
++  return join(dir, `f${String(i).padStart(6, "0")}.${ext}`);
+ }
+ 
+ /** an image decoded once to raw RGBA (big transparent renders are cropped every frame) */
+ const alphaCache = new Map<string, Promise<{ buf: Buffer; w: number; h: number }>>();
+ function decodedAlpha(file: string) {
++  if (alphaCache.size > 40) alphaCache.delete(alphaCache.keys().next().value!); // video frames are each a file (patch 11)
+   if (!alphaCache.has(file)) alphaCache.set(file, sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true }).then(({ data, info }) => ({ buf: data, w: info.width, h: info.height })));
+   return alphaCache.get(file)!;
+ }
+@@ -53,9 +58,9 @@ export async function paint(layers: Layer[], out: { w: number; h: number }): Pro
+   const comps: sharp.OverlayOptions[] = [];
+   for (const L of layers) {
+     if ("svg" in L) comps.push({ input: Buffer.from(L.svg), left: 0, top: 0 });
+-    else if ("image" in L && L.alpha) { // keep transparency: (crop,) resize the PNG with its alpha, fade by opacity
++    else if (L.alpha && ("image" in L || "video" in L)) { // keep transparency: (crop,) resize the PNG with its alpha, fade by opacity
+       const r = L.rect, W = Math.max(1, Math.round(r.w)), H = Math.max(1, Math.round(r.h));
+-      const src = await decodedAlpha(L.image), c = L.crop ?? { x: 0, y: 0, w: 1, h: 1 };
++      const src = await decodedAlpha("video" in L ? videoFrame(L.video, L.at, 30, true) : L.image), c = L.crop ?? { x: 0, y: 0, w: 1, h: 1 };
+       const left = Math.max(0, Math.round(c.x * src.w)), top = Math.max(0, Math.round(c.y * src.h));
+       const width = Math.max(1, Math.min(src.w - left, Math.round(c.w * src.w))), height = Math.max(1, Math.min(src.h - top, Math.round(c.h * src.h)));
+       let img = sharp(src.buf, { raw: { width: src.w, height: src.h, channels: 4 } }).extract({ left, top, width, height }).resize(W, H, { fit: "fill" });
+diff --git a/lib/presets/types.ts b/lib/presets/types.ts
+index ea1278d..7cf9f04 100644
+--- a/lib/presets/types.ts
++++ b/lib/presets/types.ts
+@@ -8,7 +8,7 @@ export type Rect = { x: number; y: number; w: number; h: number };
+ export type Layer =
+   | { svg: string }                                                     // full-frame SVG (out.w × out.h)
+   | { image: string; rect: Rect; crop?: Rect; radius?: number; opacity?: number; alpha?: boolean } // image file → rect; crop in source fractions 0..1; alpha: keep the image's transparency (an export with its own shadow)
+-  | { video: string; at: number; rect: Rect; crop?: Rect; radius?: number; opacity?: number }; // frame of a video file at `at` s
++  | { video: string; at: number; rect: Rect; crop?: Rect; radius?: number; opacity?: number; alpha?: boolean }; // frame of a video file at `at` s (alpha: a cut-out clip, Flex patch 11)
+ 
+ export type SceneCtx = {
+   t: number;            // ms since the card/b-roll starts

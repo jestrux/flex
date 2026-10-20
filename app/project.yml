@@ -1,0 +1,71 @@
+name: Flex
+options:
+  bundleIdPrefix: dev.waky
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: NO
+    ENABLE_APP_SANDBOX: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    SWIFT_STRICT_CONCURRENCY: minimal
+    SUPPORTED_PLATFORMS: macosx
+    SDKROOT: macosx
+targets:
+  Flex:
+    type: application
+    platform: macOS
+    sources:
+      - path: Flex
+        excludes: ["AppIcon.icon"]
+      # An Icon Composer document. It is one file to Xcode, which compiles it into the icon.
+      - path: Flex/AppIcon.icon
+        type: file
+        buildPhase: resources
+      - path: Generated
+      # The agent skill, linked into ~/.claude/skills by Flex › Install flex Command….
+      - path: ../skills
+        type: folder
+        buildPhase: resources
+      # The flex command (built by scripts/build-core.sh), linked to ~/.flex/bin by the same menu item.
+      - path: Frameworks/bin/flex
+        buildPhase:
+          copyFiles:
+            destination: wrapper
+            subpath: Contents/Helpers
+        attributes: [CodeSignOnCopy]
+    dependencies:
+      - framework: Frameworks/FlexCore.xcframework
+        embed: false
+    info:
+      path: Flex/Info.plist
+      properties:
+        CFBundleName: Flex
+        CFBundleDisplayName: Flex
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "14.0"
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+        LSApplicationCategoryType: public.app-category.video
+        NSDocumentsFolderUsageDescription: Flex opens the film projects you choose and runs their preview.
+        NSDesktopFolderUsageDescription: Flex opens the film projects you choose and runs their preview.
+        NSDownloadsFolderUsageDescription: Flex shows the renders fancy-e2e-videos writes to Downloads.
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Film Project
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.folder]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.waky.flex
+        PRODUCT_NAME: Flex
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        DEAD_CODE_STRIPPING: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"

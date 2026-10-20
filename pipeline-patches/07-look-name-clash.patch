@@ -1,0 +1,15 @@
+diff --git a/lib/looks.ts b/lib/looks.ts
+index 13e02a4..697818e 100644
+--- a/lib/looks.ts
++++ b/lib/looks.ts
+@@ -16,6 +16,10 @@ const DIR = join(import.meta.dirname, "..", "looks");
+ 
+ export function registerLook(l: Look) {
+   if (FEELS[l.name] && !LOOKS[l.name]) throw new Error(`look "${l.name}" clashes with a built-in feel`);
++  // a card and an effect can't share a name: their params are validated by name (params.ts), so one silently takes
++  // the other's (Flex: patch 07)
++  const effectTypes = new Set(Object.values(l.effects).map((d) => d.type));
++  for (const d of Object.values(l.cards)) if (effectTypes.has(d.type)) throw new Error(`look "${l.name}": a card and an effect are both named "${d.type}"; rename one`);
+   LOOKS[l.name] = l;
+   FEELS[l.name] = feelOfLook(l);
+   if (typeof l.tokens.canvas !== "string") BACKGROUNDS[l.name] = { label: l.label ?? l.name, bg: l.tokens.canvas };

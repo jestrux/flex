@@ -1,0 +1,45 @@
+--- a/lib/sequence.ts
++++ b/lib/sequence.ts
+@@ -125,8 +125,9 @@
+   seq.items.forEach((it, i) => { if (it.kind !== "take" && it.type) validate(it.type, it.params as Record<string, unknown>, `${seq.name} item ${i + 1}`);
+     if (it.kind === "take") { const e: Edl = JSON.parse(readFileSync(join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), it.take, "edl.json"), "utf8")); (it.patch ? it.patch(e) : e).effects?.forEach((f, j) => validate(f.type, f.params, `${it.take} edl effect ${j + 1}`)); } });
+   const dir = join(process.env.FLEX_WORK ?? ROOT, "build", seq.name + SIZE_TAG); if (!planOnly) mkdirSync(dir, { recursive: true });
+-  // a failed render must never leave the previous film behind for `check` to pass against
+-  if (!planOnly && !process.argv.includes("--plan")) for (const ext of [".mp4", ".srt", ".credits.txt"]) rmSync(finalPath(seq.name).replace(/\.mp4$/, ext), { force: true });
++  // a failed render must never leave the previous film behind for `check` to pass against: check reads the timeline,
++  // so that goes now; the film itself stays watchable until the new one replaces it (Flex, patch 10)
++  if (!planOnly && !process.argv.includes("--plan")) rmSync(join(dir, "timeline.json"), { force: true });
+   console.log(`● sequence "${seq.name}" · feel ${feel.label} · canvas ${seq.canvas ?? "feel"}`);
+ 
+   // the length of the transition after item i (0 for a cut or the end)
+diff --git a/lib/build.ts b/lib/build.ts
+index 4d13fe8..fc08d3d 100644
+--- a/lib/build.ts
++++ b/lib/build.ts
+@@ -4,7 +4,7 @@
+ //
+ //   npx tsx lib/build.ts <take> [--track carefree] [--no-music]
+ import { execFileSync } from "node:child_process";
+-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
++import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+ import { dirname, join } from "node:path";
+ import { homedir } from "node:os";
+ import type { Events } from "./capture.ts";
+@@ -30,13 +30,15 @@ const srtTime = (ms: number) => new Date(Math.max(0, ms)).toISOString().slice(11
+ 
+ /** shared output step: subtitles, credits, mux video + mixed audio, timeline for `check` */
+ export function finish(o: { name: string; dir: string; video: string; total: number; voice: VoiceLine[]; sfx: SfxLine[]; music?: MusicRef; extra?: object }) {
+-  const out = finalPath(o.name);
++  const out = finalPath(o.name), tmp = out.replace(/\.mp4$/, ".rendering.mp4"); // Flex (patch 10): swapped in when complete
+   mkdirSync(dirname(out), { recursive: true });
++  rmSync(out.replace(/\.mp4$/, ".credits.txt"), { force: true });
+   writeFileSync(out.replace(/\.mp4$/, ".srt"), o.voice.map((l, i) => `${i + 1}\n${srtTime(l.t)} --> ${srtTime(l.t + l.dur * 1000)}\n${l.text}\n`).join("\n"));
+   const cr = credits({ music: o.music, sfx: o.sfx });
+   if (cr.length) writeFileSync(out.replace(/\.mp4$/, ".credits.txt"), cr.join("\n") + "\n");
+   const audio = mixAudio(o.dir, { total: o.total, voice: o.voice, sfx: o.sfx, music: o.music });
+-  execFileSync("ffmpeg", ["-v", "error", "-y", "-i", o.video, "-i", audio.mix, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-t", String(o.total), out]);
++  execFileSync("ffmpeg", ["-v", "error", "-y", "-i", o.video, "-i", audio.mix, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-t", String(o.total), tmp]);
++  renameSync(tmp, out);
+   writeFileSync(join(o.dir, "timeline.json"), JSON.stringify({ name: o.name, out, video: o.video, total: o.total, voice: o.voice, sfx: o.sfx, music: o.music ? (typeof o.music === "string" ? o.music : o.music.key) : null, musicFrom: typeof o.music === "object" && o.music ? o.music.from ?? 0 : 0, audio, credits: cr, ...(o.extra ?? {}) }, null, 1));
+   console.log(`✓ ${out}  (${o.voice.length} lines, ${o.sfx.length} sounds${o.music ? `, music ${typeof o.music === "string" ? o.music : `${o.music.key}@${o.music.from ?? 0}s`}` : ""}${cr.length ? ", credits" : ""})`);
+   return out;

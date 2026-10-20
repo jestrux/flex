@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect width="1280" height="720" fill="#f6f4ef"/>
+<rect x="24" y="24" width="1232" height="672" fill="none" stroke="#2b2b2b" stroke-width="4" stroke-dasharray="14 10" rx="8"/>
+<text x="640" y="330" text-anchor="middle" font-family="Helvetica, Arial" font-size="84" font-weight="700" fill="#2b2b2b">Hello, Flex</text><rect x="440" y="370" width="400" height="18" rx="9" fill="#cfcac0"/>
+<text x="48" y="676" font-family="Helvetica, Arial" font-size="26" fill="#6b6760">Title card: the film's name, a line under it</text>
+</svg>

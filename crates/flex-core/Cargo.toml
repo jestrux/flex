@@ -1,0 +1,25 @@
+[package]
+name = "flex-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Flex engine: projects, the preview server, the frame cache"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+dirs.workspace = true
+resvg.workspace = true
+image.workspace = true
+rayon.workspace = true
+notify.workspace = true
+lcms2 = "6.2.0"
+# built from its own source, not linked to a system lcms2: the app links flex-core statically (an XCFramework)
+lcms2-sys = { version = "4.0.7", features = ["static"] }
+mozjpeg = "0.10.13"
+libloading = "0.8"
+
+[dev-dependencies]
+tempfile.workspace = true
+image.workspace = true

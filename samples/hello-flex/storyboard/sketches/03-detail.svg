@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect width="1280" height="720" fill="#f6f4ef"/>
+<rect x="24" y="24" width="1232" height="672" fill="none" stroke="#2b2b2b" stroke-width="4" stroke-dasharray="14 10" rx="8"/>
+<rect x="250" y="140" width="780" height="420" rx="18" fill="#dfe9fb" stroke="#2f6fde" stroke-width="5"/><rect x="310" y="220" width="600" height="14" rx="7" fill="#cfcac0"/><rect x="310" y="254" width="540" height="14" rx="7" fill="#cfcac0"/><rect x="310" y="288" width="480" height="14" rx="7" fill="#cfcac0"/><rect x="310" y="322" width="600" height="14" rx="7" fill="#cfcac0"/><rect x="310" y="356" width="540" height="14" rx="7" fill="#cfcac0"/><rect x="310" y="390" width="480" height="14" rx="7" fill="#cfcac0"/><circle cx="930" cy="470" r="34" fill="none" stroke="#2f6fde" stroke-width="6"/><text x="930" y="481" text-anchor="middle" font-family="Helvetica, Arial" font-size="30" fill="#2f6fde">1</text>
+<text x="48" y="676" font-family="Helvetica, Arial" font-size="26" fill="#6b6760">Close on the card: a step marker on the button</text>
+</svg>

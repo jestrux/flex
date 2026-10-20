@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <g transform="translate(512 512) scale(0.88) translate(-512 -512) rotate(-6 512 512)">
+    <!-- the play mark: a triangle with rounded corners -->
+    <path d="M466 382 L466 566 L614 474 Z" fill="#F0386B" stroke="#F0386B" stroke-width="44" stroke-linejoin="round"/>
+    <!-- the timeline: three scenes -->
+    <rect x="228" y="650" width="196" height="44" rx="22" fill="#F0386B"/>
+    <rect x="436" y="650" width="176" height="44" rx="22" fill="#F0386B" fill-opacity="0.5"/>
+    <rect x="624" y="650" width="188" height="44" rx="22" fill="#F0386B" fill-opacity="0.24"/>
+    <!-- the playhead -->
+    <rect x="511" y="614" width="20" height="116" rx="10" fill="#2B1020"/>
+    <circle cx="521" cy="614" r="25" fill="#2B1020"/>
+  </g>
+</svg>

@@ -1,0 +1,26 @@
+diff --git a/lib/assets.ts b/lib/assets.ts
+index cf98875..52149c4 100644
+--- a/lib/assets.ts
++++ b/lib/assets.ts
+@@ -13,7 +13,7 @@ export type Library = { sfx: Record<string, Asset>; music: Record<string, Asset>
+ // a project (projects/<name>, usually a symlink to a folder next to its product) can bring its own audio:
+ // projects/<name>/audio.json { music: { key: { file: "audio/x.mp3", … } }, sfx: { … } } — paths relative to
+ // the project. Those entries join the library with absolute paths; a track's beat grid sits next to it.
+-const PROJECTS = join(import.meta.dirname, "..", "projects");
++const PROJECTS = process.env.FLEX_PROJECTS ?? join(import.meta.dirname, "..", "projects"); // Flex: its session folder of project links
+ export type ProjectAudio = { manifest: string; lib: Partial<Library> };
+ export function projectAudio(): ProjectAudio[] {
+   if (!existsSync(PROJECTS)) return [];
+diff --git a/lib/looks.ts b/lib/looks.ts
+index 9e70ff3..13e02a4 100644
+--- a/lib/looks.ts
++++ b/lib/looks.ts
+@@ -37,7 +37,7 @@ export async function calibrateFont(family: string) {
+ }
+ 
+ // looks/<name>.ts, and each project's own look: projects/<project>/look.ts (named after the project)
+-const PROJECTS = join(import.meta.dirname, "..", "projects");
++const PROJECTS = process.env.FLEX_PROJECTS ?? join(import.meta.dirname, "..", "projects"); // Flex: its session folder of project links
+ const lookFiles: { name: string; file: string; rel: string }[] = [
+   ...(existsSync(DIR) ? readdirSync(DIR).filter((f) => f.endsWith(".ts") && !f.startsWith("_")).sort().map((f) => ({ name: f.replace(/\.ts$/, ""), file: join(DIR, f), rel: `looks/${f}` })) : []),
+   ...(existsSync(PROJECTS) ? readdirSync(PROJECTS).filter((d) => !d.startsWith("_") && existsSync(join(PROJECTS, d, "look.ts"))).sort().map((d) => ({ name: d, file: join(PROJECTS, d, "look.ts"), rel: `projects/${d}/look.ts` })) : []),

@@ -1,0 +1,23 @@
+diff --git a/lib/output.ts b/lib/output.ts
+index a0a7a6e..6bc75b2 100644
+--- a/lib/output.ts
++++ b/lib/output.ts
+@@ -2,11 +2,14 @@
+ // (cards, effects and grids scale by out.w / 1920), so only the pixels change. A non-default size gets its own build
+ // folder and a suffix on the film's files ("<name>@4k.mp4"), so 1080p and 4K renders never mix.
+ //   OUT_SIZE=4k npm run video <project>
++// Flex (patch 08): FLEX_FRAME=WxH is the film's own frame (frame.json; 1080x1920 for a vertical film). It is the
++// default size, and 1440p / 4k scale it (its short side to 1440 / 2160).
++const frame = /^\d+x\d+$/.test(process.env.FLEX_FRAME ?? "") ? process.env.FLEX_FRAME!.split("x").map(Number) : [1920, 1080];
+ const raw = (process.env.OUT_SIZE ?? "").toLowerCase();
+-const [w, h] = raw === "4k" || raw === "2160p" ? [3840, 2160] : raw === "1440p" ? [2560, 1440]
+-  : /^\d+x\d+$/.test(raw) ? raw.split("x").map(Number) : [1920, 1080];
++const k = raw === "4k" || raw === "2160p" ? 2 : raw === "1440p" ? 4 / 3 : 1;
++const [w, h] = /^\d+x\d+$/.test(raw) ? raw.split("x").map(Number) : frame.map((v) => Math.round((v * k) / 2) * 2);
+ export const OUT = { w, h };
+ /** output px per layout px (1 at 1080p, 2 at 4K) */
+ export const OUT_K = w / 1920;
+-/** the suffix for a non-default size's build folder and files ("" at 1080p) */
+-export const SIZE_TAG = w === 1920 && h === 1080 ? "" : h === 2160 ? "@4k" : `@${h}p`;
++/** the suffix for a non-default size's build folder and files ("" at the film's own frame) */
++export const SIZE_TAG = w === frame[0] && h === frame[1] ? "" : k === 2 ? "@4k" : k > 1 ? "@1440p" : `@${h}p`;

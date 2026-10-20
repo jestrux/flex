@@ -1,0 +1,49 @@
+diff --git a/lib/project.ts b/lib/project.ts
+index 382c38b..34a4da2 100644
+--- a/lib/project.ts
++++ b/lib/project.ts
+@@ -39,14 +39,16 @@ export function toSequence(p: Project, sceneId?: string): Sequence {
+   if (sceneId) {
+     const s = p.scenes.find((x) => x.id === sceneId);
+     if (!s) throw new Error(`project ${p.name}: no scene "${sceneId}" (scenes: ${p.scenes.map((x) => x.id).join(", ")})`);
++    // what follows the scene in the film (Flex, patch 16): its last card holds or cuts as it does there
++    const after = p.scenes[p.scenes.indexOf(s) + 1]?.items[0] ?? null;
+     const segs = typeof p.music === "object" ? p.music.segments : undefined;
+     if (segs?.length) { // an edited track: start the edit at the scene's film time (drop/trim the stretches before it)
+       let F = 0; const out: [number, number][] = [], trk: string[] = [], tracks = (p.music as { tracks?: string[] }).tracks;
+       segs.forEach(([a, b], i) => { const len = b - a; if (F + len > s.start) { out.push([out.length ? a : a + Math.max(0, s.start - F), b]); trk.push(tracks?.[i] ?? key); } F += len; });
+       // Flex (patch 09): a scene's edit keeps each kept segment's track; its first track is the scene's music key
+-      return { ...base, name: `${p.name}--${s.id}`, music: { ...(p.music as object), key: tracks ? trk[0] : key, segments: out, ...(tracks ? { tracks: trk } : {}) }, items: s.items };
++      return { ...base, name: `${p.name}--${s.id}`, music: { ...(p.music as object), key: tracks ? trk[0] : key, segments: out, ...(tracks ? { tracks: trk } : {}) }, items: s.items, after };
+     }
+-    return { ...base, name: `${p.name}--${s.id}`, music: { ...(typeof p.music === "string" ? {} : p.music), key, from: from0 + s.start }, items: s.items };
++    return { ...base, name: `${p.name}--${s.id}`, music: { ...(typeof p.music === "string" ? {} : p.music), key, from: from0 + s.start }, items: s.items, after };
+   }
+   return { ...base, name: p.name, music: p.music, items: p.scenes.flatMap((s) => s.items) };
+ }
+diff --git a/lib/sequence.ts b/lib/sequence.ts
+index 1d913f4..78640f3 100644
+--- a/lib/sequence.ts
++++ b/lib/sequence.ts
+@@ -46,6 +46,9 @@ export { segs, noEffects } from "./patch.ts"; // patch helpers (import them from
+ 
+ export type Sequence = {
+   name: string;
++  /** Flex (patch 16): a scene rendered alone — the item that follows it in the whole film (null: it ends the film).
++   *  The scene's last card then holds or cuts exactly as it does in the film, instead of playing as the film's end. */
++  after?: SeqItem | null;
+   /** a built-in feel (clean | modern | professional) or your look's name (looks/<name>.ts) */
+   feel: FeelName | (string & {});
+   /** canvas for takes: "feel" = on, with the feel's background (default); "edl" = each take's own; "off" */
+@@ -374,8 +377,9 @@ export async function renderSequence(seq: Sequence, opts: { planOnly?: boolean }
+       // the last card holds: render as if it were longer, so its exit never plays — the video cuts on it
+       // …and so does a card followed by a hard cut: an exit fading toward the empty stage right before a cut
+       // reads as a flash (nothing crossfades over it)
+-      const nx = seq.items[i + 1], cutNext = !!nx && (nx.kind === "transition" ? (nx.type ?? feel.transition.type) === "cut" : true);
+-      const last = i === lastIdx, held = last || cutNext, cardDur = last ? dur + feel.motion.out + 400 : dur;
++      const inFilm = i === lastIdx && seq.after !== undefined; // a scene's last card, rendered alone: as it plays in the film
++      const nx = inFilm ? seq.after ?? undefined : seq.items[i + 1], cutNext = !!nx && (nx.kind === "transition" ? (nx.type ?? feel.transition.type) === "cut" : true);
++      const last = i === lastIdx && !nx, held = last || cutNext, cardDur = last ? dur + feel.motion.out + 400 : dur;
+       console.log(`  · ${it.kind} ${it.type} (${dur}ms${last ? ", held to the end" : cutNext ? ", holds to the hard cut" : ""})`);
+       const n = Math.round((dur / 1000) * FPS);
+       if (!planOnly) await encode(file, n, (f) => paint(m.render(params, { t: (f * 1000) / FPS, dur: cardDur, out: OUT, feel, uid: `c${i}`, last: held, cutNext, asset: (p) => (p.startsWith("/") ? p : join(ROOT, p)) }), OUT));

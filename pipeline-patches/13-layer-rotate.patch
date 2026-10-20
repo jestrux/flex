@@ -1,0 +1,65 @@
+diff --git a/lib/presets/layers.ts b/lib/presets/layers.ts
+index 0ffbc34..db98d15 100644
+--- a/lib/presets/layers.ts
++++ b/lib/presets/layers.ts
+@@ -56,6 +56,21 @@ async function placed(file: string, rect: Rect, crop?: Rect, radius = 0, opacity
+ /** paint layers in order onto a black frame; returns raw RGB out.w × out.h */
+ export async function paint(layers: Layer[], out: { w: number; h: number }): Promise<Buffer> {
+   const comps: sharp.OverlayOptions[] = [];
++  // a placed picture (its top-left at x, y): turned `rotate` degrees clockwise about its centre (Flex, patch 13), then
++  // clipped to the frame (sharp needs overlays inside the base)
++  const put = async (buf: Buffer, x: number, y: number, rotate?: number) => {
++    if (rotate) {
++      const m0 = await sharp(buf).metadata();
++      buf = await sharp(buf).rotate(rotate, { background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
++      const m1 = await sharp(buf).metadata();
++      x = Math.round(x + (m0.width! - m1.width!) / 2); y = Math.round(y + (m0.height! - m1.height!) / 2);
++    }
++    const meta = await sharp(buf).metadata();
++    const cx = Math.max(0, -x), cy = Math.max(0, -y);
++    const cw = Math.min(meta.width! - cx, out.w - Math.max(0, x)), ch = Math.min(meta.height! - cy, out.h - Math.max(0, y));
++    if (cw <= 0 || ch <= 0) return;
++    comps.push({ input: cx || cy || cw < meta.width! || ch < meta.height! ? await sharp(buf).extract({ left: cx, top: cy, width: cw, height: ch }).png().toBuffer() : buf, left: Math.max(0, x), top: Math.max(0, y) });
++  };
+   for (const L of layers) {
+     if ("svg" in L) comps.push({ input: Buffer.from(L.svg), left: 0, top: 0 });
+     else if (L.alpha && ("image" in L || "video" in L)) { // keep transparency: (crop,) resize the PNG with its alpha, fade by opacity
+@@ -67,21 +82,12 @@ export async function paint(layers: Layer[], out: { w: number; h: number }): Pro
+       // rounded corners on the alpha path too (an opaque export with alpha: true lost its radius)
+       if ((L.radius ?? 0) > 0) img = sharp(await img.png().toBuffer()).composite([{ input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="${W}" height="${H}" rx="${L.radius}" fill="#fff"/></svg>`), blend: "dest-in" }]);
+       if ((L.opacity ?? 1) < 1) img = sharp(await img.png().toBuffer()).composite([{ input: Buffer.from([255, 255, 255, Math.round(255 * (L.opacity ?? 1))]), raw: { width: 1, height: 1, channels: 4 }, tile: true, blend: "dest-in" }]);
+-      const buf = await img.png().toBuffer(), x = Math.round(r.x), y = Math.round(r.y);
+-      const cx = Math.max(0, -x), cy = Math.max(0, -y), cw = Math.min(W - cx, out.w - Math.max(0, x)), ch = Math.min(H - cy, out.h - Math.max(0, y));
+-      if (cw > 0 && ch > 0) comps.push({ input: cx || cy || cw < W || ch < H ? await sharp(buf).extract({ left: cx, top: cy, width: cw, height: ch }).png().toBuffer() : buf, left: Math.max(0, x), top: Math.max(0, y) });
++      await put(await img.png().toBuffer(), Math.round(r.x), Math.round(r.y), L.rotate);
+     }
+     else {
+       const file = "video" in L ? videoFrame(L.video, L.at) : L.image;
+       const r = L.rect, buf = await placed(file, r, L.crop, L.radius ?? 0, L.opacity ?? 1);
+-      // clip to the frame: sharp needs overlays inside the base
+-      const meta = await sharp(buf).metadata();
+-      const x = Math.round(r.x), y = Math.round(r.y);
+-      const cx = Math.max(0, -x), cy = Math.max(0, -y);
+-      const cw = Math.min(meta.width! - cx, out.w - Math.max(0, x)), ch = Math.min(meta.height! - cy, out.h - Math.max(0, y));
+-      if (cw <= 0 || ch <= 0) continue;
+-      const part = cx || cy || cw < meta.width! || ch < meta.height! ? await sharp(buf).extract({ left: cx, top: cy, width: cw, height: ch }).png().toBuffer() : buf;
+-      comps.push({ input: part, left: Math.max(0, x), top: Math.max(0, y) });
++      await put(buf, Math.round(r.x), Math.round(r.y), L.rotate);
+     }
+   }
+   return sharp({ create: { width: out.w, height: out.h, channels: 3, background: "#000" } }).composite(comps).removeAlpha().raw().toBuffer();
+diff --git a/lib/presets/types.ts b/lib/presets/types.ts
+index 7cf9f04..0224e22 100644
+--- a/lib/presets/types.ts
++++ b/lib/presets/types.ts
+@@ -7,8 +7,8 @@ export type Rect = { x: number; y: number; w: number; h: number };
+ /** one thing to paint, in order, onto a full output frame (px) */
+ export type Layer =
+   | { svg: string }                                                     // full-frame SVG (out.w × out.h)
+-  | { image: string; rect: Rect; crop?: Rect; radius?: number; opacity?: number; alpha?: boolean } // image file → rect; crop in source fractions 0..1; alpha: keep the image's transparency (an export with its own shadow)
+-  | { video: string; at: number; rect: Rect; crop?: Rect; radius?: number; opacity?: number; alpha?: boolean }; // frame of a video file at `at` s (alpha: a cut-out clip, Flex patch 11)
++  | { image: string; rect: Rect; crop?: Rect; radius?: number; opacity?: number; alpha?: boolean; rotate?: number } // image file → rect; crop in source fractions 0..1; alpha: keep the image's transparency (an export with its own shadow)
++  | { video: string; at: number; rect: Rect; crop?: Rect; radius?: number; opacity?: number; alpha?: boolean; rotate?: number }; // frame of a video file at `at` s (alpha: a cut-out clip, Flex patch 11); rotate: degrees clockwise about the rect's centre (patch 13)
+ 
+ export type SceneCtx = {
+   t: number;            // ms since the card/b-roll starts

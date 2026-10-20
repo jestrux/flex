@@ -1,0 +1,218 @@
+diff --git a/lib/build.ts b/lib/build.ts
+index b36688b..397f861 100644
+--- a/lib/build.ts
++++ b/lib/build.ts
+@@ -42,7 +42,7 @@ export function finish(o: { name: string; dir: string; video: string; total: num
+ }
+ 
+ export function build(take: string, o: { track?: string; music?: boolean } = {}) {
+-  const dir = join(import.meta.dirname, "..", "takes", take);
++  const dir = join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take);
+   const ev: Events = JSON.parse(readFileSync(join(dir, "events.json"), "utf8"));
+   const edl: Edl | null = existsSync(join(dir, "edl.json")) ? JSON.parse(readFileSync(join(dir, "edl.json"), "utf8")) : null;
+   return finish({ name: take, dir, video: join(dir, "video.mp4"), total: ev.duration / 1000, voice: ev.narration, sfx: effectSounds(edl?.effects),
+diff --git a/lib/capture.ts b/lib/capture.ts
+index f265e36..0f5a17f 100644
+--- a/lib/capture.ts
++++ b/lib/capture.ts
+@@ -64,7 +64,7 @@ export const DPR = Number(process.env.CAPTURE_DPR ?? 2);
+  *  a missing target stops the run; a screenshot at every c.mark() (and every click with shots)
+  *  and at the end in build/dry/<take>/; takes/<take> is untouched */
+ export async function capture(take: string, journey: (c: Cam) => Promise<void>, o: { dry?: boolean; shots?: boolean } = {}) {
+-  const dir = o.dry ? join(import.meta.dirname, "..", "build", "dry", take) : join(import.meta.dirname, "..", "takes", take);
++  const dir = o.dry ? join(import.meta.dirname, "..", "build", "dry", take) : join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take);
+   needDisk(join(import.meta.dirname, ".."), o.dry ? 0.3 : 0.8, o.dry ? "dry run" : "capture");
+   // fresh frames + events; keep edl.json (hand edits survive a re-capture; plan respects "locked")
+   rmSync(join(dir, o.dry ? "." : "frames"), { recursive: true, force: true });
+diff --git a/lib/check.ts b/lib/check.ts
+index 8e4f1e6..39fd9c5 100644
+--- a/lib/check.ts
++++ b/lib/check.ts
+@@ -37,7 +37,7 @@ export const RULES = {
+ };
+ 
+ export function check(name: string) {
+-  const tl = [join(ROOT, "build", name + SIZE_TAG, "timeline.json"), join(ROOT, "takes", name, "timeline.json")].find(existsSync);
++  const tl = [join(ROOT, "build", name + SIZE_TAG, "timeline.json"), join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), name, "timeline.json")].find(existsSync);
+   if (!tl) throw new Error(`no timeline for "${name}" — build it first (npm run video ${name} / npm run build ${name})`);
+   const T = JSON.parse(readFileSync(tl, "utf8")) as { name: string; out: string; total: number; voice: VoiceLine[]; sfx: SfxLine[]; music: string | null; audio: Record<string, string>; credits: string[];
+     clips?: { label: string; start: number; dur: number; take?: string; from?: number; to?: number; effects?: Edl["effects"]; segments?: Edl["segments"] }[]; lastCard?: boolean; joins?: { after: number; type: string; ms: number }[] };
+@@ -112,7 +112,7 @@ export function check(name: string) {
+       const beats: number[] = [];
+       for (const c of T.clips ?? []) {
+         if (!c.take || s + d < c.start || s > c.start + c.dur) continue;
+-        const evp = join(ROOT, "takes", c.take, "events.json"); if (!existsSync(evp)) continue;
++        const evp = join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), c.take, "events.json"); if (!existsSync(evp)) continue;
+         const ev = JSON.parse(readFileSync(evp, "utf8")) as { cursor: { t: number; x: number; y: number }[]; typing?: { from: number; to: number }[] };
+         const toV = (ms: number) => c.start + ms / 1000 - (c.from ?? 0);
+         let last: { x: number; y: number } | null = null;
+@@ -178,7 +178,7 @@ export function check(name: string) {
+   // ── takes: cursor + effects (mapped to video time) ──────────────────────────────────
+   for (const c of T.clips ?? []) {
+     if (!c.take) continue;
+-    const dir = join(ROOT, "takes", c.take);
++    const dir = join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), c.take);
+     const ev: Events = JSON.parse(readFileSync(join(dir, "events.json"), "utf8"));
+     const edl: Edl = JSON.parse(readFileSync(join(dir, "edl.json"), "utf8"));
+     const from = (c.from ?? 0) * 1000, to = (c.to ?? ev.duration / 1000) * 1000;
+diff --git a/lib/editor.ts b/lib/editor.ts
+index 42be01d..677c751 100644
+--- a/lib/editor.ts
++++ b/lib/editor.ts
+@@ -13,7 +13,7 @@ import { finalPath } from "./build.ts";
+ 
+ const take = process.argv[2] ?? "studio-social";
+ const ROOT = join(import.meta.dirname, "..");
+-const DIR = join(ROOT, "takes", take);
++const DIR = join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), take);
+ const PORT = Number(process.env.PORT ?? 5299);
+ // camera + canvas helpers, bundled for the browser (camera imports canvas)
+ const cameraJs = () => buildSync({ stdin: { contents: `export { makeCamera } from "./camera.ts"; export { BACKGROUNDS, DEFAULT_CANVAS, backgroundOf, backgroundSvg, worldOf } from "./canvas.ts";`, resolveDir: join(ROOT, "lib"), loader: "ts" }, bundle: true, format: "esm", write: false }).outputFiles[0].text;
+diff --git a/lib/events.ts b/lib/events.ts
+index 206ba13..23c86ae 100644
+--- a/lib/events.ts
++++ b/lib/events.ts
+@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
+ import { join } from "node:path";
+ const take = process.argv[2]; if (!take) { console.error("usage: npm run events <take> [-- --dry]"); process.exit(1); }
+ const dry = process.argv.includes("--dry") || process.env.npm_config_dry === "true";
+-const p = dry ? join(import.meta.dirname, "..", "build", "dry", take, "events.json") : join(import.meta.dirname, "..", "takes", take, "events.json");
++const p = dry ? join(import.meta.dirname, "..", "build", "dry", take, "events.json") : join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take, "events.json");
+ if (!existsSync(p)) { console.error(`no capture for "${take}" (takes/${take}/events.json)`); process.exit(1); }
+ const ev = JSON.parse(readFileSync(p, "utf8"));
+ const rows: [number, string][] = [];
+diff --git a/lib/lag.ts b/lib/lag.ts
+index a029fcf..c3c173b 100644
+--- a/lib/lag.ts
++++ b/lib/lag.ts
+@@ -7,7 +7,7 @@ import { existsSync, readFileSync } from "node:fs";
+ import { join } from "node:path";
+ const [take, filter] = process.argv.slice(2);
+ if (!take) { console.error("usage: npm run lag <take> [mark-or-click-label]"); process.exit(1); }
+-const dir = join(import.meta.dirname, "..", "takes", take), p = join(dir, "events.json");
++const dir = join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take), p = join(dir, "events.json");
+ if (!existsSync(p)) { console.error(`no capture for "${take}"`); process.exit(1); }
+ const ev = JSON.parse(readFileSync(p, "utf8")) as { frames: { t: number; file: string }[]; clicks: { t: number; label?: string; rect?: { x: number; y: number; w: number; h: number } }[] };
+ let crop: { left: number; top: number; width: number; height: number } | undefined;
+diff --git a/lib/look-preview.ts b/lib/look-preview.ts
+index 9fd4a20..4c923b9 100644
+--- a/lib/look-preview.ts
++++ b/lib/look-preview.ts
+@@ -31,12 +31,12 @@ const save = async (buf: Buffer, file: string, label: string) => {
+ 
+ // a real frame of a take, for effects and the canvas
+ // your own take if you have one (named after the look), else a neutral app still — never another video's footage
+-const own = readdirSync(join(ROOT, "takes")).filter((d) => d.startsWith(name) && existsSync(join(ROOT, "takes", d, "events.json")))
+-  .sort((x, y) => statSync(join(ROOT, "takes", y, "events.json")).mtimeMs - statSync(join(ROOT, "takes", x, "events.json")).mtimeMs)[0];
++const own = readdirSync(join(process.env.FLEX_TAKES ?? join(ROOT, "takes"))).filter((d) => d.startsWith(name) && existsSync(join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), d, "events.json")))
++  .sort((x, y) => statSync(join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), y, "events.json")).mtimeMs - statSync(join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), x, "events.json")).mtimeMs)[0];
+ const take = F.get("take") ?? own, W = 1440, H = 810;
+ let app: Buffer;
+ if (take) {
+-  const tdir = join(ROOT, "takes", take);
++  const tdir = join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), take);
+   if (!existsSync(join(tdir, "events.json"))) { console.error(`take "${take}" not captured; pass --take <one in takes/>`); process.exit(1); }
+   const ev = JSON.parse(readFileSync(join(tdir, "events.json"), "utf8"));
+   const frame = [...ev.frames].reverse().find((f: { t: number }) => f.t <= Number(opt("frame", "20000"))) ?? ev.frames[0];
+diff --git a/lib/plan.ts b/lib/plan.ts
+index d9b8f6d..38c13db 100644
+--- a/lib/plan.ts
++++ b/lib/plan.ts
+@@ -135,7 +135,7 @@ export function plan(ev: Events, take: string): Edl {
+ 
+ /** events.json → edl.json, unless the edl is locked (hand edits kept). Capture runs this for you. */
+ export function planTake(take: string) {
+-  const dir = join(import.meta.dirname, "..", "takes", take);
++  const dir = join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take);
+   const out = join(dir, "edl.json");
+   if (existsSync(out) && JSON.parse(readFileSync(out, "utf8")).locked) { console.log(`  edl.json is locked — left as is (unlock to re-plan zooms from the new capture)`); return; }
+   const edl = plan(JSON.parse(readFileSync(join(dir, "events.json"), "utf8")), take);
+diff --git a/lib/render.ts b/lib/render.ts
+index 9967126..23ebdc2 100644
+--- a/lib/render.ts
++++ b/lib/render.ts
+@@ -51,7 +51,7 @@ export function pressScale(dt: number, mode: "snap" | "spring" = "snap") {
+ /** o.edl overrides fields of the take's edl.json (e.g. feel, canvas); o.out writes elsewhere; o.from/o.to in seconds */
+ export async function render(take: string, o: { edl?: Partial<Edl>; out?: string; from?: number; to?: number; pad?: number; quiet?: boolean } = {}) {
+   needDisk(join(import.meta.dirname, ".."), 0.4, "render");
+-  const dir = join(import.meta.dirname, "..", "takes", take);
++  const dir = join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take);
+   const ev: Events = JSON.parse(readFileSync(join(dir, "events.json"), "utf8"));
+   const edl: Edl = { ...JSON.parse(readFileSync(join(dir, "edl.json"), "utf8")), ...(o.edl ?? {}) };
+   const { w: W, h: H } = ev.viewport;
+diff --git a/lib/sequence.ts b/lib/sequence.ts
+index 9b2cf1f..def7e51 100644
+--- a/lib/sequence.ts
++++ b/lib/sequence.ts
+@@ -111,11 +111,11 @@ export async function renderSequence(seq: Sequence) {
+   const k0 = seq.music === false ? null : musicKey(seq.music ?? "carefree"), g0 = k0 ? musicGrid(k0) : null, unit = { bar: g0?.bar, beat: g0?.beat };
+   seq = { ...seq, items: seq.items.map((it) => {
+     if (it.kind !== "take" || (typeof it.from !== "string" && typeof it.to !== "string")) return it;
+-    const tdir = join(ROOT, "takes", it.take), ev: Events = JSON.parse(readFileSync(join(tdir, "events.json"), "utf8")), edl: Edl = JSON.parse(readFileSync(join(tdir, "edl.json"), "utf8"));
++    const tdir = join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), it.take), ev: Events = JSON.parse(readFileSync(join(tdir, "events.json"), "utf8")), edl: Edl = JSON.parse(readFileSync(join(tdir, "edl.json"), "utf8"));
+     return { ...it, from: resolveAt(it.take, it.from, ev, edl, unit), to: resolveAt(it.take, it.to, ev, edl, unit) };
+   }) };
+   seq.items.forEach((it, i) => { if (it.kind !== "take" && it.type) validate(it.type, it.params as Record<string, unknown>, `${seq.name} item ${i + 1}`);
+-    if (it.kind === "take") { const e: Edl = JSON.parse(readFileSync(join(ROOT, "takes", it.take, "edl.json"), "utf8")); (it.patch ? it.patch(e) : e).effects?.forEach((f, j) => validate(f.type, f.params, `${it.take} edl effect ${j + 1}`)); } });
++    if (it.kind === "take") { const e: Edl = JSON.parse(readFileSync(join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), it.take, "edl.json"), "utf8")); (it.patch ? it.patch(e) : e).effects?.forEach((f, j) => validate(f.type, f.params, `${it.take} edl effect ${j + 1}`)); } });
+   const dir = join(ROOT, "build", seq.name + SIZE_TAG); mkdirSync(dir, { recursive: true });
+   // a failed render must never leave the previous film behind for `check` to pass against
+   if (!process.argv.includes("--plan")) for (const ext of [".mp4", ".srt", ".credits.txt"]) rmSync(finalPath(seq.name).replace(/\.mp4$/, ext), { force: true });
+@@ -137,7 +137,7 @@ export async function renderSequence(seq: Sequence) {
+   for (const i of idx) {
+     const it = seq.items[i];
+     if (it.kind === "take") {
+-      const ev: Events = JSON.parse(readFileSync(join(ROOT, "takes", it.take, "events.json"), "utf8"));
++      const ev: Events = JSON.parse(readFileSync(join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), it.take, "events.json"), "utf8"));
+       const from = (it.from as number | undefined) ?? 0, to = (it.to as number | undefined) ?? ev.duration / 1000, base = to - from;
+       if (to > ev.duration / 1000 + 0.05 || from < 0 || to <= from)
+         throw new Error(`take ${it.take}: range ${from.toFixed(2)}–${to.toFixed(2)}s is outside the take (0–${(ev.duration / 1000).toFixed(2)}s). Ask for less, or hold the last frame by letting the music snap pad it.`);
+@@ -187,7 +187,7 @@ export async function renderSequence(seq: Sequence) {
+       // align: shift this take so a mark inside it lands exactly on a bar (or beat) line of the film
+       const itA = seq.items[i];
+       if (itA.kind === "take" && itA.align) {
+-        const evA: Events = JSON.parse(readFileSync(join(ROOT, "takes", itA.take, "events.json"), "utf8"));
++        const evA: Events = JSON.parse(readFileSync(join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), itA.take, "events.json"), "utf8"));
+         const mk = evA.marks.find((x) => x.label === itA.align!.mark);
+         if (!mk) throw new Error(`take ${itA.take}: align mark "${itA.align.mark}" not found. Marks: ${evA.marks.map((x) => x.label).join(", ")}`);
+         const from0 = (itA.from as number | undefined) ?? 0, markFilm = start + (mk.t / 1000 - from0);
+@@ -234,7 +234,7 @@ export async function renderSequence(seq: Sequence) {
+       if (cand !== undefined) pl.dur = cand - start + ov / 2;
+       // the snap held a take's last frame for a while: a frozen picture (often "Rendering…" after an Export) — say so
+       if (cand !== undefined && itA.kind === "take" && pl.dur - pl.base > 1) console.warn(`  ! ${itA.take}: the bar snap holds its last frame ${(pl.dur - pl.base).toFixed(1)} s (a still picture). End the range later (to: "<mark>+Ns"), or move the last line so the take ends just before a bar line`);
+-      if (cand !== undefined && itA.kind === "take" && !itA.bars /* bars: N asks for that length — trimming to it is the point */ && pl.dur < pl.base - 0.05) { const evT: Events = JSON.parse(readFileSync(join(ROOT, "takes", itA.take, "events.json"), "utf8")); const f0 = (itA.from as number | undefined) ?? 0, cutAt = f0 + pl.dur;
++      if (cand !== undefined && itA.kind === "take" && !itA.bars /* bars: N asks for that length — trimming to it is the point */ && pl.dur < pl.base - 0.05) { const evT: Events = JSON.parse(readFileSync(join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), itA.take, "events.json"), "utf8")); const f0 = (itA.from as number | undefined) ?? 0, cutAt = f0 + pl.dur;
+         const lost = evT.marks.filter((m) => m.label !== "end" && m.t / 1000 > cutAt && m.t / 1000 <= f0 + pl.base); if (lost.length) console.warn(`  ! ${itA.take}: the bar snap trims ${(pl.base - pl.dur).toFixed(1)} s off its end, cutting ${lost.map((m) => `"${m.label}"`).join(", ")} — noTrim: true keeps them`); }
+       if (cand === undefined) console.warn(`  ! can't land item ${i + 1} on a ${snapTo} line (needs ${pl.min.toFixed(1)}–${pl.max === Infinity ? "∞" : pl.max.toFixed(1)}s) — left at ${pl.dur.toFixed(2)}s`);
+       if (!last) start += pl.dur - ov;
+@@ -283,7 +283,7 @@ export async function renderSequence(seq: Sequence) {
+       console.log(`    ${at(t)}  ${name.padEnd(48)} ${pl.dur.toFixed(2)}s${pl.first !== Infinity ? `  voice ${(t + pl.first).toFixed(1)}–${(t + pl.last).toFixed(1)}s` : ""}`);
+       // where the take's marks land in the film, as film beats (the numbers align: { beat } takes)
+       if (it.kind === "take") {
+-        const evp = join(ROOT, "takes", it.take, "events.json");
++        const evp = join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), it.take, "events.json");
+         if (existsSync(evp)) {
+           const from = (it.from as number) ?? 0, beats = g ? g.beats.map((x) => x - mFrom).filter((x) => x >= -0.01) : [];
+           for (const m of (JSON.parse(readFileSync(evp, "utf8")) as Events).marks) {
+@@ -317,7 +317,7 @@ export async function renderSequence(seq: Sequence) {
+     pending = null;
+     const file = join(dir, `clip-${String(i).padStart(2, "0")}.mp4`);
+     if (it.kind === "take") {
+-      const tdir = join(ROOT, "takes", it.take);
++      const tdir = join(process.env.FLEX_TAKES ?? join(ROOT, "takes"), it.take);
+       const ev: Events = JSON.parse(readFileSync(join(tdir, "events.json"), "utf8"));
+       const edl: Edl = (it.patch ?? ((e: Edl) => e))(JSON.parse(readFileSync(join(tdir, "edl.json"), "utf8")));
+       // a patch can move zooms back onto a kept-clear region (keepClear is applied when planning, not here)
+diff --git a/lib/voice.ts b/lib/voice.ts
+index 250aee6..d1fb2b3 100644
+--- a/lib/voice.ts
++++ b/lib/voice.ts
+@@ -9,7 +9,7 @@ import { homedir } from "node:os";
+ import "dotenv/config";
+ 
+ const ROOT = join(import.meta.dirname, "..");
+-const CACHE = join(ROOT, ".cache", "voice");
++const CACHE = process.env.FLEX_VOICE_CACHE ?? join(ROOT, ".cache", "voice"); // Flex: its own voice cache
+ mkdirSync(CACHE, { recursive: true });
+ 
+ const OPENAI_KEY = process.env.OPENAI_API_KEY;

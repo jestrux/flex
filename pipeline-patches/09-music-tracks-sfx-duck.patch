@@ -1,0 +1,151 @@
+diff --git a/lib/audio.ts b/lib/audio.ts
+index 71d2277..efac19d 100644
+--- a/lib/audio.ts
++++ b/lib/audio.ts
+@@ -23,7 +23,10 @@ export const AUDIO = {
+ };
+ 
+ export type VoiceLine = { t: number; file: string; dur: number; text: string };          // t ms
+-export type SfxLine = { t: number; key: string; db?: number; cut?: number; fade?: number }; // cut/fade ms
++/** the music dipped under a sound (Flex, patch 09): `curve` = [s after the sound starts, dB] points, linear between them
++ *  (0 dB before the first and after the last); or the shorthand { db, attack, hold, release } (seconds) */
++export type SfxDuck = { db?: number; attack?: number; hold?: number; release?: number; curve?: [number, number][] };
++export type SfxLine = { t: number; key: string; db?: number; cut?: number; fade?: number; duck?: SfxDuck; gain?: number }; // cut/fade ms; gain: dB as it is, not levelled (patch 09)
+ const ff = (args: string[]) => execFileSync("ffmpeg", ["-v", "error", "-y", ...args]);
+ const silent = (out: string, total: number) => ff(["-f", "lavfi", "-i", `anullsrc=r=48000:cl=mono`, "-t", String(total), out]);
+ 
+@@ -34,15 +37,23 @@ export type MusicRef = string | false | { key: string; from?: number; ending?: "
+    *  crossfade centred on it (so a stretch repeated a whole number of beats back stays on the beat) — e.g.
+    *  [[0, 9.17], [8.57, 9.17], [8.57, 58]] holds the 8.57–9.17 beat twice more. `from` is ignored. */
+   segments?: [number, number][];
++  /** Flex (patch 09): the track each segment plays, one music key per segment (default: `key` for all). Segment times
++   *  are that track's own seconds; joins crossfade as usual, so a film can switch songs at a matched gap. */
++  tracks?: string[];
+   /** dB the music is held under the voice through every narrated stretch (lines < 1.5 s apart merge into one, 400 ms
+    *  ramps, so it doesn't pump between lines), before the sidechain duck. Applies whether the music leads or is a bed:
+    *  for a film whose narration is a small share (music "lead") with loud sung passages under it. */
+   underVoice?: number;
+   /** force the music's level role: "lead" (the soundtrack, AUDIO.lead) or "bed" (under narration, AUDIO.bed). Default: by
+    *  the narration's share of the video. A song-led film with narrated stretches wants "lead" + underVoice. */
+-  role?: "lead" | "bed" };
++  role?: "lead" | "bed";
++  /** Flex (patch 09): play the music at this gain (dB) as it is, not levelled to its role (a film mixed by hand) */
++  gain?: number };
+ export const musicKey = (m?: MusicRef) => (m ? (typeof m === "string" ? m : m.key) : null);
+ 
++/** dB the mono stems lose when the sum spreads them to stereo (patch 09) */
++const PAN_LAW = 3.01;
++
+ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sfx: SfxLine[]; music?: MusicRef }) {
+   const A = join(dir, "audio"); mkdirSync(A, { recursive: true });
+   const P = { voiceRaw: join(A, "voice-raw.wav"), voice: join(A, "voice.wav"), sfx: join(A, "sfx.wav"), music: join(A, "music.wav"), mix: join(A, "mix.wav") };
+@@ -62,7 +73,7 @@ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sf
+   if (o.sfx.length) {
+     const args: string[] = [], f: string[] = [];
+     o.sfx.forEach((s, i) => {
+-      const a = sfxAsset(s.key), g = AUDIO.sfx - (a.lufs ?? AUDIO.sfx) + (s.db ?? 0);
++      const a = sfxAsset(s.key), g = s.gain !== undefined ? s.gain + PAN_LAW : AUDIO.sfx - (a.lufs ?? AUDIO.sfx) + (s.db ?? 0);
+       const trim = s.cut ? `,atrim=0:${s.cut / 1000},afade=t=out:st=${Math.max(0, (s.cut - (s.fade ?? 600)) / 1000)}:d=${(s.fade ?? 600) / 1000}` : "";
+       args.push("-i", a.path);
+       f.push(`[${i}:a]aresample=48000,aformat=channel_layouts=mono,volume=${g.toFixed(2)}dB${trim},adelay=${Math.round(s.t)}:all=1[s${i}]`);
+@@ -82,7 +93,9 @@ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sf
+     const segs = typeof o.music === "object" && o.music.segments?.length ? o.music.segments : null;
+     if (segs) { // the edit: each stretch, widened 60 ms into each join, crossfaded 120 ms → exactly the stretches' lengths end to end
+       const bed = join(A, "music-edited.wav"), X = 0.06, n = segs.length;
+-      const inputs = segs.flatMap(([a, b], i) => { const s0 = i > 0 ? a - X : a, e0 = i < n - 1 ? b + X : b; return ["-ss", String(Math.max(0, s0)), "-t", String(e0 - Math.max(0, s0)), "-i", m.path]; });
++      const trk = typeof o.music === "object" ? o.music.tracks : undefined;
++      const pathOf = (i: number) => (trk?.[i] && trk[i] !== musicKey(o.music) ? musicAsset(trk[i]).path : m.path);
++      const inputs = segs.flatMap(([a, b], i) => { const s0 = i > 0 ? a - X : a, e0 = i < n - 1 ? b + X : b; return ["-ss", String(Math.max(0, s0)), "-t", String(e0 - Math.max(0, s0)), "-i", pathOf(i)]; });
+       const f = n === 1 ? ["[0:a]anull[x0]"] : segs.slice(1).map((_, i) => `${i === 0 ? "[0:a]" : `[x${i - 1}]`}[${i + 1}:a]acrossfade=d=${2 * X}:c1=tri:c2=tri[x${i}]`);
+       ff([...inputs, "-filter_complex", `${f.join(";")};[x${Math.max(0, n - 2)}]aresample=48000,aformat=channel_layouts=mono[out]`, "-map", "[out]", bed]);
+       m.path = bed;
+@@ -96,9 +109,14 @@ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sf
+     // the exact stretch of music the video uses (trimmed, faded), measured, then gained to target:
+     // a track's average loudness says nothing about the 40 s you picked from it
+     const raw = join(A, "music-raw.wav");
++    // a fixed gain is a film mixed by hand: the music plays as cut, without the automatic fades (patch 09)
++    const fixed = typeof o.music === "object" ? o.music.gain : undefined;
++    const fades = fixed !== undefined ? "apad" : `afade=t=in:d=${AUDIO.musicFadeIn},${splice ? "apad" : `afade=t=out:st=${Math.max(0, o.total - AUDIO.musicFadeOut).toFixed(3)}:d=${AUDIO.musicFadeOut}`}`;
+     ff([...(mFrom && !splice && !segs ? ["-ss", String(mFrom)] : []), ...(splice || segs ? [] : ["-stream_loop", "-1"]), "-i", m.path, "-af",
+-      `aresample=48000,aformat=channel_layouts=mono,atrim=0:${T},afade=t=in:d=${AUDIO.musicFadeIn},${splice ? "apad" : `afade=t=out:st=${Math.max(0, o.total - AUDIO.musicFadeOut).toFixed(3)}:d=${AUDIO.musicFadeOut}`}`, "-t", T, raw]);
+-    const g2 = AUDIO[role] - loudness(raw).lufs;
++      `aresample=48000,aformat=channel_layouts=mono,atrim=0:${T},${fades}`, "-t", T, raw]);
++    // (the stems are mono and the sum spreads them to stereo at -3 dB: a fixed gain puts that back, so gain 0 plays the
++    // file at its own level)
++    const g2 = fixed !== undefined ? fixed + PAN_LAW : AUDIO[role] - loudness(raw).lufs;
+     // adaptive dip: where the track gets louder under a line (a drop, a chorus), bring it down
+     // further for that line, with 300 ms ramps; the sidechain duck then works on top
+     const dips: string[] = [];
+@@ -118,7 +136,22 @@ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sf
+         dips.push(`(1-(1-${r})*clip((t-${a}+${ramp})/${ramp},0,1)*clip((${b}+${ramp}-t)/${ramp},0,1))`);
+       }
+     }
+-    const dip = dips.length ? `,volume='${dips.join("*")}':eval=frame` : "";
++    // Flex (patch 09): the music dipped under each sound that asks for it (a piecewise-linear dB curve per sound)
++    for (const s of o.sfx) {
++      if (!s.duck) continue;
++      const d = s.duck, t0 = s.t / 1000;
++      const pts: [number, number][] = d.curve ?? (() => { const a = d.attack ?? 0.02, h = d.hold ?? 0.5, r = d.release ?? 0.15, db = d.db ?? -9; return [[0, 0], [a, db], [a + h, db], [a + h + r, 0]]; })();
++      // dB(t) as nested ifs over the segments, then 10^(dB/20)
++      let expr = "0";
++      for (let k = pts.length - 2; k >= 0; k--) {
++        const [ta, da] = pts[k], [tb, dbb] = pts[k + 1], A0 = (t0 + ta).toFixed(4), B0 = (t0 + tb).toFixed(4);
++        const seg = tb > ta ? `(${da}+(${dbb - da})*(t-${A0})/${(tb - ta).toFixed(4)})` : `${dbb}`;
++        expr = `if(between(t,${A0},${B0}),${seg},${expr})`;
++      }
++      dips.push(`pow(10,(${expr})/20)`);
++    }
++    // (volume re-evaluates once per audio frame, ~85 ms here: 5 ms frames keep a duck's edges where they were asked for)
++    const dip = dips.length ? `,asetnsamples=n=240:p=0,volume='${dips.join("*")}':eval=frame` : "";
+     ff(["-i", raw, "-i", P.voice, "-filter_complex",
+       `[0:a]volume=${g2.toFixed(2)}dB${dip}[bed];[bed][1:a]sidechaincompress=threshold=${thr}:ratio=${ratio}:attack=40:release=500:makeup=1[out]`, "-map", "[out]", "-t", T, P.music]);
+     void g;
+diff --git a/lib/project.ts b/lib/project.ts
+index 0574b2c..971c9d0 100644
+--- a/lib/project.ts
++++ b/lib/project.ts
+@@ -38,9 +38,10 @@ export function toSequence(p: Project, sceneId?: string): Sequence {
+     if (!s) throw new Error(`project ${p.name}: no scene "${sceneId}" (scenes: ${p.scenes.map((x) => x.id).join(", ")})`);
+     const segs = typeof p.music === "object" ? p.music.segments : undefined;
+     if (segs?.length) { // an edited track: start the edit at the scene's film time (drop/trim the stretches before it)
+-      let F = 0; const out: [number, number][] = [];
+-      for (const [a, b] of segs) { const len = b - a; if (F + len > s.start) out.push([out.length ? a : a + Math.max(0, s.start - F), b]); F += len; }
+-      return { ...base, name: `${p.name}--${s.id}`, music: { ...(p.music as object), key, segments: out }, items: s.items };
++      let F = 0; const out: [number, number][] = [], trk: string[] = [], tracks = (p.music as { tracks?: string[] }).tracks;
++      segs.forEach(([a, b], i) => { const len = b - a; if (F + len > s.start) { out.push([out.length ? a : a + Math.max(0, s.start - F), b]); trk.push(tracks?.[i] ?? key); } F += len; });
++      // Flex (patch 09): a scene's edit keeps each kept segment's track; its first track is the scene's music key
++      return { ...base, name: `${p.name}--${s.id}`, music: { ...(p.music as object), key: tracks ? trk[0] : key, segments: out, ...(tracks ? { tracks: trk } : {}) }, items: s.items };
+     }
+     return { ...base, name: `${p.name}--${s.id}`, music: { ...(typeof p.music === "string" ? {} : p.music), key, from: from0 + s.start }, items: s.items };
+   }
+diff --git a/lib/sequence.ts b/lib/sequence.ts
+index 9683dc2..31b8c69 100644
+--- a/lib/sequence.ts
++++ b/lib/sequence.ts
+@@ -20,7 +20,7 @@ import { finalPath } from "./build.ts";
+ import { effectSounds, keystrokes } from "./effects/sounds.ts";
+ import { finish } from "./build.ts";
+ import { validate, type CardParams, type CardType, type TransitionParams, type TransitionType } from "./params.ts";
+-import { musicKey, type MusicRef, type SfxLine, type VoiceLine } from "./audio.ts";
++import { musicKey, type MusicRef, type SfxDuck, type SfxLine, type VoiceLine } from "./audio.ts";
+ import { endingTail, grid as musicGrid } from "./music.ts";
+ import { needDisk } from "./disk.ts";
+ import type { Events } from "./capture.ts";
+@@ -28,7 +28,7 @@ import type { Edl } from "./plan.ts";
+ 
+ type CardItem = { [K in CardType]: { kind: K extends `title-${string}` ? "title" : "broll"; type: K; params?: Partial<CardParams[K]>; dur?: number; bars?: number; say?: string; sayAt?: number; sayOver?: boolean; sfx?: CardSfx[] } }[CardType];
+ /** a sound a card plays: at = ms from the card's start; sound = a library sfx key (npm run fx:list) */
+-export type CardSfx = { at: number; sound: string; db?: number };
++export type CardSfx = { at: number; sound: string; db?: number; duck?: SfxDuck; gain?: number }; // duck: the music dipped under it; gain: dB as it is (Flex, patch 09)
+ type TxItem = { [K in TransitionType]: { kind: "transition"; type: K; ms?: number; params?: Partial<TransitionParams[K]> } }[TransitionType] | { kind: "transition"; type?: undefined; ms?: number; params?: undefined };
+ /** one of your look's cards — build it with card(look.cards.x, params, { bars }) from lib/look.ts */
+ /*  sayAt: ms into the card when its line starts (default 300) — e.g. keep a payoff line off a drop that lands on the card's cut
+@@ -376,7 +376,7 @@ export async function renderSequence(seq: Sequence, opts: { planOnly?: boolean }
+       console.log(`  · ${it.kind} ${it.type} (${dur}ms${last ? ", held to the end" : cutNext ? ", holds to the hard cut" : ""})`);
+       const n = Math.round((dur / 1000) * FPS);
+       if (!planOnly) await encode(file, n, (f) => paint(m.render(params, { t: (f * 1000) / FPS, dur: cardDur, out: OUT, feel, uid: `c${i}`, last: held, cutNext, asset: (p) => (p.startsWith("/") ? p : join(ROOT, p)) }), OUT));
+-      clips.push({ file, dur: n / FPS, label: `${it.kind} ${it.type}`, flex: { item: i, card: { type: it.type, params, cardDur, held, cutNext, uid: `c${i}` } }, voice: v ? [{ t: it.sayAt ?? 300, ...v, text: it.say! }] : [], sfx: (it.sfx ?? []).filter((x) => x.at < dur).map((x) => ({ t: x.at, key: x.sound, db: x.db })) });
++      clips.push({ file, dur: n / FPS, label: `${it.kind} ${it.type}`, flex: { item: i, card: { type: it.type, params, cardDur, held, cutNext, uid: `c${i}` } }, voice: v ? [{ t: it.sayAt ?? 300, ...v, text: it.say! }] : [], sfx: (it.sfx ?? []).filter((x) => x.at < dur).map((x) => ({ t: x.at, key: x.sound, db: x.db, duck: x.duck, gain: x.gain })) });
+     }
+   }
+ 
