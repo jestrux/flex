@@ -1,0 +1,792 @@
+{
+ "about": "Flex's song library. The files are on the library-v1 release of github.com/jestrux/flex; Flex downloads a song the first time a film uses it (flex library pull fetches ahead). Grids: grids.json, measured by flex music, the phase checked on each song's drum stem.",
+ "songs": [
+  {
+   "key": "brighter-morning",
+   "title": "Brighter Morning",
+   "bpm": 100,
+   "duration": 140.8,
+   "vocals": "vocals",
+   "genre": "Afropop with horn section",
+   "mood": "bright, celebratory, punchy",
+   "energy": "Quick lift then plateau: -20.7 dB intro to 15 s, +6.8 dB to a steady ~-13.9 dB body; a stripped vocal breakdown at bars 39-48 (drums/bass drop out, ~95-115 s), then a full-band return with brass to the end; outro drop at 135 s.",
+   "sections": "Intro with brass stabs 0-15 s > verse 20-37 s > chorus 37-56 s (with 'R-I-S-E' spell-out) > instrumental 56-93 s with brass riffs > stripped chorus breakdown 95-115 s > full instrumental finale 115-135 s > 'rise!' tag",
+   "ending": "clean: final 'rise!' and ~1 s decay to ~-22 dB below peak (soft tail)",
+   "tags": [
+    "afropop",
+    "brass",
+    "horns",
+    "uplifting",
+    "english lyrics",
+    "breakdown",
+    "100 bpm",
+    "long"
+   ],
+   "suits": [
+    "celebratory launch / release film",
+    "overview film with a quiet middle for narration (the stripped breakdown)",
+    "community success story"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Brighter Morning\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/brighter-morning.mp3",
+   "size": 3512759,
+   "sha256": "aebb759f7200c7c33f6f34b9446bceea0e1313ef6c5b92600ac9c14213966a95",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/brighter-morning-stems.zip",
+    "size": 171301022,
+    "sha256": "d055285e90550a229edabca9e708285e198753039195ac841b6b01e696b67c42"
+   }
+  },
+  {
+   "key": "choir-lift",
+   "title": "Choir Lift",
+   "bpm": 96.87,
+   "duration": 72.08,
+   "vocals": "chant",
+   "genre": "gospel-tinged choir pop",
+   "mood": "uplifting, rising, emotional",
+   "energy": "Staircase build in four steps: -24 dB intro > -20 at 10 s > -17.3 at 20 s > peak -13.3 at 40-55 s, then a breakdown (-20.4 at 55 s) and soft keys/choir outro (-22 at 67 s).",
+   "sections": "Synth/keys + choir intro 0-10 s > strings + bass 10-20 s > drums + percussion enter 20 s > full peak with guitar 40-55 s > breakdown to choir + keys 55-67 s > soft outro 67-72 s",
+   "ending": "soft keys/choir outro, faded over the last 2 s",
+   "tags": [
+    "choir",
+    "wordless",
+    "gospel",
+    "build",
+    "uplifting",
+    "97 bpm",
+    "short"
+   ],
+   "suits": [
+    "emotional build to a reveal",
+    "mission / testimonial film",
+    "under narration (wordless vocals do not fight speech)"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Choir Lift\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/choir-lift.mp3",
+   "size": 2281840,
+   "sha256": "4865c71aa02007788b2d99630b995ee62b181885c77812c5b6b5b5d614c5a977",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/choir-lift-stems.zip",
+    "size": 79433967,
+    "sha256": "205aadc4ff2ffe4a0dd60b3149e60495fc3ecc45d0ec960ed5fe7aa0f970142b"
+   }
+  },
+  {
+   "key": "easy",
+   "title": "Easy",
+   "bpm": 92.48,
+   "duration": 83.2,
+   "vocals": "vocals",
+   "genre": "laid-back keys-led pop / soft R&B-pop (keys, drums, bass; synth only in bars 17-19)",
+   "mood": "relaxed, reassuring, breezy",
+   "energy": "gentle and even, with every other bar louder (the vocal phrasing); small lift at bar 23 (~57 s, +1.9 dB), then a quiet outro from bar 31 (-6.5 dB)",
+   "sections": "verses/choruses 0-57 s; final chorus lift 57-78 s; soft outro 78-83 s",
+   "ending": "soft outro, ending quietly (about -18 dB for the last 5 s, -24 dB at the cut)",
+   "tags": [
+    "chill",
+    "pop",
+    "R&B",
+    "relaxed",
+    "simple",
+    "vocal",
+    "92bpm",
+    "keys",
+    "soft-ending"
+   ],
+   "suits": [
+    "'it's simple' product walkthroughs (payments, onboarding)",
+    "calm explainers",
+    "films that end on a gentle outro"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Easy\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/easy.mp3",
+   "size": 1920714,
+   "sha256": "6d9512504e1a27b53cf01fe300c8f2a029b6c16e2caf71b58df6493d7f551efb",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/easy-stems.zip",
+    "size": 48224413,
+    "sha256": "6018fac5d4b7d989720d94c620c02063ed3f2f160a8abccce649d78f1223ceef"
+   }
+  },
+  {
+   "key": "hey-ho",
+   "title": "Hey! Ho!",
+   "bpm": 124.48,
+   "duration": 64.04,
+   "vocals": "chant",
+   "genre": "stomp-and-clap folk-pop / stadium chant",
+   "mood": "rousing, communal, celebratory",
+   "energy": "stomp/clap and gang 'oh-oh' from the start; keys and synth verse (bars 8-12); full lift bars 13-17; breakdown bars 18-26 (bass, guitar and synth out; drums, percussion and chant only); big finale bars 27-31 with brass, guitar, bass and synth",
+   "sections": "intro/verse 0-32 s; breakdown 33-48 s; finale 48-61 s; end hit 62-64 s",
+   "ending": "clean hit: ~1 s after the last full bar, ends at -20 dB",
+   "tags": [
+    "stomp",
+    "clap",
+    "chant",
+    "folk-pop",
+    "anthemic",
+    "gang-vocals",
+    "124bpm",
+    "brass"
+   ],
+   "suits": [
+    "community or team films",
+    "short energetic social cuts",
+    "a breakdown for narration, then a brass finale for the reveal"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Hey! Ho!\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/hey-ho.mp3",
+   "size": 1532067,
+   "sha256": "a44c8abcc9ff53d2606ab2669d487fb28e8ee845fcbf559ad824a0b893295303",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/hey-ho-stems.zip",
+    "size": 78138808,
+    "sha256": "e972ef5f340426f0222df1b361dacb070be9bce63c5d9494f5f11199ab3e820a"
+   }
+  },
+  {
+   "key": "launch-day",
+   "title": "Launch Day",
+   "bpm": 129.25,
+   "duration": 163.6,
+   "vocals": "instrumental",
+   "genre": "modern house",
+   "mood": "upbeat, confident, bright",
+   "energy": "wave-shaped: 32 s keys/synth intro with guitar, drums in at bar 18, two breakdown/drop cycles (steps of about +/-4.7 dB), biggest lift at 136-152 s with brass entering at the end",
+   "sections": "intro 0-32 (bars 1-17) | groove 32-43 | groove 43-62 | breakdown 62-76 | drop 76-104 | break 104-114 | groove 114-136 | peak 136-152 (brass) | outro 152-160 | tail 160-164",
+   "ending": "final hit with about 3 s decay (clean ending, not a long fade)",
+   "tags": [
+    "house",
+    "four-on-the-floor",
+    "129 bpm",
+    "synth",
+    "uplifting",
+    "launch",
+    "builds and drops",
+    "brass finale"
+   ],
+   "suits": [
+    "product launch film",
+    "feature reveal",
+    "upbeat walkthrough with build/drop moments to cut big reveals on"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Launch Day\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/launch-day.mp3",
+   "size": 3839880,
+   "sha256": "bc1376ff7c5c28df7748d6a927058e99c3576b3c4780353f5e9f3d8728833898",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/launch-day-stems.zip",
+    "size": 154094328,
+    "sha256": "d396ac2e069d23c05b8fe65e3902fd70938af7ebf52295e10515092f1c32574b"
+   }
+  },
+  {
+   "key": "lets-go",
+   "title": "Let's Go!",
+   "bpm": 140.03,
+   "duration": 76.8,
+   "vocals": "chant",
+   "genre": "high-energy chant pop / electro-stomp (synth, bass, drums, brass stabs in the intro)",
+   "mood": "hyped, urgent, sporty",
+   "energy": "chant intro building over 11 bars, a drop at bar 12 (+6.6 dB), drive to bar 26, breakdown bars 27-30, rebuild bars 31-35, peak bars 36-43, then an end hit",
+   "sections": "intro 0-20 s; drop 19-46 s; breakdown 45-52 s; rebuild 52-61 s; peak 60-73 s; end 73-77 s",
+   "ending": "clean hit: ~1 s decay after the last full bar, ends at -28 dB",
+   "tags": [
+    "chant",
+    "hype",
+    "electro",
+    "sport",
+    "140bpm",
+    "drop",
+    "breakdown"
+   ],
+   "suits": [
+    "fast launch teasers",
+    "get-started CTAs",
+    "high-energy montages with a breakdown for a key line"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Let's Go!\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/lets-go.mp3",
+   "size": 1815782,
+   "sha256": "2b0312ca86757b833de79b52487e13f3afcf75e5c60d844c0d77e6c46bbfdd98",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/lets-go-stems.zip",
+    "size": 98790735,
+    "sha256": "0edea61975fc2977b00579d23eaf71e2e34deed1ac6b5e12f5e04553b84938a4"
+   }
+  },
+  {
+   "key": "log-drum-rise",
+   "title": "Log Drum Rise",
+   "bpm": 112.03,
+   "duration": 207.6,
+   "vocals": "instrumental",
+   "genre": "amapiano",
+   "mood": "warm, confident, rolling, building",
+   "energy": "a steady climb with no breakdowns: section energy -12.7 -> -11.4 -> -10.5 -> -10.1 -> -9.5 dB; the log-drum bass enters around bar 12 and the drums grow throughout; a short dip at 197-205 s before the end",
+   "sections": "intro 0-46 (keys, percussion, guitar licks; bass enters) | groove 47-98 | groove 99-132 | groove 133-184 | peak 184-196 | outro 197-205 | end 206-208",
+   "ending": "clean final hit, decays in about 2 s",
+   "tags": [
+    "amapiano",
+    "log drum",
+    "112 bpm",
+    "South African",
+    "steady build",
+    "groove",
+    "dance"
+   ],
+   "suits": [
+    "community/celebration film",
+    "African-market product walkthrough",
+    "upbeat montage that keeps building to a finale"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Log Drum Rise\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/log-drum-rise.mp3",
+   "size": 4865121,
+   "sha256": "2611e0df63e93c7efb5dd93c6ce8e25083095a9f6d188e50f499f86d4bc53d4d",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/log-drum-rise-stems.zip",
+    "size": 188323829,
+    "sha256": "d405bface06a4ece4e2bf6689abea804e17b163e8bfbf2ff9d6ba2dc990c5123"
+   }
+  },
+  {
+   "key": "night-build",
+   "title": "Night Build",
+   "bpm": 115.29,
+   "duration": 93.6,
+   "vocals": "vocals",
+   "genre": "synth-pop / electro-pop (synth, bass, drums; sparse guitar)",
+   "mood": "focused, late-night, building to euphoric",
+   "energy": "quiet first 4 bars (-11 dB), long restrained verse to bar 20, big lift at bar 21 (+4.3 dB) with a ~9-bar synth+bass instrumental stretch, high plateau to bar 34, last lift bars 37-42, then drop",
+   "sections": "intro+verse 0-41 s; chorus + instrumental drop 42-70 s; final chorus 71-87 s; outro 87.6-93.6 s",
+   "ending": "short decay to silence (last ~1.5 s below -20 dB, ends at -67 dB)",
+   "tags": [
+    "synth-pop",
+    "electronic",
+    "building",
+    "night",
+    "launch",
+    "vocal",
+    "115bpm",
+    "instrumental-break"
+   ],
+   "suits": [
+    "walkthroughs with narration (vocal is in only ~49% of bars, long instrumental stretch)",
+    "developer / build-process films",
+    "launch reveal timed to the bar-21 lift"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Night Build\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/night-build.mp3",
+   "size": 2229921,
+   "sha256": "d27f286526ecab636669ab1fe66368b47e26da9a6ec7020a67a884eaf8ce39cb",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/night-build-stems.zip",
+    "size": 55863558,
+    "sha256": "228c918f1dbb90be48cd578bb452b026e87e2f0d8837ddf971bac20728378220"
+   }
+  },
+  {
+   "key": "night-drift",
+   "title": "Night Drift",
+   "bpm": 113.01,
+   "duration": 240.57,
+   "vocals": "instrumental",
+   "genre": "amapiano (extended, deep)",
+   "mood": "front-loaded and full, then mellow, hypnotic, late-night",
+   "energy": "front-loaded: 0-133 s is the full, loud groove, then a breakdown at 132-143 s and a mid groove 3-5 dB quieter, the drums and log drum thinning out; fades at the end",
+   "sections": "full groove 0-133 | breakdown 132-144 | mid groove 143-216 | quieter stretch 215-240.6, fading from 237",
+   "ending": "fades out over 3.5 s on a section end at 4:00.6 (cut from an 8-minute take)",
+   "tags": [
+    "amapiano",
+    "deep",
+    "log drum",
+    "113 bpm",
+    "extended",
+    "8 minutes",
+    "hypnotic",
+    "synth-led second half"
+   ],
+   "suits": [
+    "long-form background bed (event loops, livestream, lobby)",
+    "a source to cut from: the first 133 s works as a full-energy amapiano bed; the stretch after 298 s works as a mellow, sparse underscore"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Night Drift\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/night-drift.mp3",
+   "size": 7821818,
+   "sha256": "23eac38def5db07a32722157845dd99e2ab86e75f10824b78329ba47e4d6a8f0",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/night-drift-stems.zip",
+    "size": 244769837,
+    "sha256": "ad02a1e2eb1bbbd8232973ce3d71466e3b8654a96c722e42fcb376101dd64ede"
+   }
+  },
+  {
+   "key": "pamoja",
+   "title": "Pamoja",
+   "bpm": 100.45,
+   "duration": 98.8,
+   "vocals": "vocals",
+   "genre": "Afropop / East African pop",
+   "mood": "warm, hopeful, communal, slightly brighter",
+   "energy": "Step up at 12 s (+4.4 dB), gently rising body (-15 to -12.5 dB by 80 s), a -1.5 dB pull-back at 86 s and an outro drop at 96 s.",
+   "sections": "Guitar intro 0-12 s > verse 21-37 s > chorus 37-50 s > instrumental 50-77 s led by a flute (woodwinds) melody with a brass hit > chorus return 'Pamoja, tuka pamoja' 77-90 s > outro section 86-96 s > final tag",
+   "ending": "clean hit: last hit ~97.8 s then ~1 s decay to ~-27 dB",
+   "tags": [
+    "afropop",
+    "swahili",
+    "bilingual",
+    "uplifting",
+    "flute",
+    "100 bpm"
+   ],
+   "suits": [
+    "community / circles explainer",
+    "feature film with narration over the flute-led middle"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Pamoja\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/pamoja.mp3",
+   "size": 2529950,
+   "sha256": "59dc3dd6225991fdae665f0d61764437dc6b2fa9d854851f0793b6cfd0d9ff0b",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/pamoja-stems.zip",
+    "size": 114853522,
+    "sha256": "fb499c0eb55a00860e7b5ccfb8d454b3a47d0b8223ac62c2144d9b2efc5fe71c"
+   }
+  },
+  {
+   "key": "quiet-hours",
+   "title": "Quiet Hours",
+   "bpm": 85.31,
+   "duration": 159.6,
+   "vocals": "instrumental",
+   "genre": "lo-fi hip hop",
+   "mood": "calm, cosy, focused, mellow",
+   "energy": "gentle loop of verse/break: three groove sections around -13.6 dB each, separated by short keys-only breaks (-4 to -6 dB), then a 20 s keys-only outro",
+   "sections": "intro 0-12 | keys break 12-24 | groove 23-58 | break 57-69 | groove 68-103 | break 102-114 | groove 113-134 | keys outro 133-153 | fade 152-160",
+   "ending": "fade-out (keys only; -21 to -44 dB across the last 6 s)",
+   "tags": [
+    "lo-fi",
+    "chillhop",
+    "85 bpm",
+    "keys",
+    "relaxed",
+    "study",
+    "background"
+   ],
+   "suits": [
+    "calm explainer or tutorial bed",
+    "settings/onboarding walkthrough",
+    "reflective or 'end of day' moments"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Quiet Hours\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/quiet-hours.mp3",
+   "size": 3140667,
+   "sha256": "cfd501a7050a3e6440678779614290389266ac509081ddc7e8116280b6bc8e61",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/quiet-hours-stems.zip",
+    "size": 60049122,
+    "sha256": "1eb17ef330c9c166f8fa2b4d1a72fb094ce59fb895fa44c9bec2573d24962178"
+   }
+  },
+  {
+   "key": "shangwe-brass",
+   "title": "Shangwe Brass",
+   "bpm": 112.64,
+   "duration": 66.0,
+   "vocals": "chant",
+   "genre": "Afrobeat / brass party",
+   "mood": "jubilant, punchy, high-energy throughout",
+   "energy": "Flat-high: drums and percussion from bar 1; a single section at ~-15 dB rising slowly to ~-13.5 dB; no drop.",
+   "sections": "Percussion + guitar intro 0-8 s > shouted chant 8-30 s (bars 5-14) > brass/guitar instrumental break 30-47 s (bars 15-22) > chant returns with 'FACA!'-like shouts 47-60 s (bars 23-28) > brass + flute outro",
+   "ending": "stops at full energy, with a 1.5 s fade on the last hit",
+   "tags": [
+    "chant",
+    "shouts",
+    "afrobeat",
+    "brass",
+    "party",
+    "short",
+    "113 bpm",
+    "high energy"
+   ],
+   "suits": [
+    "celebration / milestone moment",
+    "fast montage or social teaser",
+    "payout or goal-reached film"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Shangwe Brass\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/shangwe-brass.mp3",
+   "size": 2112094,
+   "sha256": "294295eb226de1a8cde0180fd00eff59b2b84e2e058666786848c3de15bc496d",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/shangwe-brass-stems.zip",
+    "size": 103715956,
+    "sha256": "129dfbbf8f672a8c4cb207aba9cc8e954aa26b85e3ce3944be826dc3615f31d1"
+   }
+  },
+  {
+   "key": "ship-it",
+   "title": "Ship It",
+   "bpm": 115.8,
+   "duration": 93.12,
+   "vocals": "vocals",
+   "genre": "upbeat indie/band pop (guitar, woodwinds, percussion, keys, synth)",
+   "mood": "optimistic, warm, driving",
+   "energy": "woodwind/guitar intro, quick lift at bar 5 and stays busy; peak chorus bars 21-28 (~47-58 s), small dip bars 29-37, full final chorus bars 38-43, short tag",
+   "sections": "intro 0-8.4 s; verses+chorus 8.5-58 s; dip/chorus repeat 58-77 s; final chorus 77-89 s; tag 89-93 s",
+   "ending": "clean hit: sung tag 'watch it... ship it!' then ~1.8 s decay (ends at -27 dB)",
+   "tags": [
+    "pop",
+    "indie-pop",
+    "upbeat",
+    "optimistic",
+    "launch",
+    "vocal",
+    "115bpm",
+    "guitar",
+    "woodwinds"
+   ],
+   "suits": [
+    "product launch / release films",
+    "feature showcases with a big chorus payoff",
+    "team or build-story montage"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Ship It\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/ship-it.mp3",
+   "size": 2200542,
+   "sha256": "fc58a926515619d094c1fc444341d1ffb85eec5fb63da5e82927f51175e798bb",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/ship-it-stems.zip",
+    "size": 114239657,
+    "sha256": "dc3faee1c8714b324d607d253e0459bfc033c835114c04dbc22ff912b6c0d8b3"
+   }
+  },
+  {
+   "key": "side-by-side",
+   "title": "Side by Side",
+   "bpm": 99.6,
+   "duration": 138.76,
+   "vocals": "vocals",
+   "genre": "Afropop (guitar-led highlife feel)",
+   "mood": "uplifting, warm, determined",
+   "energy": "Staircase build: -20 dB intro > -16.7 at 10 s > verse > -13.4 at 39 s (chorus) > -11.9 at 116 s (final instrumental lift, after a short breakdown at bar 48) > outro drop at 135 s.",
+   "sections": "Guitar intro 0-22 s > verse 22-39 s > chorus 39-58 s > long instrumental 58-97 s (guitar/percussion, synth rising) > chorus return 98-116 s > breakdown bar 48 then full-band finale with strings/brass hits 116-135 s > short outro",
+   "ending": "full-band finale, faded over the last 3 s",
+   "tags": [
+    "afropop",
+    "highlife guitar",
+    "uplifting",
+    "anthem",
+    "english lyrics",
+    "build",
+    "100 bpm",
+    "long"
+   ],
+   "suits": [
+    "community / mission film",
+    "product overview that climbs to a finale",
+    "release film (needs an end trim or fade)"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Side by Side\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/side-by-side.mp3",
+   "size": 4351559,
+   "sha256": "dc8181bc55a03400f96afee44ca1d2bfb3a399000231b0814aa558e4bcb0a2e1",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/side-by-side-stems.zip",
+    "size": 165603448,
+    "sha256": "acaf2b37c3b411acb622cf0654fa3144ed1a56e79d18737c869610c7650d61ec"
+   }
+  },
+  {
+   "key": "small-steps",
+   "title": "Small Steps",
+   "bpm": 97.01,
+   "duration": 147.2,
+   "vocals": "instrumental",
+   "genre": "warm acoustic / folk-pop with kalimba",
+   "mood": "warm, hopeful, gentle, encouraging",
+   "energy": "flat and even (one body section at about -14 dB, 5 s blocks within -11 to -14 dB); light drums enter after the intro; a bass-out lighter passage around 74-92 s; keys/kalimba come up in the last third; soft outro",
+   "sections": "body 0-135 (intro 0-18 guitar-led, light drums in, bass-out lift around 74-92, strings touches around 92-128) | outro 134-147",
+   "ending": "fade-out (-17 to -40 dB across the last 6 s)",
+   "tags": [
+    "acoustic",
+    "kalimba",
+    "97 bpm",
+    "warm",
+    "hopeful",
+    "gentle",
+    "even energy"
+   ],
+   "suits": [
+    "onboarding / first-steps walkthrough",
+    "savings or goals story",
+    "gentle explainer bed under narration"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Small Steps\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/small-steps.mp3",
+   "size": 3648439,
+   "sha256": "cd07c010b70638c898b6c10af96a59f32ab3a17217d60c6ee4dcffdd13e0d3d6",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/small-steps-stems.zip",
+    "size": 130250126,
+    "sha256": "eac99c30357b97b7d92b6d230ed2c72c52f812d9a683eedd97c3b41a76bc0a43"
+   }
+  },
+  {
+   "key": "steady-hours",
+   "title": "Steady Hours",
+   "bpm": 86.09,
+   "duration": 172.4,
+   "vocals": "instrumental",
+   "genre": "lo-fi hip hop",
+   "mood": "calm, cosy, steady",
+   "energy": "percussion-led intro, then a longer unbroken groove (17-100 s) before two short breaks; keys-only outro",
+   "sections": "intro 0-16 (shaker/percussion and keys) | groove 17-61 | groove 62-100 | break 101-114 | groove 115-144 | break 145-155 | keys outro 156-167 | fade 168-172",
+   "ending": "soft fade with a last quiet keys note",
+   "tags": [
+    "lo-fi",
+    "chillhop",
+    "86 bpm",
+    "keys",
+    "relaxed",
+    "background"
+   ],
+   "suits": [
+    "calm explainer or tutorial bed",
+    "long steady underscore"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Steady Hours\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/steady-hours.mp3",
+   "size": 3722074,
+   "sha256": "827792b42f6709b4f799a6c65c4740782b2398254f3fdb95c4c9e8291f77583e",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/steady-hours-stems.zip",
+    "size": 75880767,
+    "sha256": "3e3b5f85d4df1f3beab0063f6268e2f0b86090912574133ec96809ecf986ceea"
+   }
+  },
+  {
+   "key": "sunlit-groove",
+   "title": "Sunlit Groove",
+   "bpm": 104.48,
+   "duration": 130.8,
+   "vocals": "instrumental",
+   "genre": "Afrobeats",
+   "mood": "sunny, joyful, warm, easy-going",
+   "energy": "guitar intro, then a long gradual rise (-14.5 -> -8.8 dB) peaking around 115 s, then a stripped-down outro; strings colour the middle (about 33-60 s)",
+   "sections": "intro 0-18 (guitar, keys) | groove 19-92 (drums, percussion, bass build in; strings around 33-60) | peak 92-114 | outro 115-128 | end 129-131",
+   "ending": "short soft outro and ring-out (about -19 dB in the last 10 s, decaying to -28 dB), not a hard hit",
+   "tags": [
+    "afrobeats",
+    "afropop",
+    "104 bpm",
+    "highlife guitar",
+    "sunny",
+    "feel-good",
+    "gradual build"
+   ],
+   "suits": [
+    "feel-good community/people film",
+    "lifestyle or social-feature walkthrough",
+    "short promo (about 2 min)"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Sunlit Groove\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/sunlit-groove.mp3",
+   "size": 3122405,
+   "sha256": "587f96909a8bbbe75a67a90efc206c4a477e39ccb3d25ffa052a1e93d4e14b99",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/sunlit-groove-stems.zip",
+    "size": 125082820,
+    "sha256": "6c339a53288fa7fa707fc740ba450d59cb70f962466dd00a4577ee75bece19fa"
+   }
+  },
+  {
+   "key": "turn-it-on",
+   "title": "Turn It On",
+   "bpm": 116.97,
+   "duration": 94.44,
+   "vocals": "vocals",
+   "genre": "full-band synth-pop (keys, synth, bass, drums, percussion throughout)",
+   "mood": "bright, energetic, confident",
+   "energy": "up fast (full by bar 5), a high plateau from bar 21 to 35, a short breakdown with vocal ad-libs (bars 36-41), a final punch (bars 42-45)",
+   "sections": "intro 0-9 s; verse/pre-chorus/chorus 8-26 s; long chorus plateau 25-83 s; final lift 82-91 s; end 91-94 s",
+   "ending": "clean hit: ~1.3 s decay after the last full bar (ends at -23 dB)",
+   "tags": [
+    "synth-pop",
+    "upbeat",
+    "bright",
+    "energetic",
+    "vocal-heavy",
+    "tech",
+    "117bpm"
+   ],
+   "suits": [
+    "fast feature montages",
+    "upbeat social cuts and teasers",
+    "films without narration (the vocal sings in 89% of bars)"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Turn It On\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/turn-it-on.mp3",
+   "size": 2215946,
+   "sha256": "31e995982c95a6d49e9b7f74c06c9e5622db07aeca879028fb3e142e47ccee4f",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/turn-it-on-stems.zip",
+    "size": 120993672,
+    "sha256": "e77c1b420235235da87dd5611ba64791b8894fc13e962fd0e1d09ac3beb03214"
+   }
+  },
+  {
+   "key": "twende",
+   "title": "Twende!",
+   "bpm": 113.23,
+   "duration": 60.68,
+   "vocals": "chant",
+   "genre": "Afro-folk chant into Afrobeat",
+   "mood": "playful, rallying, anticipatory then energetic",
+   "energy": "Two halves: a drum-light chant over guitar/keys at ~-16 dB for 38 s, then a +3.5 dB drop at 38.4 s (bar 19) where full drums, bass and a flute solo come in; stays high to the end.",
+   "sections": "Guitar/keys intro 0-8 s > chant section 8-34 s (drums mostly out, bass enters bar 9) > break ~34 s > drop at 38 s: drums + bass + flute solo (bars 18-21) > guitar returns bars 23-26 > drum/percussion outro",
+   "ending": "clean hard stop: full energy to ~59.8 s, then a sudden drop with a short ring (-27 dB)",
+   "tags": [
+    "chant",
+    "swahili",
+    "afrobeat",
+    "short",
+    "drop",
+    "build",
+    "113 bpm",
+    "flute"
+   ],
+   "suits": [
+    "short teaser or social cut (60 s) with a reveal on the 38 s drop",
+    "'let's go' call-to-action / onboarding start",
+    "sign-up or launch moment"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Twende!\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/twende.mp3",
+   "size": 1451731,
+   "sha256": "6c36f58ec068e31b85d24442b2bc22de0996740598a9c1d13acfd3b2630520e5",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/twende-stems.zip",
+    "size": 83382153,
+    "sha256": "9ed0a76c58ab8db408f0c8bd6c90e040599b11e3091b64162e00ac72307481ae"
+   }
+  },
+  {
+   "key": "watch-it-fly",
+   "title": "Watch It Fly",
+   "bpm": 115.5,
+   "duration": 100.0,
+   "vocals": "vocals",
+   "genre": "tech-optimism pop: guitar-and-woodwind intro into synth-pop",
+   "mood": "hopeful, airy, rising",
+   "energy": "slow build: soft guitar intro (bars 1-15), drums and bass drop out for a breakdown (bars 15-21), first full chorus bars 22-30, second breakdown bars 31-37, then a long climb to a peak in the final bars 41-47",
+   "sections": "intro/verse 0-31 s; breakdown 31-44 s; chorus 44-62 s; breakdown + rebuild 62-96 s (peak 80-96 s); end 96-100 s",
+   "ending": "clean hit: full level until ~2 s before the end, then a quick decay (ends at -24 dB)",
+   "tags": [
+    "pop",
+    "synth-pop",
+    "tech",
+    "optimistic",
+    "build-up",
+    "breakdowns",
+    "vocal",
+    "115bpm"
+   ],
+   "suits": [
+    "release films with a long build to a final reveal",
+    "story films with a calm opening",
+    "narration over the breakdowns"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"Watch It Fly\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/watch-it-fly.mp3",
+   "size": 2365653,
+   "sha256": "9482df2d413289c7ad1017c13c8dc13f41d43a0dc1ed4a77c38263896faf777e",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/watch-it-fly-stems.zip",
+    "size": 66689427,
+    "sha256": "d52592d50c5d356bf154f405acc61f2d416cfa55fc6db8961677aa32a56af9a1"
+   }
+  },
+  {
+   "key": "we-rise-together",
+   "title": "We Rise Together",
+   "bpm": 100,
+   "duration": 151.68,
+   "vocals": "vocals",
+   "genre": "Afro-pop / uplifting pop",
+   "mood": "hopeful, celebratory, bright",
+   "energy": "Clear builds: quiet intro (-19 dB) to 22 s, +4.6 dB band entry at 22 s, then a further +2.3 dB lift at 116 s (final chorus, full band 8s on the activity grid), outro drop -7 dB at 145 s.",
+   "sections": "Intro with brass stabs 0-22 s > band in 22 s > verse 31-49 s > chorus 49-67 s > instrumental 67-106 s with flute + brass hits > final chorus 106-126 s (lift at bar 49) > full instrumental outro > 'Rise!' tag 145 s",
+   "ending": "clean: final 'Rise!' then ~1.2 s decay to near silence (-45 dB)",
+   "tags": [
+    "afropop",
+    "uplifting",
+    "anthem",
+    "group vocals",
+    "english lyrics",
+    "brass",
+    "build",
+    "100 bpm",
+    "long"
+   ],
+   "suits": [
+    "community / togetherness brand film",
+    "release or overview film with a big final-chorus payoff",
+    "films that need a quiet intro under titles"
+   ],
+   "source": "Made with Suno (paid plan) for Flex",
+   "licence": "Free to use in your films",
+   "attribution": "\"We Rise Together\" from the Flex music library",
+   "url": "https://github.com/jestrux/flex/releases/download/library-v1/we-rise-together.mp3",
+   "size": 3804818,
+   "sha256": "e00f98f2875658e8a2fbc529f8b2f30e1fb2d4fc429959d1ecf6848bbae43600",
+   "stems": {
+    "url": "https://github.com/jestrux/flex/releases/download/library-v1/we-rise-together-stems.zip",
+    "size": 192344452,
+    "sha256": "5e147347d3ba2b52513a9eea0ca711960dad6715683cb1cf75adabde7b1c0e91"
+   }
+  }
+ ]
+}
