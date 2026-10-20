@@ -93,7 +93,7 @@ their licence. Three ways:
   | Free Music Archive | per track; avoid NC (non-commercial) for anything commercial |
 
   `flex library` lists the tracks Flex ships with (`music: { key: "carefree" }` in `project.ts`) and Flex's own songs
-  (made in Suno for Flex, with vocals, chants or instrumental; free to use in your films). A song downloads the first time
+  (made in Suno for Flex, with vocals, chants or instrumental; free in any film, no credit needed: LICENSE-MUSIC.md). A song downloads the first time
   a film names it, with its grid; `flex library pull <key> --stems` fetches it ahead with its stems (in
   `~/Library/Application Support/Flex/library/<key>/stems/`). A good start, but every Flex film can use them, so a film
   that should sound like its own picks a track of its own.

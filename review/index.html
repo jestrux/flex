@@ -438,6 +438,9 @@ input[type=range]{accent-color:var(--accent-line)}
 .demo-steps li.next{background:var(--accent-soft);color:var(--ink);box-shadow:inset 0 0 0 1px var(--accent-line)}
 .demo-f{display:flex;gap:6px;align-items:center}
 .demo-f button:disabled{opacity:.45}
+.actline{display:flex;align-items:center;gap:10px;margin:20px 32px 0;padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:13px;color:var(--ink-2);max-width:1176px}
+.actline svg{color:var(--ink-3)}
+.demo-next{font-size:12px;line-height:17px;padding:6px 8px;border-radius:6px;background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-line)}
 /* notes */
 .notes{display:flex;flex-direction:column;gap:10px}
 .notes-h{display:flex;align-items:baseline;justify-content:space-between;font-size:13px;font-weight:600;color:var(--ink-2)}
@@ -1876,23 +1879,6 @@ function cardContent(it, mode) {
   if (mode === 'read') return h('div', { class: 'read ' + (lay === 'vert' ? '' : lay === 'horiz' ? 'horiz' : 'nomedia') }, top, media ? h('div', { class: 'read-media' }, media) : null, col);
   return h('div', { class: 'card-in ' + (lay === 'horiz' ? 'horiz' : '') }, top, media ? h('div', { class: 'read-media' }, media) : null, col);
 }
-function handledRow(it) {
-  var ch = chosenOpts(it), w = wayOf(it);
-  return h('button', { type: 'button', class: 'card-row row', onclick: function () { UI.expanded[it.id] = true; UI.focus = it.id; render(); } },
-    I.check(14), h('span', { class: 't', html: it.title }),
-    h('span', { class: 'a' }, answerLabel(it) ? '→ ' + answerLabel(it) : it.decision ? 'marked handled' : 'seen'),
-    w && w.k === 'way' ? h('span', { class: 'pill way' }, 'your way') : null,
-    w && w.k === 'agreed' ? h('span', { class: 'pill rec' }, I.agent(10), 'agreed') : null,
-    notesOf(it.id).length ? h('span', { class: 'muted' }, plural(notesOf(it.id).length, 'note')) : null,
-    h('span', { class: 'btn sm', role: 'button', tabindex: '0', onclick: function (e) { e.stopPropagation(); undo(it); } }, I.undo(), 'Undo'));
-}
-function stackCard(it) {
-  var collapsed = status(it) === 'handled' && !UI.expanded[it.id] && !UI.sticky[it.id];
-  var el = h('article', { class: 'card' + (UI.focus === it.id ? ' focus' : '') + (UI.glow[it.id] ? ' glow' : ''), id: 'card-' + it.id, 'data-card': it.id });
-  el.addEventListener('pointerdown', function () { if (UI.focus !== it.id) { UI.focus = it.id; document.querySelectorAll('.card.focus').forEach(function (c) { c.classList.remove('focus'); }); el.classList.add('focus'); } });
-  el.appendChild(collapsed ? handledRow(it) : cardContent(it, 'stack'));
-  return el;
-}
 
 /* ───────────────────────── view state ───────────────────────── */
 var UI = {
@@ -1904,12 +1890,12 @@ var UI = {
 };
 var SERVED = /^https?:$/.test(location.protocol);
 
-function setView(v, stage) {
+function setView(v, stage, sel) {
   UI.review = null;
   UI.view = v; UI.stage = stage || null; UI.sticky = {}; UI.expanded = {};
-  if (v !== 'inbox') { var first = visibleStack()[0]; UI.focus = first ? first.id : null; }
+  UI.sel = sel || null; if (v === 'activity') UI.logSel = 0;
   render();
-  var sc = document.querySelector('[data-scroll^="stack"]'); if (sc) sc.scrollTop = 0;
+  var r = document.querySelector('.irow.on'); if (r && r.scrollIntoView) r.scrollIntoView({ block: 'nearest' });
 }
 function matches(it) {
   if (UI.tags.length && !UI.tags.some(function (t) { return it.tags.indexOf(t) >= 0; })) return false;
@@ -1920,6 +1906,11 @@ function matches(it) {
 function listRows() {
   // the rows of the inbox list, in display order: [{it, handled}]
   var rows = [], open = [], done = [];
+  if (UI.view === 'all' || UI.view === 'stage') {
+    rows = (UI.view === 'stage' ? (D.byStage[UI.stage] || []) : D.items).filter(matches);
+    rows.forEach(function (it) { (isOpen(it) ? open : done).push(it); });
+    return { rows: rows, open: open, done: done };
+  }
   D.items.forEach(function (it) { if (!matches(it)) return; if (isOpen(it) || UI.sticky[it.id]) open.push(it); else done.push(it); });
   if (UI.seg === 'open') { rows = open.slice(); if (UI.handledOpen) rows = rows.concat(done); }
   else if (UI.seg === 'handled') rows = done;
@@ -1931,15 +1922,10 @@ function select(id) {
   UI.sel = id; UI.focus = id; render();
   var r = document.querySelector('.irow.on'); if (r && r.scrollIntoView) r.scrollIntoView({ block: 'nearest' });
 }
-function visibleStack() {
-  if (UI.view === 'stage') return (D.byStage[UI.stage] || []).slice();
-  if (UI.view === 'all') return D.items.slice();
-  return [];
-}
 function current() {
   if (UI.review) return D.byId[UI.review.queue[UI.review.i]] || null;
-  if (UI.view === 'inbox') return D.byId[UI.sel] || null;
-  if (UI.view === 'stage' || UI.view === 'all') return D.byId[UI.focus] || null;
+  if (UI.view === 'inbox' || UI.view === 'stage' || UI.view === 'all') return D.byId[UI.sel] || null;
+  if (UI.view === 'activity') { var l = D.log[UI.logSel || 0]; return l && l.item ? D.byId[l.item] || null : null; }
   return null;
 }
 
@@ -2030,6 +2016,42 @@ function inboxList() {
     if (UI.tags.length) menu.appendChild(h('button', { type: 'button', class: 'btn sm', style: 'width:100%;margin-top:4px;justify-content:center', onclick: function () { UI.tags = []; render(); } }, 'Clear tags'));
     if (!allTags.length) menu.appendChild(h('div', { class: 'muted', style: 'padding:6px 8px' }, 'No tags on these cards'));
   }
+  var page = UI.view, stg = page === 'stage' ? stageOf(UI.stage) : null;
+  if (page !== 'inbox') {
+    var si = stg ? D.stages.indexOf(stg) : -1, pv = D.stages[si - 1], nx = D.stages[si + 1], c0 = stg ? stageCounts(stg) : null;
+    sec.appendChild(h('div', { class: 'list-head' },
+      h('div', { class: 'list-title' }, h('div', { style: 'display:flex;flex-direction:column;min-width:0' },
+        stg ? h('span', { class: 'mono muted', style: 'font-size:11px' }, 'Stage ' + stg.n + ' of ' + D.stages.length) : null,
+        h('h1', { class: 'h-list' }, stg ? stg.title : 'Everything'),
+        h('span', { class: 'muted' }, stg ? (stg.blurb ? stg.blurb + ' · ' : '') + plural(c0.total, 'card') + (c0.open ? ' · ' + c0.open + ' open' : c0.total ? ' · all handled' : '') : plural(t.total, 'card') + ' · ' + t.handled + ' handled')),
+        stg ? h('div', { style: 'display:flex;gap:4px;flex:0 0 auto' },
+          h('button', { type: 'button', class: 'sq ib', disabled: !pv, style: pv ? '' : 'opacity:.4', 'aria-label': pv ? 'Previous stage: ' + pv.title : 'No previous stage', title: pv ? pv.n + ' ' + pv.title : '', onclick: function () { if (pv) setView('stage', pv.id); } }, I.left()),
+          h('button', { type: 'button', class: 'sq ib', disabled: !nx, style: nx ? '' : 'opacity:.4', 'aria-label': nx ? 'Next stage: ' + nx.title : 'No next stage', title: nx ? nx.n + ' ' + nx.title : '', onclick: function () { if (nx) setView('stage', nx.id); } }, I.right())) : null),
+      !stg && D.stages.length ? progressBar('100%') : null,
+      h('label', { class: 'search' }, I.search(), search, h('span', { class: 'kbd' }, '/')),
+      h('div', { style: 'display:flex;align-items:center;gap:8px;position:relative' }, h('button', { type: 'button', class: 'btn sm', disabled: !t.open, style: t.open ? '' : 'opacity:.5', onclick: startReview }, I.play(12), 'Review open', h('span', { class: 'kbd' }, 'R')), h('span', { style: 'margin-left:auto' }), tagsBtn, menu)));
+    var pb = h('div', { class: 'list-body', 'data-scroll': 'list-' + page + '-' + (UI.stage || '') }), w2 = D.project.working;
+    (stg ? [stg] : D.stages).forEach(function (s2) {
+      var its = L.rows.filter(function (it) { return it.stage === s2.id; }), wk = w2 && w2.stage === s2.id && !w2.item;
+      if (!its.length && !wk) return;
+      var c = stageCounts(s2);
+      var g = h('div', { class: 'grp' }, stg ? null : h('div', { class: 'grp-h' }, h('span', { class: 'mono' }, String(s2.n)), h('b', null, s2.title), h('span', null, '· ', c.open ? h('span', { style: 'color:var(--accent-line)' }, c.open + ' open') : c.total ? 'all handled' : '')));
+      its.forEach(function (it) { g.appendChild(inboxRow(it)); });
+      if (wk) g.appendChild(h('div', { class: 'irow', style: 'cursor:default' }, h('span', { class: 'spin', style: 'margin-top:4px' }), h('span', { style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:2px' }, h('span', { class: 'irow-t', style: 'color:var(--ink-2);font-weight:400' }, 'The agent is working…'), h('span', { class: 'irow-s' }, h('span', null, plain(w2.text || ''))))));
+      pb.appendChild(g);
+    });
+    if (!pb.childNodes.length) pb.appendChild(h('div', { class: 'muted', style: 'padding:24px 10px;text-align:center' }, UI.q || UI.tags.length ? 'No cards match.' : 'Nothing here yet.'));
+    var sl = D.settled.filter(function (x) { return stg ? x.stage === stg.id : true; });
+    if (sl.length) {
+      var ob = sl.filter(function (x) { return S.objections[x.id]; }).length;
+      pb.appendChild(h('button', { type: 'button', class: 'irow row' + (UI.sel === '__settled' ? ' on' : ''), style: 'margin-top:10px', onclick: function () { select('__settled'); } },
+        h('span', { style: 'margin-top:3px;display:flex;color:var(--ink-3)' }, svg('<path d="M3 8h8M8 4.5L11.5 8 8 11.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>', 12)),
+        h('span', { style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:2px' }, h('span', { class: 'irow-t' }, 'Going ahead unless you object'), h('span', { class: 'irow-s' }, h('span', null, plural(sl.length, 'call') + ' I\'m sure of'))),
+        ob ? h('span', { class: 'objected' }, ob + ' objected') : null));
+    }
+    sec.appendChild(pb);
+    return sec;
+  }
   sec.appendChild(h('div', { class: 'list-head' },
     h('div', { class: 'list-title' }, h('div', { style: 'display:flex;flex-direction:column' }, h('h1', { class: 'h-list' }, 'Needs you'), h('span', { class: 'muted' }, t.open ? t.open + ' open, in film order' : 'Nothing open')),
       h('button', { type: 'button', class: 'btn', disabled: !t.open, style: t.open ? '' : 'opacity:.5', onclick: startReview }, I.play(13), 'Review one by one', h('span', { class: 'kbd' }, 'R'))),
@@ -2061,7 +2083,7 @@ function inboxList() {
   }
   if (D.settled.length && UI.seg !== 'handled') {
     var obj = Object.keys(S.objections).length;
-    body.appendChild(h('button', { type: 'button', class: 'row', style: 'width:100%;display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:6px;color:var(--ink-3);font-size:12px;text-align:left', onclick: function () { setView('all'); setTimeout(function () { var e = document.getElementById('settled-all'); if (e) e.scrollIntoView({ block: 'start' }); }, 30); } },
+    body.appendChild(h('button', { type: 'button', class: 'row', style: 'width:100%;display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:6px;color:var(--ink-3);font-size:12px;text-align:left', onclick: function () { setView('all', null, '__settled'); } },
       svg('<path d="M3 8h8M8 4.5L11.5 8 8 11.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>', 12), h('span', { style: 'flex:1' }, 'Going ahead unless you object · ' + D.settled.length), obj ? h('span', { class: 'objected' }, obj + ' objected') : null));
   }
   sec.appendChild(body);
@@ -2074,14 +2096,59 @@ function statusBars() {
   if (UI.pending) out.push(h('div', { class: 'bar-wait', role: 'status', id: 'waitbar' }, h('span', { class: 'dot' }), h('span', { style: 'flex:1' }, plural(UI.pendingN || 1, 'update') + ' from the agent ' + (UI.pendingN === 1 ? 'is' : 'are') + ' waiting. They\'ll apply when you leave this field.'), h('span', { class: 'kbd' }, 'Esc')));
   return out;
 }
+function activityList() {
+  var sec = h('section', { class: 'list', 'aria-label': 'Agent activity' });
+  var w = D.project.working, ws = w && stageOf(w.stage);
+  sec.appendChild(h('div', { class: 'list-head' }, h('div', { style: 'display:flex;flex-direction:column' }, h('h1', { class: 'h-list' }, 'Agent activity'), h('span', { class: 'muted' }, 'What the agent did, newest first')),
+    w ? h('div', { class: 'flexline', style: 'font-size:12px;color:var(--ink-2)' }, h('span', { class: 'spin' }), h('span', { style: 'flex:1' }, h('b', { style: 'color:var(--ink);font-weight:600' }, 'Now: '), plain(w.text || 'working on ' + (ws ? ws.title : w.stage))), w.progress != null ? h('span', { class: 'mono muted' }, Math.round(w.progress * 100) + '%') : null) : null));
+  var body = h('div', { class: 'list-body', 'data-scroll': 'activity' }), lastDay = '';
+  D.log.forEach(function (l, i) {
+    var it = l.item && D.byId[l.item], d = new Date(l.t), day = d.toDateString() === new Date().toDateString() ? 'Today' : d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' });
+    if (day !== lastDay) { body.appendChild(h('div', { class: 'grp-h', style: 'padding-top:10px' }, h('b', null, day))); lastDay = day; }
+    body.appendChild(h('button', { type: 'button', class: 'irow row' + ((UI.logSel || 0) === i ? ' on' : ''), 'data-log': String(i), onclick: function () { UI.logSel = i; render(); } },
+      h('span', { class: 'mono', style: 'flex:0 0 40px;font-size:11px;line-height:19px;color:var(--ink-3)' }, clock(l.t)),
+      h('span', { style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:2px' }, h('span', { class: 'irow-t', style: 'white-space:normal;font-weight:500', html: l.text }),
+        h('span', { class: 'irow-s' }, it ? kindIcon(it.kind) : null, h('span', null, it ? plain(it.title) : ago(l.t)))),
+      it && isOpen(it) ? h('span', { class: 'ring', style: 'margin-top:4px' }) : null));
+  });
+  if (!D.log.length) body.appendChild(h('div', { class: 'muted', style: 'padding:24px 10px;text-align:center' }, 'Nothing yet.'));
+  sec.appendChild(body);
+  return sec;
+}
+function activityPane() {
+  var l = D.log[UI.logSel || 0], it = l && l.item && D.byId[l.item], main = h('main', { class: 'main' });
+  var bar = h('div', { class: 'topbar' }, h('span', { class: 'crumb' }, 'Agent activity'));
+  if (l) { bar.appendChild(h('span', { style: 'color:var(--ink-3);display:flex' }, I.chev())); bar.appendChild(h('span', { class: 'crumb-t', html: l.text })); }
+  bar.appendChild(h('div', { class: 'right' }, it ? h('button', { type: 'button', class: 'btn sm', onclick: function () { setView('stage', it.stage, it.id); } }, 'Open in its stage') : null, h('span', { class: 'vsep' }), sendBtn()));
+  main.appendChild(bar);
+  statusBars().forEach(function (b) { main.appendChild(b); });
+  var sc = h('div', { class: 'scroll', 'data-scroll': 'act-' + (UI.logSel || 0) });
+  if (l) sc.appendChild(h('div', { class: 'actline' }, I.agent(14), h('span', { style: 'flex:1', html: l.text }), h('span', { class: 'mono muted' }, clock(l.t) + ' · ' + ago(l.t))));
+  if (it) sc.appendChild(cardContent(it, 'read'));
+  else if (l) sc.appendChild(h('div', { class: 'center', style: 'min-height:50%' }, h('span', { class: 'muted' }, 'This step didn\'t leave a card.')));
+  main.appendChild(sc);
+  return main;
+}
+function settledPane() {
+  var stg = UI.view === 'stage' ? stageOf(UI.stage) : null, main = h('main', { class: 'main' });
+  var groups = (stg ? [stg] : D.stages.concat([null])).map(function (s) { return { s: s, list: D.settled.filter(function (x) { return s ? x.stage === s.id : !x.stage || !stageOf(x.stage); }) }; }).filter(function (g) { return g.list.length; });
+  main.appendChild(h('div', { class: 'topbar' }, h('span', { class: 'crumb-t' }, 'Going ahead unless you object'), h('div', { class: 'right' }, sendBtn())));
+  statusBars().forEach(function (b) { main.appendChild(b); });
+  var col = h('div', { class: 'read-col', style: 'max-width:720px' }, h('div', { class: 'head-col' }, h('h2', { class: 'h-read' }, 'Going ahead unless you object'),
+    h('p', { class: 'summary' }, 'Calls I\'m sure of, so they aren\'t cards. Object to any of them and your note goes with the next send.')));
+  groups.forEach(function (g) { col.appendChild(h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, g.s && !stg ? h('span', { class: 'q' }, g.s.n + ' · ' + g.s.title) : null, settledBlock(g.list))); });
+  main.appendChild(h('div', { class: 'scroll', 'data-scroll': 'settled' }, h('div', { class: 'read nomedia' }, col)));
+  return main;
+}
 function readingPane() {
+  if (UI.sel === '__settled') return settledPane();
   var it = D.byId[UI.sel], st = it && stageOf(it.stage);
   var main = h('main', { class: 'main' });
   var bar = h('div', { class: 'topbar' });
   if (it) {
     var rows = listRows().rows, i = rows.indexOf(it);
     bar.appendChild(h('span', { class: 'mono muted' }, String(st ? st.n : '')));
-    bar.appendChild(h('button', { type: 'button', class: 'crumb', onclick: function () { setView('stage', it.stage); } }, st ? st.title : ''));
+    bar.appendChild(h('button', { type: 'button', class: 'crumb', onclick: function () { setView('stage', it.stage, it.id); } }, st ? st.title : ''));
     bar.appendChild(h('span', { style: 'color:var(--ink-3);display:flex' }, I.chev()));
     bar.appendChild(h('span', { class: 'crumb-t', html: it.title }));
     if (isNew(it)) bar.appendChild(h('span', { class: 'pill new' }, 'New'));
@@ -2098,6 +2165,7 @@ function readingPane() {
   statusBars().forEach(function (b) { main.appendChild(b); });
   var sc = h('div', { class: 'scroll', 'data-scroll': 'read-' + (it ? it.id : 'none') });
   if (it) { var c = cardContent(it, 'read'); if (UI.glow[it.id]) c.classList.add('arrive'); sc.appendChild(c); }
+  else if (UI.view !== 'inbox') sc.appendChild(h('div', { class: 'center' }, h('span', { class: 'muted' }, 'Pick a card on the left.')));
   else sc.appendChild(isFinished() ? finishedState() : inboxZero());
   main.appendChild(sc);
   return main;
@@ -2138,13 +2206,6 @@ function finishedState() {
 }
 
 /* ───────────────────────── stage / everything / activity ───────────────────────── */
-function workingCard(w) {
-  return h('div', { class: 'working-card', role: 'status' },
-    h('span', { class: 'skel', style: 'width:120px;height:212px;border-radius:6px' }), h('span', { class: 'skel', style: 'width:120px;height:212px;border-radius:6px' }),
-    h('div', { style: 'flex:1;display:flex;flex-direction:column;gap:10px;padding-top:4px' },
-      h('div', { style: 'display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-2)' }, h('span', { class: 'spin' }), h('span', null, h('b', { style: 'color:var(--ink)' }, 'The agent is working on this. '), plain(w.text || '')), w.since ? h('span', { class: 'mono muted', style: 'margin-left:auto;font-size:11px' }, agoShort(+w.since)) : null),
-      h('span', { class: 'skel', style: 'width:80%;height:14px' }), h('span', { class: 'skel', style: 'width:60%;height:10px' }), h('span', { class: 'skel', style: 'width:100%;height:40px;margin-top:auto;border-radius:8px' })));
-}
 function settledBlock(list, id) {
   if (!list.length) return null;
   var box = h('div', { class: 'settled', id: id || null },
@@ -2168,61 +2229,6 @@ function settledBlock(list, id) {
     box.appendChild(row);
   });
   return box;
-}
-function stageSection(s, big) {
-  var c = stageCounts(s), w = D.project.working, its = (D.byStage[s.id] || []).filter(matches);
-  var sec = h('section', { style: 'display:flex;flex-direction:column;gap:16px', id: 'stage-' + s.id },
-    h('header', { class: 'stage-h' }, h('div', { style: 'display:flex;flex-direction:column;gap:4px' },
-      big ? h('span', { class: 'mono muted' }, 'Stage ' + s.n + ' of ' + D.stages.length) : null,
-      h(big ? 'h1' : 'h2', { class: big ? 'h-stage' : 'h-sub', style: big ? '' : 'display:flex;gap:10px;align-items:baseline' }, big ? null : h('span', { class: 'mono muted', style: 'font-size:13px;font-weight:400' }, String(s.n)), s.title),
-      s.blurb ? h('span', { style: 'font-size:14px;color:var(--ink-2)' }, s.blurb) : null),
-      h('span', { class: 'muted' }, plural(c.total, 'card') + (c.open ? ' · ' + c.open + ' open' : c.total ? ' · all handled' : ''))));
-  its.forEach(function (it) { sec.appendChild(stackCard(it)); });
-  if (w && w.stage === s.id) sec.appendChild(workingCard(w));
-  if (!its.length && !(w && w.stage === s.id)) sec.appendChild(h('div', { class: 'muted', style: 'padding:16px;border:1px dashed var(--line);border-radius:12px;text-align:center' }, 'Nothing here yet.'));
-  var st = settledBlock(D.settled.filter(function (x) { return x.stage === s.id; })); if (st) sec.appendChild(st);
-  return sec;
-}
-function stackPane() {
-  var main = h('main', { class: 'main' }), bar = h('div', { class: 'topbar', style: 'padding-left:24px' });
-  if (UI.view === 'stage') {
-    var s = stageOf(UI.stage), i = D.stages.indexOf(s), pv = D.stages[i - 1], nx = D.stages[i + 1];
-    if (pv) bar.appendChild(h('button', { type: 'button', class: 'stagelink row', onclick: function () { setView('stage', pv.id); } }, I.left(12), pv.n + ' ' + pv.title));
-    if (nx) bar.appendChild(h('button', { type: 'button', class: 'stagelink row', style: 'padding:0 6px 0 10px', onclick: function () { setView('stage', nx.id); } }, nx.n + ' ' + nx.title, I.right(12)));
-  } else bar.appendChild(h('span', { class: 'crumb', style: 'font-weight:600;color:var(--ink)' }, UI.view === 'all' ? 'Everything' : 'Agent activity'));
-  var t = totals();
-  bar.appendChild(h('div', { class: 'right' }, UI.view !== 'activity' ? h('button', { type: 'button', class: 'btn', disabled: !t.open, style: t.open ? '' : 'opacity:.5', onclick: startReview }, 'Review one by one', h('span', { class: 'kbd' }, 'R')) : null, h('span', { style: 'width:4px' }), sendBtn()));
-  main.appendChild(bar);
-  statusBars().forEach(function (b) { main.appendChild(b); });
-  var sc = h('div', { class: 'scroll', 'data-scroll': 'stack-' + UI.view + '-' + (UI.stage || '') });
-  var st = h('div', { class: 'stack' });
-  if (UI.view === 'stage') st.appendChild(stageSection(stageOf(UI.stage), true));
-  else if (UI.view === 'all') {
-    st.appendChild(h('header', { style: 'display:flex;flex-direction:column;gap:10px' }, h('h1', { class: 'h-stage' }, 'Everything'),
-      D.project.intro ? h('p', { class: 'prose', style: 'color:var(--ink-2)', html: D.project.intro }) : null,
-      D.stages.length ? h('div', { style: 'display:flex;align-items:center;gap:12px' }, progressBar('320px'), h('span', { class: 'muted' }, t.handled + ' of ' + t.total + ' handled')) : null,
-      UI.q || UI.tags.length ? h('div', { class: 'muted' }, 'Filtered by ' + [UI.q ? '“' + UI.q + '”' : '', UI.tags.join(', ')].filter(Boolean).join(' and ') + ' · ', h('button', { type: 'button', style: 'text-decoration:underline;color:var(--ink-2)', onclick: function () { UI.q = ''; UI.tags = []; render(); } }, 'clear')) : null));
-    D.stages.forEach(function (s) { st.appendChild(stageSection(s, false)); });
-    var loose = D.settled.filter(function (x) { return !x.stage || !stageOf(x.stage); });
-    var sb = settledBlock(loose, 'settled-all');
-    if (sb) st.appendChild(h('section', { style: 'display:flex;flex-direction:column;gap:12px' }, h('h2', { class: 'h-sub' }, 'Going ahead'), sb));
-    else if (D.settled.length) { var anchor = h('span', { id: 'settled-all' }); st.insertBefore(anchor, st.childNodes[1] || null); }
-  } else {
-    st.appendChild(h('header', { style: 'display:flex;flex-direction:column;gap:4px' }, h('h1', { class: 'h-stage' }, 'Agent activity'), h('span', { style: 'font-size:14px;color:var(--ink-2)' }, 'What the agent did, newest first')));
-    var list = h('div', { class: 'settled' });
-    D.log.forEach(function (l) {
-      var it = l.item && D.byId[l.item];
-      list.appendChild(h('div', { class: 'srow', style: 'flex-direction:row;align-items:baseline;gap:14px' },
-        h('span', { class: 'mono', style: 'font-size:12px;color:var(--ink-2);width:44px' }, clock(l.t)),
-        h('span', { style: 'flex:1;font-size:13px;line-height:19px', html: l.text }),
-        h('span', { class: 'muted' }, ago(l.t)),
-        it ? h('button', { type: 'button', class: 'btn sm', onclick: function () { UI.view = 'inbox'; UI.seg = isOpen(it) ? 'open' : 'all'; select(it.id); } }, 'Open card') : null));
-    });
-    if (!D.log.length) list.appendChild(h('div', { class: 'srow muted' }, 'Nothing yet.'));
-    st.appendChild(list);
-  }
-  sc.appendChild(st); main.appendChild(sc);
-  return main;
 }
 
 /* ───────────────────────── review mode ───────────────────────── */
@@ -2494,6 +2500,10 @@ function render() {
   var ae = document.activeElement, fk = ae && ae.getAttribute && ae.getAttribute('data-fk'), selS = fk && ae.selectionStart, selE = fk && ae.selectionEnd;
   Object.keys(PL).forEach(function (k) { PL[k].alive = false; });
   // keep the selection valid
+  if (UI.view === 'all' || UI.view === 'stage') {
+    var R = listRows().rows;
+    if (UI.sel !== '__settled' && (!UI.sel || R.indexOf(D.byId[UI.sel]) < 0)) { var fo = R.filter(isOpen)[0] || R[0]; UI.sel = fo ? fo.id : null; }
+  }
   if (UI.view === 'inbox') {
     var L = listRows(), rows = L.rows;
     if (!UI.sel || (rows.indexOf(D.byId[UI.sel]) < 0 && !(D.byId[UI.sel] && status(D.byId[UI.sel]) === 'agent'))) {
@@ -2505,9 +2515,9 @@ function render() {
   var app = document.getElementById('app'); app.innerHTML = '';
   app.appendChild(rail());
   if (UI.view === 'film' && !D.film) UI.view = 'inbox';
-  if (UI.view === 'inbox') { app.appendChild(inboxList()); app.appendChild(readingPane()); }
+  if (UI.view === 'inbox' || UI.view === 'all' || UI.view === 'stage') { app.appendChild(inboxList()); app.appendChild(readingPane()); }
   else if (UI.view === 'film') { app.appendChild(filmList()); app.appendChild(filmPane()); }
-  else app.appendChild(stackPane());
+  else { app.appendChild(activityList()); app.appendChild(activityPane()); }
   var layer = document.getElementById('layer'); layer.innerHTML = '';
   if (UI.review) layer.appendChild(reviewView());
   if (UI.drawer) layer.appendChild(drawerView());
@@ -2525,15 +2535,12 @@ function render() {
 function typing(e) { var t = e.target; if (!t || !t.tagName) return false; var tn = t.tagName; return tn === 'TEXTAREA' || (tn === 'INPUT' && !/^(range|checkbox|radio|button)$/.test(t.type)) || t.isContentEditable; }
 function move(n) {
   if (UI.review) { reviewMove(n); return; }
-  if (UI.view === 'inbox') {
+  if (UI.view === 'activity') { UI.logSel = clamp((UI.logSel || 0) + n, 0, Math.max(0, D.log.length - 1)); render(); var a = document.querySelector('.irow.on'); if (a) a.scrollIntoView({ block: 'nearest' }); return; }
+  if (UI.view === 'inbox' || UI.view === 'all' || UI.view === 'stage') {
     var rows = listRows().rows, i = rows.indexOf(D.byId[UI.sel]);
     var j = clamp(i < 0 ? 0 : i + n, 0, rows.length - 1); if (rows[j]) select(rows[j].id);
     return;
   }
-  var st = visibleStack(); if (!st.length) return;
-  var k = st.indexOf(D.byId[UI.focus]); k = clamp(k < 0 ? 0 : k + n, 0, st.length - 1);
-  UI.focus = st[k].id; render();
-  var c = document.getElementById('card-' + st[k].id); if (c) c.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 function look(it) {
   var u = it && it.decision && it.decision.unsure; if (!u) return;
@@ -2959,9 +2966,10 @@ function demoPanel() {
   if (!DEMO.steps.length) { if (box) box.remove(); return; }
   if (!box) { box = h('aside', { id: 'demo-panel', 'aria-label': 'Simulate the agent' }); document.body.appendChild(box); }
   box.innerHTML = '';
-  var open = !UI.demoMin, done = DEMO.i >= DEMO.steps.length;
+  var open = !!UI.demoOpen, done = DEMO.i >= DEMO.steps.length;
   box.appendChild(h('div', { class: 'demo-h' }, h('span', { class: 'spin', style: DEMO.timer ? '' : 'animation:none;border-top-color:var(--line-2)' }), h('b', null, 'Simulate the agent'), h('span', { class: 'muted', style: 'font-size:11px' }, DEMO.i + ' / ' + DEMO.steps.length),
-    h('button', { type: 'button', class: 'xbtn', style: 'margin-left:auto;width:22px;height:22px', 'aria-label': open ? 'Minimise' : 'Expand', onclick: function () { UI.demoMin = !UI.demoMin; demoPanel(); } }, open ? I.down() : I.up())));
+    h('button', { type: 'button', class: 'xbtn', style: 'margin-left:auto;width:22px;height:22px', 'aria-label': open ? 'Minimise' : 'Expand', onclick: function () { UI.demoOpen = !UI.demoOpen; demoPanel(); } }, open ? I.down() : I.up())));
+  if (!open) box.appendChild(h('div', { class: 'demo-next' }, done ? 'Every event has been sent.' : [h('span', { class: 'muted' }, 'Next: '), demoLabel(DEMO.steps[DEMO.i])]));
   if (open) {
     var ol = h('ol', { class: 'demo-steps' });
     DEMO.steps.forEach(function (st, i) { ol.appendChild(h('li', { class: i < DEMO.i ? 'done' : i === DEMO.i ? 'next' : '' }, i < DEMO.i ? I.check(11, 'var(--ink-3)') : h('span', { class: 'mono', style: 'width:11px;font-size:10px;text-align:center' }, String(i + 1)), h('span', null, demoLabel(st)))); });

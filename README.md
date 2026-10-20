@@ -53,4 +53,5 @@ in from a fancy-e2e-videos checkout (only needed to refresh it; the copy is in t
 
 ## License
 
-[MIT](LICENSE)
+The code: [MIT](LICENSE). The songs in Flex's music library: the [Flex Music Licence](LICENSE-MUSIC.md), free in any film
+with no credit needed, but not resold or redistributed as music on their own.
