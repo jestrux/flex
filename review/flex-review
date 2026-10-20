@@ -1,0 +1,287 @@
+#!/usr/bin/env python3
+"""flex-review: the writer for a film's review board (a stand-in for `flex review`).
+
+The agent writes the board with it; the board (review/index.html) re-reads review/data.js every 3 s, so a card shows up
+while the author has the page open. The author answers on the page and sends; `serve` hands the answers straight back.
+
+  flex-review init --name NAME [--meta TEXT] [--intro HTML] [--dir KEY]
+  flex-review stage ID TITLE [--blurb TEXT]           add or update a stage (they show in the order added)
+  flex-review song --bpm 151.92 --start 92.45 [--end 165.3] [--section "Rap@92.45" ...] [--src media/song.mp3]
+                                                       the film's song: waveform, bar ruler, section band
+  flex-review add CARD.json | -  [--rec O] [--why TEXT]... [--basis evidence|taste]
+                                 [--unsure TEXT] [--unsure-at 19.5,23] [--unsure-panel N] [--changed TEXT]
+                                                       add or replace a card (by id); stamps `updated`, bumps `version`
+  flex-review settle ID STAGE TEXT | settle --remove ID
+                                                       a call you're sure of: "going ahead unless you object"
+  flex-review working STAGE TEXT | working --clear     what you're doing right now (a placeholder card on the board)
+  flex-review log TEXT [--item ID]                     a line in "Agent activity"
+  flex-review list | remove ID
+  flex-review serve [--port 8765]                      serve the board; Send posts the answers here (answers.json)
+  flex-review answers [--json] [--all]                 the author's latest answers (what Send delivered)
+
+Paths are relative to the board's folder (review/). Audio in a card (body.audio, body.takes[].src) and the song get
+precomputed waveform peaks when ffmpeg is on PATH, so the page draws them even when opened from disk.
+Set FLEX_REVIEW_DIR to write a board somewhere other than ./review next to this script.
+"""
+import argparse, array, json, os, shutil, subprocess, sys, time, urllib.parse
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+DIR = os.path.abspath(os.environ.get("FLEX_REVIEW_DIR") or (HERE if os.path.exists(os.path.join(HERE, "index.html")) else os.path.join(HERE, "review")))
+DATA, JS, ANSWERS = os.path.join(DIR, "data.json"), os.path.join(DIR, "data.js"), os.path.join(DIR, "answers.json")
+
+
+def now(): return int(time.time() * 1000)
+
+def load():
+    if not os.path.exists(DATA): return {"project": {}, "stages": [], "items": [], "log": []}
+    return json.load(open(DATA))
+
+def save(d):
+    os.makedirs(DIR, exist_ok=True)
+    tmp = DATA + ".tmp"; json.dump(d, open(tmp, "w"), indent=1, ensure_ascii=False); os.replace(tmp, DATA)
+    tmp = JS + ".tmp"; open(tmp, "w").write("window.FLEX_REVIEW = " + json.dumps(d, ensure_ascii=False) + ";\n"); os.replace(tmp, JS)
+
+def peaks(src, n=800):
+    """Max-abs peaks of an audio file, 0..1, plus its duration. None without ffmpeg or the file."""
+    path = src if os.path.isabs(src) else os.path.join(DIR, src)
+    if not shutil.which("ffmpeg") or not os.path.exists(path): return None, None
+    try:
+        raw = subprocess.run(["ffmpeg", "-v", "quiet", "-i", path, "-ac", "1", "-ar", "8000", "-f", "s16le", "-"], capture_output=True, check=True).stdout
+    except subprocess.CalledProcessError:
+        return None, None
+    a = array.array("h"); a.frombytes(raw[: len(raw) // 2 * 2])
+    if not a: return None, None
+    step = max(1, len(a) // n); out = []
+    for i in range(0, len(a), step):
+        chunk = a[i:i + step]; out.append(max(abs(min(chunk)), abs(max(chunk))))
+    mx = max(out) or 1
+    return [round(v / mx, 3) for v in out[:n]], round(len(a) / 8000, 3)
+
+def with_peaks(card):
+    b = card.get("body") or {}
+    au = b.get("audio")
+    if isinstance(au, str):
+        pk, _ = peaks(au)
+        if pk: b["audio"] = {"src": au, "peaks": pk}
+    elif isinstance(au, dict) and au.get("src") and not au.get("peaks"):
+        pk, _ = peaks(au["src"])
+        if pk: au["peaks"] = pk
+    for t in b.get("results") or []:
+        au = t.get("audio")
+        if isinstance(au, str) and not t.get("peaks"):
+            pk, dur = peaks(au)
+            if pk: t["peaks"] = pk; t.setdefault("duration", dur)
+    for t in b.get("takes") or []:
+        if t.get("src") and not t.get("peaks"):
+            pk, _ = peaks(t["src"])
+            if pk: t["peaks"] = pk
+    return card
+
+def stage_exists(d, sid): return any(s["id"] == sid for s in d["stages"])
+
+
+class Handler(SimpleHTTPRequestHandler):
+    def __init__(self, *a, **k): super().__init__(*a, directory=DIR, **k)
+    def log_message(self, *a): pass
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store"); super().end_headers()
+    def reply(self, obj, code=200):
+        b = json.dumps(obj).encode()
+        self.send_response(code); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+    def do_GET(self):
+        if self.path.split("?")[0] == "/flex/state": self.reply(flex_state()); return
+        super().do_GET()
+    def do_POST(self):
+        route, _, q = self.path.partition("?")
+        if route == "/flex/show":
+            try: at = float(json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")["at"])
+            except (ValueError, KeyError, TypeError): self.reply({"ok": False, "error": "want {at}"}, 400); return
+            ok, out = flex_run(["show", project_dir(), f"{at:.2f}s"])
+            self.reply({"ok": ok, "at": at, "out": out}, 200 if ok else 502); return
+        if route == "/upload":
+            self.upload(dict(urllib.parse.parse_qsl(q))); return
+        if route.rstrip("/") != "/answers":
+            self.send_error(404); return
+        try:
+            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+        except ValueError:
+            self.send_error(400, "not JSON"); return
+        body["receivedAt"] = now()
+        sends = json.load(open(ANSWERS)) if os.path.exists(ANSWERS) else []
+        sends.append(body)
+        tmp = ANSWERS + ".tmp"; json.dump(sends, open(tmp, "w"), indent=1, ensure_ascii=False); os.replace(tmp, ANSWERS)
+        print(f"— answers at {time.strftime('%H:%M:%S')} —\n{body.get('text', '')}\n", flush=True)
+        self.reply({"ok": True})
+
+    def upload(self, q):
+        """A prompt card's files: songs become review/inbox/<make.name>-a.mp3, -b…; stems go in <name>-stems/."""
+        n = int(self.headers.get("Content-Length") or 0)
+        d = load(); it = next((x for x in d["items"] if x["id"] == q.get("item")), None)
+        mk = ((it or {}).get("body") or {}).get("make")
+        if not mk: self.reply({"ok": False, "error": "no prompt card " + repr(q.get("item"))}, 404); return
+        name, orig = mk.get("name") or it["id"], os.path.basename(q.get("name") or "file")
+        inbox = os.path.join(DIR, "inbox"); os.makedirs(inbox, exist_ok=True)
+        ext = os.path.splitext(orig)[1].lower() or ".mp3"
+        if q.get("kind") == "stems" or ext == ".zip":
+            dest = os.path.join(inbox, name + "-stems" + (".zip" if ext == ".zip" else "/" + orig))
+        else:
+            taken = {f for f in os.listdir(inbox) if f.startswith(name + "-") and not f.startswith(name + "-stems")}
+            letter = next(c for c in "abcdefghijklmnopqrstuvwxyz" if not any(f.startswith(f"{name}-{c}.") for f in taken))
+            dest = os.path.join(inbox, f"{name}-{letter}{ext}")
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest + ".part", "wb") as f:
+            left = n
+            while left > 0:
+                chunk = self.rfile.read(min(left, 1 << 20))
+                if not chunk: break
+                f.write(chunk); left -= len(chunk)
+        os.replace(dest + ".part", dest)
+        rel = os.path.relpath(dest, DIR)
+        print(f"— {it['id']}: {orig} → review/{rel}", flush=True)
+        self.reply({"ok": True, "saved": rel})
+
+
+def project_dir():
+    """The film project the board belongs to: the folder that holds review/."""
+    return os.path.dirname(DIR) if os.path.basename(DIR) == "review" else DIR
+
+def flex_bin():
+    return shutil.which("flex") or next((p for p in [os.path.expanduser("~/.flex/bin/flex")] if os.path.exists(p)), None)
+
+def flex_run(args):
+    b = flex_bin()
+    if not b: return False, "no flex command"
+    r = subprocess.run([b] + args, capture_output=True, text=True, timeout=20)
+    return r.returncode == 0, (r.stdout + r.stderr).strip()
+
+_last = {"at": None, "t": 0}
+def flex_state():
+    """{open, here, dir, at, playing, project}: is Flex running, is it on this film, and where's its playhead."""
+    base = {"open": False, "here": False, "dir": None, "at": None, "playing": False, "project": project_dir()}
+    b = flex_bin()
+    if not b: return base
+    try: r = subprocess.run([b, "status", "--json"], capture_output=True, text=True, timeout=5)
+    except subprocess.TimeoutExpired: return base
+    if r.returncode != 0: return base
+    try: v = json.loads(r.stdout)
+    except ValueError: return base
+    projects = v.get("projects") if isinstance(v, dict) and "projects" in v else (v if isinstance(v, list) else [v])
+    base["open"] = True
+    me = os.path.realpath(project_dir())
+    for p in projects or []:
+        if p.get("dir") and os.path.realpath(p["dir"]) == me:
+            at = (p.get("playhead") or {}).get("t")
+            moving = _last["at"] is not None and at is not None and abs(at - _last["at"]) > 0.01 and time.time() - _last["t"] < 5
+            _last.update(at=at, t=time.time())
+            base.update(here=True, dir=p["dir"], at=at, playing=bool(moving))
+    return base
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="cmd", required=True)
+    i = sub.add_parser("init"); i.add_argument("--name", required=True); i.add_argument("--meta", default=""); i.add_argument("--intro", default=""); i.add_argument("--dir", default="")
+    s = sub.add_parser("stage"); s.add_argument("id"); s.add_argument("title"); s.add_argument("--blurb", default="")
+    g = sub.add_parser("song"); g.add_argument("--bpm", type=float, required=True); g.add_argument("--start", type=float, default=0); g.add_argument("--end", type=float)
+    g.add_argument("--offset", type=float, default=0, help="song time of bar 1's downbeat"); g.add_argument("--section", action="append", default=[], help="NAME@SECONDS"); g.add_argument("--src")
+    a = sub.add_parser("add"); a.add_argument("card"); a.add_argument("--at", type=int, help="ms timestamp (default now)")
+    a.add_argument("--rec"); a.add_argument("--why", action="append"); a.add_argument("--basis", choices=["evidence", "taste"])
+    a.add_argument("--unsure"); a.add_argument("--unsure-at"); a.add_argument("--unsure-panel", type=int); a.add_argument("--changed")
+    st = sub.add_parser("settle"); st.add_argument("id"); st.add_argument("stage", nargs="?"); st.add_argument("text", nargs="?"); st.add_argument("--remove", action="store_true")
+    w = sub.add_parser("working"); w.add_argument("stage", nargs="?"); w.add_argument("text", nargs="?", default=""); w.add_argument("--clear", action="store_true")
+    l = sub.add_parser("log"); l.add_argument("text"); l.add_argument("--item"); l.add_argument("--at", type=int)
+    sub.add_parser("list")
+    r = sub.add_parser("remove"); r.add_argument("id")
+    sv = sub.add_parser("serve"); sv.add_argument("--port", type=int, default=8765)
+    an = sub.add_parser("answers"); an.add_argument("--json", action="store_true"); an.add_argument("--all", action="store_true")
+    o = p.parse_args()
+    d = load()
+    pr = d.setdefault("project", {})
+
+    if o.cmd == "init":
+        pr.update(name=o.name, meta=o.meta, intro=o.intro, dir=o.dir or pr.get("dir") or o.name)
+    elif o.cmd == "stage":
+        x = next((x for x in d["stages"] if x["id"] == o.id), None)
+        if x: x.update(title=o.title, blurb=o.blurb)
+        else: d["stages"].append({"id": o.id, "title": o.title, "blurb": o.blurb})
+    elif o.cmd == "song":
+        song = {"bpm": o.bpm, "start": o.start}
+        if o.end is not None: song["end"] = o.end
+        if o.offset: song["offset"] = o.offset
+        secs = []
+        for x in o.section:
+            name, _, at = x.rpartition("@")
+            if not name: sys.exit(f"--section wants NAME@SECONDS, got {x!r}")
+            secs.append({"name": name, "at": float(at)})
+        if secs: song["sections"] = secs
+        if o.src:
+            song["src"] = o.src
+            pk, dur = peaks(o.src)
+            if pk: song["peaks"], song["duration"] = pk, dur
+            else: print("no ffmpeg or no file: the page will try to read the waveform itself (works when served)", file=sys.stderr)
+        pr["song"] = song
+    elif o.cmd == "add":
+        card = json.load(sys.stdin if o.card == "-" else open(o.card))
+        cards = card if isinstance(card, list) else [card]
+        for c in cards:
+            if not stage_exists(d, c.get("stage")): sys.exit(f"no stage {c.get('stage')!r}: add it with `stage` first")
+            dec = c.get("decision")
+            if (o.rec or o.why or o.basis or o.unsure or o.unsure_at or o.unsure_panel is not None) and not dec:
+                sys.exit(f"{c['id']}: --rec/--why/--unsure need a decision on the card")
+            if dec:
+                if o.rec:
+                    if not any(str(x.get("o")) == o.rec for x in dec["options"]): sys.exit(f"--rec {o.rec!r}: no such option on {c['id']}")
+                    for x in dec["options"]:
+                        if str(x.get("o")) == o.rec: x["rec"] = True
+                        else: x.pop("rec", None)
+                if o.why: dec["why"] = o.why
+                if o.basis: dec["basis"] = o.basis
+                if o.unsure or o.unsure_at or o.unsure_panel is not None:
+                    u = dec.setdefault("unsure", {})
+                    if o.unsure: u["why"] = o.unsure
+                    if o.unsure_at: u["at"] = [float(v) for v in o.unsure_at.split(",")]
+                    if o.unsure_panel is not None: u["panel"] = o.unsure_panel
+            if o.changed: c["changed"] = o.changed
+            with_peaks(c)
+            old = next((x for x in d["items"] if x["id"] == c["id"]), None)
+            c["updated"] = o.at or now()
+            c["version"] = (old.get("version", 1) + 1) if old else 1
+            if old: d["items"][d["items"].index(old)] = c
+            else: d["items"].append(c)
+            print(("updated " if old else "added ") + c["id"] + (f" (v{c['version']})" if old else ""))
+    elif o.cmd == "settle":
+        lst = pr.setdefault("settled", [])
+        lst[:] = [x for x in lst if (x.get("id") if isinstance(x, dict) else x[0]) != o.id]
+        if not o.remove:
+            if not (o.stage and o.text): sys.exit("settle ID STAGE TEXT")
+            lst.append({"id": o.id, "stage": o.stage, "text": o.text})
+    elif o.cmd == "working":
+        if o.clear or not o.stage: pr.pop("working", None)
+        else: pr["working"] = {"stage": o.stage, "text": o.text, "since": now()}
+    elif o.cmd == "log":
+        e = {"t": o.at or now(), "text": o.text}
+        if o.item: e["item"] = o.item
+        d["log"].append(e)
+    elif o.cmd == "list":
+        for x in d["items"]: print(f'{x["id"]:<22} {x["stage"]:<12} v{x.get("version", 1)}  {x["title"]}')
+        return
+    elif o.cmd == "remove":
+        d["items"] = [x for x in d["items"] if x["id"] != o.id]
+    elif o.cmd == "serve":
+        srv = ThreadingHTTPServer(("127.0.0.1", o.port), Handler)
+        print(f"Review board: http://127.0.0.1:{o.port}/  (answers land in {os.path.relpath(ANSWERS)})", flush=True)
+        try: srv.serve_forever()
+        except KeyboardInterrupt: pass
+        return
+    elif o.cmd == "answers":
+        if not os.path.exists(ANSWERS): print("No answers yet.", file=sys.stderr); sys.exit(1)
+        sends = json.load(open(ANSWERS))
+        sends = sends if o.all else sends[-1:]
+        if o.json: print(json.dumps(sends if o.all else sends[0], indent=1, ensure_ascii=False))
+        else: print("\n\n".join(x.get("text", "") for x in sends))
+        return
+    save(d)
+
+if __name__ == "__main__":
+    main()
