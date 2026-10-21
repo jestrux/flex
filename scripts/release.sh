@@ -92,6 +92,18 @@ xcodebuild -project app/Flex.xcodeproj -scheme Flex -configuration Release \
   \
   -archivePath "$ARCHIVE" ENABLE_HARDENED_RUNTIME=YES -quiet archive
 
+# The pipeline ships inside the app (as scripts/build-app.sh puts it there), so an installed Flex records and renders
+# without a fancy-e2e-videos checkout. Xcode doesn't bundle it: it goes into the archived app before export, its native
+# modules (esbuild, sharp and libvips, fsevents) signed for the hardened runtime first.
+[ -d pipeline/node_modules ] || { echo "pipeline/ isn't installed: run scripts/sync-pipeline.sh"; exit 1; }
+ARCHIVED="$ARCHIVE/Products/Applications/Flex.app"
+rsync -a --delete --exclude .cache --exclude .DS_Store pipeline/ "$ARCHIVED/Contents/Resources/pipeline/"
+IDENTITY=${FLEX_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Apple Development: [^"]*\)".*/\1/p' | head -1)}
+find "$ARCHIVED/Contents/Resources/pipeline" -type f | while IFS= read -r f; do
+  if file -b "$f" | grep -q Mach-O; then codesign --force --options runtime --timestamp --sign "$IDENTITY" "$f"; fi
+done
+codesign --force --options runtime --timestamp --preserve-metadata=entitlements,requirements,flags --sign "$IDENTITY" "$ARCHIVED"
+
 cat > "$WORK/upload.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -134,8 +146,9 @@ $FLEX_RELEASE_TRAILERS}"
   fi
   git push -q origin HEAD
   echo "==> GitHub release v$VERSION"
-  gh release create "v$VERSION" "$ZIP" --target "$(git rev-parse HEAD)" --title "Flex $VERSION" --generate-notes \
-    --notes "Download the zip, unzip it, and drag Flex to Applications. Requires macOS 14 or later, and a fancy-e2e-videos checkout for the films it opens. Signed and notarized."
+  # --latest: the app is what github.com/jestrux/flex/releases/latest leads to, never a song-library release
+  gh release create "v$VERSION" "$ZIP" --target "$(git rev-parse HEAD)" --title "Flex $VERSION" --generate-notes --latest \
+    --notes "Download the zip, unzip it, and drag Flex to Applications. Requires macOS 14 or later on Apple silicon. Then run flex doctor: it lists what recording and rendering need (Node, ffmpeg, Playwright's Chromium) and how to install each. Signed and notarized."
 elif [ "$VERSION" != "$CURRENT" ]; then
   echo "==> version files are bumped but not committed; run with --publish to release, or commit them yourself"
 fi
