@@ -1,0 +1,229 @@
+/* ipad-frame.css — pure-CSS iPad device frame, no image assets.
+ *
+ * Markup:
+ *   <figure class="ipad ipad--13 ipad--gray">
+ *     <div class="ipad__screen"><img src="screenshot.png" alt="Describe the screen"></div>
+ *     <span class="ipad__buttons" aria-hidden="true"></span>
+ *   </figure>
+ *
+ * Size:        .ipad--13 (iPad Pro 13″, 1032×1376 pt, default) | .ipad--11 (iPad Pro 11″, 834×1210 pt) | .ipad--mini (744×1133 pt)
+ * Orientation: portrait by default; add .ipad--landscape (camera and buttons rotate with it)
+ * Finish:      .ipad--gray (space gray, default) | .ipad--silver
+ * Extras:      .ipad--shadow (soft floating drop shadow)
+ * Status:      optional <div class="ipad__status">9:41  Mon Jun 9</div> inside .ipad__screen draws a
+ *              light-content status bar (time/date left, Wi-Fi + battery right); add .ipad__status--dark
+ *              for black glyphs on light screenshots. Omit when the screenshot already has one.
+ *
+ * Scale: 1 CSS px = 1 iOS point by default. Set --device-scale on the figure or any
+ * ancestor to resize: .ipad { --device-scale: .5 } → half size.
+ */
+
+.ipad {
+  --pt: calc(1px * var(--device-scale, 1));
+
+  /* geometry (points) */
+  --screen-w: 1032;
+  --screen-h: 1376;
+  --screen-r: 18;
+  --rail: 4;
+  --bezel: 40;
+  --side: calc(var(--rail) + var(--bezel));
+  --w: var(--screen-w);   /* orientation-resolved */
+  --h: var(--screen-h);
+  --camera: 8;
+
+  /* finish */
+  --rail-bg: linear-gradient(135deg, #8a8a8f, #4a4a4f 30%, #55555a 70%, #8a8a8f);
+  --rail-edge: rgba(255, 255, 255, 0.2);
+  --rail-outline: rgba(0, 0, 0, 0.45);
+  --bezel-bg: #050506;
+  --button-bg: #55555a;
+  --button-highlight: rgba(255, 255, 255, 0.2);
+
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  margin: 0;
+  width: calc((var(--w) + 2 * var(--side)) * var(--pt));
+  height: calc((var(--h) + 2 * var(--side)) * var(--pt));
+  border-radius: calc((var(--screen-r) + var(--side)) * var(--pt));
+  background: var(--rail-bg);
+  box-shadow:
+    inset 0 0 0 calc(1 * var(--pt)) var(--rail-edge),
+    0 0 0 1px var(--rail-outline);
+}
+
+/* black bezel */
+.ipad::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--rail) * var(--pt));
+  border-radius: calc((var(--screen-r) + var(--bezel)) * var(--pt));
+  background: var(--bezel-bg);
+}
+
+/* front camera — on the long edge (right side in portrait, top in landscape) */
+.ipad::after {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  width: calc(var(--camera) * var(--pt));
+  height: calc(var(--camera) * var(--pt));
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #3a3a40, #0a0a0c 70%);
+  top: 50%;
+  right: calc((var(--side) - var(--camera)) / 2 * var(--pt));
+  margin-top: calc(var(--camera) / -2 * var(--pt));
+}
+
+.ipad__screen {
+  position: absolute;
+  inset: calc(var(--side) * var(--pt));
+  border-radius: calc(var(--screen-r) * var(--pt));
+  overflow: hidden;
+  background: #000;
+}
+.ipad__screen > img,
+.ipad__screen > video,
+.ipad__screen > picture > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* optional status bar — 24 pt tall */
+.ipad__status {
+  position: absolute;
+  z-index: 3;
+  top: 0; left: 0; right: 0;
+  height: calc(24 * var(--pt));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 calc(24 * var(--pt));
+  box-sizing: border-box;
+  pointer-events: none;
+  color: #fff;
+  white-space: pre;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: calc(15 * var(--pt));
+  line-height: calc(20 * var(--pt));
+  letter-spacing: calc(-0.2 * var(--pt));
+}
+.ipad__status::after {
+  content: "";
+  width: calc(51 * var(--pt));
+  height: calc(13 * var(--pt));
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 51 13'%3E%3Cpath d='M8.5 3.7C10.8 3.7 12.9 4.6 14.4 6.1L15.5 5C13.7 3.2 11.2 2 8.5 2C5.8 2 3.3 3.2 1.5 5L2.6 6.1C4.1 4.6 6.2 3.7 8.5 3.7Z'/%3E%3Cpath d='M8.5 7.3C9.9 7.3 11.1 7.8 12 8.7L13.1 7.6C11.8 6.4 10.2 5.6 8.5 5.6C6.8 5.6 5.2 6.4 3.9 7.6L5 8.7C5.9 7.8 7.1 7.3 8.5 7.3Z'/%3E%3Ccircle cx='8.5' cy='11' r='1.5'/%3E%3Crect x='24.5' y='0.5' width='23' height='12' rx='3.5' fill='none' stroke='black' stroke-opacity='0.4'/%3E%3Crect x='26' y='2' width='20' height='9' rx='2'/%3E%3Cpath d='M49 4.5V8.5C49.8 8.2 50.5 7.2 50.5 6.5C50.5 5.8 49.8 4.8 49 4.5Z' fill-opacity='0.45'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 51 13'%3E%3Cpath d='M8.5 3.7C10.8 3.7 12.9 4.6 14.4 6.1L15.5 5C13.7 3.2 11.2 2 8.5 2C5.8 2 3.3 3.2 1.5 5L2.6 6.1C4.1 4.6 6.2 3.7 8.5 3.7Z'/%3E%3Cpath d='M8.5 7.3C9.9 7.3 11.1 7.8 12 8.7L13.1 7.6C11.8 6.4 10.2 5.6 8.5 5.6C6.8 5.6 5.2 6.4 3.9 7.6L5 8.7C5.9 7.8 7.1 7.3 8.5 7.3Z'/%3E%3Ccircle cx='8.5' cy='11' r='1.5'/%3E%3Crect x='24.5' y='0.5' width='23' height='12' rx='3.5' fill='none' stroke='black' stroke-opacity='0.4'/%3E%3Crect x='26' y='2' width='20' height='9' rx='2'/%3E%3Cpath d='M49 4.5V8.5C49.8 8.2 50.5 7.2 50.5 6.5C50.5 5.8 49.8 4.8 49 4.5Z' fill-opacity='0.45'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.ipad__status--dark { color: #000; }
+
+/* buttons — top button on the top edge, two volume keys on the right edge (portrait) */
+.ipad__buttons {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ipad__buttons::before,
+.ipad__buttons::after {
+  content: "";
+  position: absolute;
+  background-color: var(--button-bg);
+  box-shadow: inset 0 calc(1 * var(--pt)) 0 var(--button-highlight);
+}
+.ipad__buttons::before {                       /* top button */
+  top: calc(-3 * var(--pt));
+  right: calc(64 * var(--pt));
+  width: calc(54 * var(--pt));
+  height: calc(3 * var(--pt));
+  border-radius: calc(2 * var(--pt)) calc(2 * var(--pt)) 0 0;
+}
+.ipad__buttons::after {                        /* volume up + down */
+  right: calc(-3 * var(--pt));
+  top: calc(96 * var(--pt));
+  width: calc(3 * var(--pt));
+  height: calc(94 * var(--pt));
+  border-radius: 0 calc(2 * var(--pt)) calc(2 * var(--pt)) 0;
+  background-color: transparent;
+  background-image:
+    linear-gradient(var(--button-bg), var(--button-bg)),
+    linear-gradient(var(--button-bg), var(--button-bg));
+  background-repeat: no-repeat;
+  background-size: 100% calc(42 * var(--pt)), 100% calc(42 * var(--pt));
+  background-position: 0 0, 0 calc(52 * var(--pt));
+  box-shadow: none;
+}
+
+/* ───────── landscape ───────── */
+.ipad--landscape {
+  --w: var(--screen-h);
+  --h: var(--screen-w);
+}
+.ipad--landscape::after {
+  top: calc((var(--side) - var(--camera)) / 2 * var(--pt));
+  right: auto;
+  left: 50%;
+  margin-top: 0;
+  margin-left: calc(var(--camera) / -2 * var(--pt));
+}
+.ipad--landscape .ipad__buttons::before {      /* top button → left edge */
+  top: calc(64 * var(--pt));
+  right: auto;
+  left: calc(-3 * var(--pt));
+  width: calc(3 * var(--pt));
+  height: calc(54 * var(--pt));
+  border-radius: calc(2 * var(--pt)) 0 0 calc(2 * var(--pt));
+}
+.ipad--landscape .ipad__buttons::after {       /* volume → top edge */
+  right: auto;
+  top: calc(-3 * var(--pt));
+  left: calc(96 * var(--pt));
+  width: calc(94 * var(--pt));
+  height: calc(3 * var(--pt));
+  border-radius: calc(2 * var(--pt)) calc(2 * var(--pt)) 0 0;
+  background-size: calc(42 * var(--pt)) 100%, calc(42 * var(--pt)) 100%;
+  background-position: 0 0, calc(52 * var(--pt)) 0;
+}
+
+/* ───────── sizes ───────── */
+.ipad--11 {
+  --screen-w: 834;
+  --screen-h: 1210;
+}
+.ipad--mini {
+  --screen-w: 744;
+  --screen-h: 1133;
+  --bezel: 52;
+}
+/* iPad mini keeps its camera on the short edge */
+.ipad--mini::after {
+  top: calc((var(--side) - var(--camera)) / 2 * var(--pt));
+  right: auto;
+  left: 50%;
+  margin-top: 0;
+  margin-left: calc(var(--camera) / -2 * var(--pt));
+}
+.ipad--mini.ipad--landscape::after {
+  top: 50%;
+  left: calc((var(--side) - var(--camera)) / 2 * var(--pt));
+  margin-left: 0;
+  margin-top: calc(var(--camera) / -2 * var(--pt));
+}
+
+/* ───────── finishes ───────── */
+.ipad--silver {
+  --rail-bg: linear-gradient(135deg, #ffffff, #c4c4c8 30%, #dadade 70%, #ffffff);
+  --rail-edge: rgba(0, 0, 0, 0.1);
+  --rail-outline: rgba(0, 0, 0, 0.28);
+  --button-bg: #cfcfd3;
+  --button-highlight: rgba(255, 255, 255, 0.8);
+}
+
+/* ───────── floating shadow ───────── */
+.ipad--shadow {
+  filter: drop-shadow(0 calc(48 * var(--pt)) calc(48 * var(--pt)) rgba(28, 24, 18, 0.3));
+}

@@ -1,0 +1,238 @@
+/* mac-frame.css — pure-CSS Mac frames (MacBook Pro 14″ / 16″, Studio Display 27″), no image assets.
+ *
+ * Markup:
+ *   <figure class="mac mac--14 mac--black">
+ *     <div class="mac__screen"><img src="screenshot.png" alt="Describe the screen"></div>
+ *     <span class="mac__base" aria-hidden="true"></span>
+ *   </figure>
+ *
+ * Model:   .mac--14 (MacBook Pro 14″, 1512×982 pt, default) | .mac--16 (1728×1117 pt) | .mac--display (Studio Display 27″, 2560×1440 pt)
+ * Finish:  .mac--black (space black, default) | .mac--silver   (the display is always silver)
+ * Extras:  .mac--shadow (soft floating drop shadow)
+ * Menu bar: optional, inside .mac__screen, for screenshots that lack one:
+ *   <div class="mac__menubar"><strong>Finder</strong><span>File</span><span>Edit</span><span>View</span>
+ *     <span>Go</span><span>Window</span><span>Help</span><time>Mon Jun 9  9:41 AM</time></div>
+ *   37 pt tall on MacBook Pro (24 pt on the display), translucent dark with white glyphs;
+ *   add .mac__menubar--dark for black glyphs on a translucent light bar.
+ *
+ * The figure is the lid; .mac__base draws the keyboard deck below it (or the stand for the display).
+ * Reserve that space: the base/stand sits in the figure's bottom margin.
+ *
+ * Scale: 1 CSS px = 1 macOS point by default. Set --device-scale on the figure or any
+ * ancestor to resize: .mac { --device-scale: .5 } → half size.
+ */
+
+.mac {
+  --pt: calc(1px * var(--device-scale, 1));
+
+  /* geometry (points) */
+  --screen-w: 1512;
+  --screen-h: 982;
+  --rail: 3;
+  --bezel: 22;
+  --side: calc(var(--rail) + var(--bezel));
+  --lid-r: 30;
+  --screen-r: 12;
+  --notch-w: 196;
+  --notch-h: 36;
+  --base-h: 22;
+
+  /* finish */
+  --rail-bg: linear-gradient(135deg, #5a5a5f, #2a2a2e 30%, #2a2a2e 70%, #5a5a5f);
+  --rail-edge: rgba(255, 255, 255, 0.14);
+  --rail-outline: rgba(0, 0, 0, 0.5);
+  --bezel-bg: #050506;
+  --base-bg: linear-gradient(#3b3b40, #202024);
+  --base-edge: rgba(255, 255, 255, 0.12);
+  --base-cut: rgba(0, 0, 0, 0.45);
+
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  margin: 0 0 calc(var(--base-h) * var(--pt));
+  width: calc((var(--screen-w) + 2 * var(--side)) * var(--pt));
+  height: calc((var(--screen-h) + 2 * var(--side)) * var(--pt));
+  border-radius: calc(var(--lid-r) * var(--pt)) calc(var(--lid-r) * var(--pt)) 0 0;
+  background: var(--rail-bg);
+  box-shadow:
+    inset 0 0 0 calc(1 * var(--pt)) var(--rail-edge),
+    0 0 0 1px var(--rail-outline);
+}
+
+/* black bezel */
+.mac::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--rail) * var(--pt));
+  border-radius: calc((var(--lid-r) - var(--rail)) * var(--pt)) calc((var(--lid-r) - var(--rail)) * var(--pt)) 0 0;
+  background: var(--bezel-bg);
+}
+
+/* notch — drawn by the frame; macOS screenshots show the menu bar beside it */
+.mac::after {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  top: calc(var(--side) * var(--pt));
+  left: 50%;
+  width: calc(var(--notch-w) * var(--pt));
+  height: calc(var(--notch-h) * var(--pt));
+  margin-left: calc(var(--notch-w) / -2 * var(--pt));
+  border-radius: 0 0 calc(10 * var(--pt)) calc(10 * var(--pt));
+  background: #000;
+}
+
+.mac__screen {
+  position: absolute;
+  inset: calc(var(--side) * var(--pt));
+  border-radius: calc(var(--screen-r) * var(--pt)) calc(var(--screen-r) * var(--pt)) 0 0;
+  overflow: hidden;
+  background: #000;
+}
+.mac__screen > img,
+.mac__screen > video,
+.mac__screen > picture > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* optional menu bar */
+.mac__menubar {
+  position: absolute;
+  z-index: 3;
+  top: 0; left: 0; right: 0;
+  height: calc(37 * var(--pt));
+  display: flex;
+  align-items: center;
+  gap: calc(18 * var(--pt));
+  padding: 0 calc(16 * var(--pt)) 0 calc(20 * var(--pt));
+  box-sizing: border-box;
+  pointer-events: none;
+  color: #fff;
+  background: rgba(36, 36, 40, 0.72);
+  -webkit-backdrop-filter: blur(24px);
+          backdrop-filter: blur(24px);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro", system-ui, sans-serif;
+  font-size: calc(13 * var(--pt));
+  line-height: calc(16 * var(--pt));
+}
+.mac__menubar::before {                        /* apple glyph */
+  content: "";
+  width: calc(14 * var(--pt));
+  height: calc(16 * var(--pt));
+  margin-right: calc(-2 * var(--pt));
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.mac__menubar > strong { font-weight: 700; }
+.mac__menubar::after {                         /* Wi-Fi, battery, search, Control Center */
+  content: "";
+  order: 1;
+  margin-left: auto;
+  width: calc(97 * var(--pt));
+  height: calc(14 * var(--pt));
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 97 14'%3E%3Cpath d='M8.5 3.7C10.8 3.7 12.9 4.6 14.4 6.1L15.5 5C13.7 3.2 11.2 2 8.5 2C5.8 2 3.3 3.2 1.5 5L2.6 6.1C4.1 4.6 6.2 3.7 8.5 3.7Z'/%3E%3Cpath d='M8.5 7.3C9.9 7.3 11.1 7.8 12 8.7L13.1 7.6C11.8 6.4 10.2 5.6 8.5 5.6C6.8 5.6 5.2 6.4 3.9 7.6L5 8.7C5.9 7.8 7.1 7.3 8.5 7.3Z'/%3E%3Ccircle cx='8.5' cy='11' r='1.5'/%3E%3Crect x='31.5' y='0.5' width='23' height='12' rx='3.5' fill='none' stroke='black' stroke-opacity='0.4'/%3E%3Crect x='33' y='2' width='20' height='9' rx='2'/%3E%3Cpath d='M56 4.5V8.5C56.8 8.2 57.5 7.2 57.5 6.5C57.5 5.8 56.8 4.8 56 4.5Z' fill-opacity='0.45'/%3E%3Ccircle cx='75' cy='6.5' r='4.6' fill='none' stroke='black' stroke-width='1.6'/%3E%3Cpath d='M78.5 10L82 13.5' stroke='black' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3Crect x='83.6' y='1.1' width='12.8' height='4.8' rx='2.4' fill='none' stroke='black' stroke-width='1.2'/%3E%3Ccircle cx='86' cy='3.5' r='1.4'/%3E%3Crect x='83.6' y='7.1' width='12.8' height='4.8' rx='2.4' fill='none' stroke='black' stroke-width='1.2'/%3E%3Ccircle cx='94' cy='9.5' r='1.4'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 97 14'%3E%3Cpath d='M8.5 3.7C10.8 3.7 12.9 4.6 14.4 6.1L15.5 5C13.7 3.2 11.2 2 8.5 2C5.8 2 3.3 3.2 1.5 5L2.6 6.1C4.1 4.6 6.2 3.7 8.5 3.7Z'/%3E%3Cpath d='M8.5 7.3C9.9 7.3 11.1 7.8 12 8.7L13.1 7.6C11.8 6.4 10.2 5.6 8.5 5.6C6.8 5.6 5.2 6.4 3.9 7.6L5 8.7C5.9 7.8 7.1 7.3 8.5 7.3Z'/%3E%3Ccircle cx='8.5' cy='11' r='1.5'/%3E%3Crect x='31.5' y='0.5' width='23' height='12' rx='3.5' fill='none' stroke='black' stroke-opacity='0.4'/%3E%3Crect x='33' y='2' width='20' height='9' rx='2'/%3E%3Cpath d='M56 4.5V8.5C56.8 8.2 57.5 7.2 57.5 6.5C57.5 5.8 56.8 4.8 56 4.5Z' fill-opacity='0.45'/%3E%3Ccircle cx='75' cy='6.5' r='4.6' fill='none' stroke='black' stroke-width='1.6'/%3E%3Cpath d='M78.5 10L82 13.5' stroke='black' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3Crect x='83.6' y='1.1' width='12.8' height='4.8' rx='2.4' fill='none' stroke='black' stroke-width='1.2'/%3E%3Ccircle cx='86' cy='3.5' r='1.4'/%3E%3Crect x='83.6' y='7.1' width='12.8' height='4.8' rx='2.4' fill='none' stroke='black' stroke-width='1.2'/%3E%3Ccircle cx='94' cy='9.5' r='1.4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.mac__menubar > time { order: 2; white-space: pre; }
+.mac__menubar--dark {
+  color: rgba(0, 0, 0, 0.85);
+  background: rgba(255, 255, 255, 0.6);
+}
+.mac--display .mac__menubar { height: calc(24 * var(--pt)); }
+
+/* keyboard deck */
+.mac__base {
+  position: absolute;
+  top: 100%;
+  left: calc(-8 * var(--pt));
+  right: calc(-8 * var(--pt));
+  height: calc(var(--base-h) * var(--pt));
+  border-radius: 0 0 calc(12 * var(--pt)) calc(12 * var(--pt));
+  background: var(--base-bg);
+  box-shadow:
+    inset 0 calc(1 * var(--pt)) 0 var(--base-edge),
+    inset 0 calc(-1 * var(--pt)) 0 rgba(0, 0, 0, 0.3),
+    0 0 0 1px var(--rail-outline);
+  pointer-events: none;
+}
+.mac__base::after {                            /* thumb scoop */
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: calc(160 * var(--pt));
+  height: calc(7 * var(--pt));
+  margin-left: calc(-80 * var(--pt));
+  border-radius: 0 0 calc(6 * var(--pt)) calc(6 * var(--pt));
+  background: var(--base-cut);
+}
+
+/* ───────── models ───────── */
+.mac--16 {
+  --screen-w: 1728;
+  --screen-h: 1117;
+}
+
+.mac--display {
+  --screen-w: 2560;
+  --screen-h: 1440;
+  --rail: 4;
+  --bezel: 50;
+  --lid-r: 20;
+  --screen-r: 2;
+  --base-h: 180;                                /* stand height incl. foot */
+  --rail-bg: linear-gradient(135deg, #ffffff, #c4c4c8 30%, #dadade 70%, #ffffff);
+  --rail-edge: rgba(0, 0, 0, 0.08);
+  --rail-outline: rgba(0, 0, 0, 0.28);
+  border-radius: calc(var(--lid-r) * var(--pt));
+}
+.mac--display::before { border-radius: calc((var(--lid-r) - var(--rail)) * var(--pt)); }
+.mac--display::after {                         /* camera instead of a notch */
+  top: calc(20 * var(--pt));
+  width: calc(10 * var(--pt));
+  height: calc(10 * var(--pt));
+  margin-left: calc(-5 * var(--pt));
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #3a3a40, #0a0a0c 70%);
+}
+.mac--display .mac__screen { border-radius: calc(var(--screen-r) * var(--pt)); }
+.mac--display .mac__base {                     /* stand neck */
+  left: 50%;
+  right: auto;
+  width: calc(240 * var(--pt));
+  height: calc(160 * var(--pt));
+  margin-left: calc(-120 * var(--pt));
+  border-radius: 0;
+  background: linear-gradient(90deg, #c4c4c8, #e9e9ec 45%, #d2d2d6);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.mac--display .mac__base::after {              /* foot */
+  top: auto;
+  bottom: calc(-20 * var(--pt));
+  width: calc(480 * var(--pt));
+  height: calc(20 * var(--pt));
+  margin-left: calc(-240 * var(--pt));
+  border-radius: calc(4 * var(--pt));
+  background: linear-gradient(#e9e9ec, #c9c9cd);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+/* ───────── finishes ───────── */
+.mac--silver {
+  --rail-bg: linear-gradient(135deg, #ffffff, #c4c4c8 30%, #dadade 70%, #ffffff);
+  --rail-edge: rgba(0, 0, 0, 0.08);
+  --rail-outline: rgba(0, 0, 0, 0.28);
+  --base-bg: linear-gradient(#ececef, #c8c8cc);
+  --base-edge: rgba(255, 255, 255, 0.9);
+  --base-cut: rgba(0, 0, 0, 0.18);
+}
+
+/* ───────── floating shadow ───────── */
+.mac--shadow {
+  filter: drop-shadow(0 calc(40 * var(--pt)) calc(48 * var(--pt)) rgba(28, 24, 18, 0.3));
+}

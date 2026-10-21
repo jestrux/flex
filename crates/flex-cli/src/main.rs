@@ -414,6 +414,45 @@ enum Cmd {
         #[arg(long)]
         json: bool,
     },
+    /// Screens in Apple device frames (iPhone, iPad, Mac), as PNGs: a page (.html or a URL) captured at the device's size
+    /// with its safe areas and status bar, light and/or dark; a screenshot placed as it is; or a folder of either. No film
+    /// project needed. Into ~/Downloads/flex-mockups/<folder>/ unless -o
+    Mockup {
+        /// pages (.html, URLs), screenshots (.png/.jpg) or folders of them
+        #[arg(required = true)]
+        inputs: Vec<String>,
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+        /// iphone, iphone-max, ipad, ipad-11, ipad-mini, mac, mac-16, display; several with commas
+        #[arg(long, default_value = "iphone")]
+        device: String,
+        /// a page's colour scheme: light, dark or both
+        #[arg(long, default_value = "light")]
+        theme: String,
+        /// iphone: black, silver, natural, blue, orange · ipad: gray, silver · mac: black, silver
+        #[arg(long)]
+        finish: Option<String>,
+        /// iPad on its side
+        #[arg(long)]
+        landscape: bool,
+        /// the status bar (menu bar on a Mac): auto picks glyphs from the screen under it; none for screenshots that have one
+        #[arg(long, default_value = "auto")]
+        status: String,
+        /// behind the device: transparent, or a CSS colour
+        #[arg(long, default_value = "transparent")]
+        bg: String,
+        /// a soft drop shadow
+        #[arg(long)]
+        shadow: bool,
+        /// pixels per point (default 3 for iPhone, 2 for iPad and Mac)
+        #[arg(long)]
+        scale: Option<f64>,
+        /// also a contact sheet of them all (sheet.png)
+        #[arg(long)]
+        sheet: bool,
+        #[arg(long)]
+        json: bool,
+    },
     /// One card on its own, with the project's look: without a type, the cards the project can use (defaults, length);
     /// with one, a still (--at ms, or -o x.png) or the whole card as a clip (-o x.mp4)
     Card {
@@ -1140,6 +1179,14 @@ fn run() -> Result<()> {
                 }
                 if lines.is_empty() { println!("(no narration)"); }
             }
+        }
+        Cmd::Mockup { inputs, out, device, theme, finish, landscape, status, bg, shadow, scale, sheet, json } => {
+            let mut a: Vec<String> = inputs.iter().map(|i| flex_core::mockup::absolute(i)).collect();
+            if let Some(o) = out { a.push("-o".into()); a.push(std::path::absolute(&o)?.to_string_lossy().into_owned()); }
+            for (k, v) in [("--device", Some(device)), ("--theme", Some(theme)), ("--finish", finish), ("--status", Some(status)), ("--bg", Some(bg)), ("--scale", scale.map(|s| s.to_string()))] { if let Some(v) = v { a.push(k.into()); a.push(v); } }
+            for (k, on) in [("--landscape", landscape), ("--shadow", shadow), ("--sheet", sheet), ("--json", json)] { if on { a.push(k.into()); } }
+            let st = flex_core::mockup::command(&a)?.status()?;
+            if !st.success() { exit(st.code().unwrap_or(1)); }
         }
         Cmd::Card { dir, card, params, dur, at, out, width, json } => {
             let mut a: Vec<String> = card.into_iter().collect();

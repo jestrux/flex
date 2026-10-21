@@ -23,6 +23,7 @@ pub mod filmgrid;
 pub mod frames;
 pub mod joins;
 pub mod library;
+pub mod mockup;
 pub mod paint;
 pub mod project;
 pub mod read;

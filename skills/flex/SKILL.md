@@ -1,6 +1,6 @@
 ---
 name: flex
-description: Make, check and render a Flex film (a project with a project.ts) with the `flex` command, and show the author a frame in the Flex app. Build a walkthrough, demo or release video of an app from its code (frontend, backend and e2e folders): Flex records the running app on the music's beat itself, paint and look at frames, read the music's grid, measure cuts against the beat, cut people out of clips, render the film or an excerpt and check it with flex accept. Use when the user mentions Flex, asks for a walkthrough, demo or release video or film of an app or its flows, a film project, a render, a frame or scene of a film, or asks where they are in the Flex app, and `flex` is installed.
+description: Make, check and render a Flex film (a project with a project.ts) with the `flex` command, and show the author a frame in the Flex app. Build a walkthrough, demo or release video of an app from its code (frontend, backend and e2e folders): Flex records the running app on the music's beat itself, paint and look at frames, read the music's grid, measure cuts against the beat, cut people out of clips, render the film or an excerpt and check it with flex accept. Also device mockups without a film: an app's screens (HTML pages, a URL, or screenshots) wrapped in iPhone, iPad or Mac frames, light and dark, as PNGs. Use when the user mentions Flex, asks for a walkthrough, demo or release video or film of an app or its flows, a film project, a render, a frame or scene of a film, device-wrapped or framed screenshots or mockups of an app's screens, or asks where they are in the Flex app, and `flex` is installed.
 ---
 
 # Flex
@@ -64,6 +64,25 @@ may be one repo or several (a frontend, a backend, an e2e suite). Work in this o
 **The example:** [examples/app-walkthrough](examples/app-walkthrough/) is a small film in this shape (a persona login, a
 journey on the beat, the take's scene, cards, a script). Read it before writing the first journey. Its imports resolve
 inside Flex; in a new project keep the import prefix `flex new` wrote.
+
+## Device mockups (no film needed)
+
+Screens in Apple device frames, as transparent PNGs, from a design hand-off, a running app or screenshots:
+
+```sh
+flex mockup <folder>                         # every .html page in it (else every image), in an iPhone, light
+flex mockup <folder> --theme both --sheet    # light and dark, plus sheet.png with them all, to look at together
+flex mockup page.html https://app.example/x --device iphone,ipad --landscape   # several devices; iPad on its side
+flex mockup shot.png --status none           # a screenshot that already has its status bar
+```
+
+- A page is captured at the device's own size with its safe areas (the status bar and home indicator don't cover it),
+  in the colour scheme asked for; a screenshot is placed as it is. Output: `~/Downloads/flex-mockups/<folder>/` unless
+  `-o`, one PNG per screen, device and theme (`<page>-<device>-<theme>.png`).
+- Devices: `iphone` (default), `iphone-max`, `ipad`, `ipad-11`, `ipad-mini`, `mac`, `mac-16`, `display`. Finishes
+  (`--finish`): iPhone black, silver, natural, blue, orange; iPad gray, silver; Mac black, silver. `--shadow`, `--bg`.
+- The status bar (menu bar on a Mac) is `auto`: dark glyphs over a light screen, light over a dark one.
+- Look at the results (open `sheet.png`) before reporting, and say where they are.
 
 ## The author's view
 

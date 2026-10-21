@@ -1,0 +1,227 @@
+/* iphone-frame.css — pure-CSS iPhone device frame, no image assets.
+ *
+ * Markup:
+ *   <figure class="iphone iphone--pro iphone--black">
+ *     <div class="iphone__screen"><img src="screenshot.png" alt="…"></div>
+ *     <span class="iphone__buttons" aria-hidden="true"></span>
+ *   </figure>
+ *
+ * Size:    .iphone--pro (402×874 pt screen, default) | .iphone--pro-max (440×956 pt)
+ * Finish:  .iphone--black (default) | --silver | --natural | --blue | --orange
+ * Style:   .iphone--outline  (flat single-stroke alternative, uses currentColor)
+ * Extras:  .iphone--shadow   (soft floating drop shadow)
+ * Status:  optional <div class="iphone__status">9:41</div> inside .iphone__screen draws a
+ *          light-content status bar (time + signal/wifi/battery); add .iphone__status--dark
+ *          for black glyphs on light screenshots. Omit when the screenshot already has one.
+ *
+ * Scale: 1 CSS px = 1 iOS point by default. Set --device-scale on the figure
+ * (or any ancestor) to resize: .iphone { --device-scale: .5 }  → half size.
+ */
+
+.iphone {
+  --pt: calc(1px * var(--iphone-scale, var(--device-scale, 1)));  /* --device-scale (or legacy --iphone-scale): set on the figure or any ancestor; default 1 */
+
+  /* device geometry (points) */
+  --screen-w: 402;
+  --screen-h: 874;
+  --screen-r: 60;
+  --rail: 4;            /* metal edge */
+  --bezel: 14;          /* black border around the display */
+  --side: calc(var(--rail) + var(--bezel));
+
+  /* finish */
+  --rail-bg: linear-gradient(135deg, #5c5c60, #1a1a1d 30%, #1a1a1d 70%, #5c5c60);
+  --rail-edge: rgba(255, 255, 255, 0.14);
+  --rail-outline: rgba(0, 0, 0, 0.55);
+  --bezel-bg: #050506;
+  --button-bg: #2a2a2e;
+  --button-highlight: rgba(255, 255, 255, 0.18);
+  --island-bg: #000;
+
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  margin: 0;
+  width: calc((var(--screen-w) + 2 * var(--side)) * var(--pt));
+  height: calc((var(--screen-h) + 2 * var(--side)) * var(--pt));
+  border-radius: calc((var(--screen-r) + var(--side)) * var(--pt));
+  background: var(--rail-bg);
+  box-shadow:
+    inset 0 0 0 calc(1 * var(--pt)) var(--rail-edge),
+    0 0 0 1px var(--rail-outline);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* black bezel */
+.iphone::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--rail) * var(--pt));
+  border-radius: calc((var(--screen-r) + var(--bezel)) * var(--pt));
+  background: var(--bezel-bg);
+}
+
+/* Dynamic Island — drawn by the frame; iOS screenshots do not include it */
+.iphone::after {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  top: calc((var(--side) + 11) * var(--pt));
+  left: 50%;
+  width: calc(126 * var(--pt));
+  height: calc(37 * var(--pt));
+  margin-left: calc(-63 * var(--pt));
+  border-radius: calc(20 * var(--pt));
+  background: var(--island-bg);
+}
+
+/* screen — put your <img>, <video> or any content inside */
+.iphone__screen {
+  position: absolute;
+  inset: calc(var(--side) * var(--pt));
+  border-radius: calc(var(--screen-r) * var(--pt));
+  overflow: hidden;
+  background: #000;
+}
+.iphone__screen > img,
+.iphone__screen > video,
+.iphone__screen > picture > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* optional status bar — 62 pt tall, time left of the island, glyphs right */
+.iphone__status {
+  position: absolute;
+  z-index: 3;
+  top: 0; left: 0; right: 0;
+  height: calc(62 * var(--pt));
+  display: grid;
+  grid-template-columns: 1fr calc(154 * var(--pt)) 1fr;
+  align-items: start;
+  padding: calc(21 * var(--pt)) calc(24 * var(--pt)) 0;
+  box-sizing: border-box;
+  pointer-events: none;
+  color: #fff;
+  text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: calc(17 * var(--pt));
+  line-height: calc(22 * var(--pt));
+  letter-spacing: calc(-0.4 * var(--pt));
+}
+.iphone__status::after {
+  content: "";
+  grid-column: 3;
+  justify-self: center;
+  width: calc(77 * var(--pt));
+  height: calc(13 * var(--pt));
+  margin-top: calc(4.5 * var(--pt));
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 77 13'%3E%3Crect x='0' y='8' width='3.2' height='4.5' rx='0.7'/%3E%3Crect x='4.8' y='5.5' width='3.2' height='7' rx='0.7'/%3E%3Crect x='9.6' y='3' width='3.2' height='9.5' rx='0.7'/%3E%3Crect x='14.4' y='0.5' width='3.2' height='12' rx='0.7'/%3E%3Cpath d='M34.5 3.7C36.8 3.7 38.9 4.6 40.4 6.1L41.5 5C39.7 3.2 37.2 2 34.5 2C31.8 2 29.3 3.2 27.5 5L28.6 6.1C30.1 4.6 32.2 3.7 34.5 3.7Z'/%3E%3Cpath d='M34.5 7.3C35.9 7.3 37.1 7.8 38 8.7L39.1 7.6C37.8 6.4 36.2 5.6 34.5 5.6C32.8 5.6 31.2 6.4 29.9 7.6L31 8.7C31.9 7.8 33.1 7.3 34.5 7.3Z'/%3E%3Ccircle cx='34.5' cy='11' r='1.5'/%3E%3Crect x='50.5' y='0.5' width='23' height='12' rx='3.5' fill='none' stroke='black' stroke-opacity='0.4'/%3E%3Crect x='52' y='2' width='20' height='9' rx='2'/%3E%3Cpath d='M75 4.5V8.5C75.8 8.2 76.5 7.2 76.5 6.5C76.5 5.8 75.8 4.8 75 4.5Z' fill-opacity='0.45'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 77 13'%3E%3Crect x='0' y='8' width='3.2' height='4.5' rx='0.7'/%3E%3Crect x='4.8' y='5.5' width='3.2' height='7' rx='0.7'/%3E%3Crect x='9.6' y='3' width='3.2' height='9.5' rx='0.7'/%3E%3Crect x='14.4' y='0.5' width='3.2' height='12' rx='0.7'/%3E%3Cpath d='M34.5 3.7C36.8 3.7 38.9 4.6 40.4 6.1L41.5 5C39.7 3.2 37.2 2 34.5 2C31.8 2 29.3 3.2 27.5 5L28.6 6.1C30.1 4.6 32.2 3.7 34.5 3.7Z'/%3E%3Cpath d='M34.5 7.3C35.9 7.3 37.1 7.8 38 8.7L39.1 7.6C37.8 6.4 36.2 5.6 34.5 5.6C32.8 5.6 31.2 6.4 29.9 7.6L31 8.7C31.9 7.8 33.1 7.3 34.5 7.3Z'/%3E%3Ccircle cx='34.5' cy='11' r='1.5'/%3E%3Crect x='50.5' y='0.5' width='23' height='12' rx='3.5' fill='none' stroke='black' stroke-opacity='0.4'/%3E%3Crect x='52' y='2' width='20' height='9' rx='2'/%3E%3Cpath d='M75 4.5V8.5C75.8 8.2 76.5 7.2 76.5 6.5C76.5 5.8 75.8 4.8 75 4.5Z' fill-opacity='0.45'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.iphone__status--dark { color: #000; }
+
+/* side buttons — left cluster (action, volume up, volume down) + right (power) */
+.iphone__buttons {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.iphone__buttons::before,
+.iphone__buttons::after {
+  content: "";
+  position: absolute;
+  width: calc(3 * var(--pt));
+  background-color: var(--button-bg);
+  box-shadow: inset 0 calc(1 * var(--pt)) 0 var(--button-highlight);
+}
+.iphone__buttons::before {
+  left: calc(-3 * var(--pt));
+  top: calc(150 * var(--pt));
+  height: calc(184 * var(--pt));
+  border-radius: calc(2 * var(--pt)) 0 0 calc(2 * var(--pt));
+  background-color: transparent;
+  background-image:
+    linear-gradient(var(--button-bg), var(--button-bg)),
+    linear-gradient(var(--button-bg), var(--button-bg)),
+    linear-gradient(var(--button-bg), var(--button-bg));
+  background-repeat: no-repeat;
+  background-size:
+    100% calc(30 * var(--pt)),
+    100% calc(62 * var(--pt)),
+    100% calc(62 * var(--pt));
+  background-position:
+    0 0,
+    0 calc(50 * var(--pt)),
+    0 calc(122 * var(--pt));
+  box-shadow: none;
+}
+.iphone__buttons::after {
+  right: calc(-3 * var(--pt));
+  top: calc(222 * var(--pt));
+  height: calc(100 * var(--pt));
+  border-radius: 0 calc(2 * var(--pt)) calc(2 * var(--pt)) 0;
+}
+
+/* ───────── sizes ───────── */
+.iphone--pro-max {
+  --screen-w: 440;
+  --screen-h: 956;
+  --screen-r: 62;
+}
+.iphone--pro-max .iphone__buttons::before { top: calc(160 * var(--pt)); }
+.iphone--pro-max .iphone__buttons::after  { top: calc(236 * var(--pt)); height: calc(104 * var(--pt)); }
+
+/* ───────── finishes ───────── */
+.iphone--silver {
+  --rail-bg: linear-gradient(135deg, #ffffff, #c4c4c8 30%, #dadade 70%, #ffffff);
+  --rail-edge: rgba(0, 0, 0, 0.1);
+  --rail-outline: rgba(0, 0, 0, 0.28);
+  --button-bg: #cfcfd3;
+  --button-highlight: rgba(255, 255, 255, 0.8);
+}
+.iphone--natural {
+  --rail-bg: linear-gradient(135deg, #e2dbd0, #9e968a 30%, #b1a99b 70%, #e2dbd0);
+  --rail-edge: rgba(255, 255, 255, 0.35);
+  --rail-outline: rgba(0, 0, 0, 0.3);
+  --button-bg: #a69e91;
+  --button-highlight: rgba(255, 255, 255, 0.5);
+}
+.iphone--blue {
+  --rail-bg: linear-gradient(135deg, #6a7ea8, #1f2d4c 30%, #2a3b60 70%, #6a7ea8);
+  --rail-edge: rgba(255, 255, 255, 0.18);
+  --rail-outline: rgba(0, 0, 0, 0.45);
+  --button-bg: #2f4068;
+  --button-highlight: rgba(255, 255, 255, 0.25);
+}
+.iphone--orange {
+  --rail-bg: linear-gradient(135deg, #ffc08c, #d4601a 30%, #e8742c 70%, #ffc08c);
+  --rail-edge: rgba(255, 255, 255, 0.3);
+  --rail-outline: rgba(0, 0, 0, 0.3);
+  --button-bg: #dd6b24;
+  --button-highlight: rgba(255, 255, 255, 0.4);
+}
+
+/* ───────── outline alternative (inherits currentColor) ───────── */
+.iphone--outline {
+  --rail: 2;
+  --bezel: 8;
+  --rail-bg: none;
+  --bezel-bg: transparent;
+  --island-bg: currentColor;
+  --button-bg: currentColor;
+  --button-highlight: transparent;
+  color: #1d1d1f;
+  background: none;
+  box-shadow: inset 0 0 0 calc(2 * var(--pt)) currentColor;
+}
+.iphone--outline .iphone__screen { background: #f4f3f0; }
+
+/* ───────── floating shadow ───────── */
+.iphone--shadow {
+  filter: drop-shadow(0 calc(40 * var(--pt)) calc(36 * var(--pt)) rgba(28, 24, 18, 0.3));
+}

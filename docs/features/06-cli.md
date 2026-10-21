@@ -34,3 +34,18 @@ write a file take an explicit path (`-o`, `--to-dir`, `--film`), and none opens 
 With the app open on a project, `flex frame` and `flex render` run in the app's warm session (no server to start; the
 author sees a render's progress on the transport). **Flex › Install flex Command…** links the app's own `flex` to
 `~/.flex/bin` and the `/flex` agent skill into `~/.claude/skills`. Progress prints one line per tenth when piped.
+
+## `flex mockup`: screens in device frames
+
+`flex mockup <input>… [--device iphone,ipad,mac…] [--theme light|dark|both] [--finish f] [--landscape] [--status auto|light|dark|none]
+[--bg transparent|<css colour>] [--shadow] [--scale n] [--sheet] [-o dir] [--json]`
+
+Inputs are pages (`.html` files or URLs), screenshots (`.png`, `.jpg`) or folders of either (their `.html` files, else
+their images). A page is captured in Chromium at the device's screen size (iPhone Pro 402 × 874 pt, iPad Pro 13″
+1032 × 1376, MacBook Pro 14″ 1512 × 982, …) and scale, with the device's safe areas set through Chromium's safe-area
+override (a page that pads with `env(safe-area-inset-*)` clears the Dynamic Island and the home indicator), and in the
+colour scheme asked for. It is then drawn in the CSS device frame (`server/devices/`, from the device-frames design
+hand-off: no image assets, any scale) with a status bar whose glyphs follow the screen under them, and saved as a
+transparent PNG. `--sheet` adds `sheet.png`, every mockup on one page. No film project is needed: it runs on Flex's own
+pipeline (Chromium, sharp).
+
