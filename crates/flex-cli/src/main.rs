@@ -194,7 +194,7 @@ enum Cmd {
     /// Start a film project: project.ts, the track (and a stems/ folder beside it) in audio/, a placeholder scene
     New {
         dir: PathBuf,
-        /// the song the film is cut to (a stems/ folder next to it is copied too)
+        /// the song the film is cut to (its stems next to it are copied too: stems/, "<song> Stems/" or "<song> Stems.zip")
         #[arg(long)]
         music: PathBuf,
         /// the film's name (default: the folder's)
@@ -983,6 +983,10 @@ fn run() -> Result<()> {
             let c = flex_core::new::create(&dir, name.as_deref(), &music, feel.as_deref(), licence.as_deref())?;
             println!("{} → {}", c.name, c.dir.display());
             for f in &c.files { println!("  {f}"); }
+            match &c.stems {
+                Some(s) => println!("stems: from {}", s.display()),
+                None => println!("stems: none next to the song (looked for stems/, \"<song> Stems/\" and \"<song> Stems.zip\"); add them to audio/stems/ for flex music"),
+            }
             println!("next: flex music {0}   (the track, read for cutting)\n      flex open {0}  ·  the app: open the folder", dir.display());
         }
         Cmd::Run { dir, tool, args } => {

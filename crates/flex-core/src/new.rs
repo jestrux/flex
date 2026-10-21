@@ -35,7 +35,8 @@ fn slug(s: &str) -> String {
     s.split('-').filter(|x| !x.is_empty()).collect::<Vec<_>>().join("-")
 }
 
-pub struct Created { pub dir: PathBuf, pub name: String, pub music_key: String, pub files: Vec<String> }
+/// `stems`: where the stems came from (a folder or a zip next to the song), if any
+pub struct Created { pub dir: PathBuf, pub name: String, pub music_key: String, pub files: Vec<String>, pub stems: Option<PathBuf> }
 
 pub fn create(dir: &Path, name: Option<&str>, music: &Path, feel: Option<&str>, licence: Option<&str>) -> Result<Created, ProjectError> {
     let feel_given = feel.is_some();
@@ -95,15 +96,95 @@ export default scene({{
     std::fs::create_dir_all(dir.join("audio"))?;
     std::fs::copy(music, dir.join("audio").join(&track))?;
     files.push(format!("audio/{track}"));
-    // stems beside the track (a folder named stems/ next to it), copied for analysis
-    if let Some(stems) = music.parent().map(|p| p.join("stems")).filter(|p| p.is_dir()) {
+    // stems beside the track, copied for analysis
+    let stems = stems_beside(music);
+    if let Some(src) = &stems {
+        let unpacked = if src.is_dir() { None } else { Some(unzip(src)?) };
+        let from = unpacked.as_deref().unwrap_or(src);
         std::fs::create_dir_all(dir.join("audio/stems"))?;
-        for e in std::fs::read_dir(stems)?.filter_map(|e| e.ok()) {
-            if e.path().extension().is_some_and(|x| x == "wav" || x == "mp3" || x == "flac") {
-                std::fs::copy(e.path(), dir.join("audio/stems").join(e.file_name()))?;
-                files.push(format!("audio/stems/{}", e.file_name().to_string_lossy()));
-            }
+        let mut audio = vec![];
+        audio_files(from, &mut audio);
+        audio.sort();
+        for p in audio {
+            let f = p.file_name().unwrap_or_default();
+            std::fs::copy(&p, dir.join("audio/stems").join(f))?;
+            files.push(format!("audio/stems/{}", f.to_string_lossy()));
         }
+        if let Some(t) = unpacked { let _ = std::fs::remove_dir_all(t); }
     }
-    Ok(Created { dir, name, music_key: key, files })
+    Ok(Created { dir, name, music_key: key, files, stems })
+}
+
+/// The song's stems next to it: a `stems/` folder (Flex's library), else a folder or zip named after the song, as Suno
+/// exports them ("I Am Because We Are.mp3" → "I Am Because We Are Stems/" or "… Stems.zip"), compared on letters and
+/// digits only, a re-download's " (1)" ignored. A folder wins over a zip.
+pub fn stems_beside(music: &Path) -> Option<PathBuf> {
+    let parent = music.parent()?;
+    let plain = parent.join("stems");
+    if plain.is_dir() { return Some(plain); }
+    let norm = |s: &str| -> String { s.chars().filter(|c| c.is_alphanumeric()).flat_map(|c| c.to_lowercase()).collect() };
+    let stem = music.file_stem()?.to_string_lossy().to_string();
+    // "Song (1)" → "Song"
+    let base = match stem.trim_end().strip_suffix(')').and_then(|s| s.rsplit_once(" (")) {
+        Some((b, n)) if !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()) => b.to_string(),
+        _ => stem,
+    };
+    let song = norm(&base);
+    let named = |p: &Path| p.file_stem().is_some_and(|s| norm(&s.to_string_lossy()).strip_suffix("stems") == Some(song.as_str()));
+    let mut hits: Vec<PathBuf> = std::fs::read_dir(parent).ok()?.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| named(p)).collect();
+    hits.sort();
+    hits.iter().find(|p| p.is_dir())
+        .or_else(|| hits.iter().find(|p| p.extension().is_some_and(|x| x.eq_ignore_ascii_case("zip"))))
+        .cloned()
+}
+
+fn is_audio(p: &Path) -> bool {
+    p.extension().is_some_and(|x| ["wav", "mp3", "flac", "m4a", "aiff"].contains(&x.to_string_lossy().to_lowercase().as_str()))
+}
+
+/// The audio files in `d` and the folders under it (a zip may wrap them in one), skipping macOS's `__MACOSX`.
+fn audio_files(d: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(rd) = std::fs::read_dir(d) else { return };
+    for p in rd.filter_map(|e| e.ok().map(|e| e.path())) {
+        let name = p.file_name().unwrap_or_default().to_string_lossy();
+        if name.starts_with('.') || name == "__MACOSX" { continue; }
+        if p.is_dir() { audio_files(&p, out) } else if is_audio(&p) { out.push(p) }
+    }
+}
+
+fn unzip(zip: &Path) -> Result<PathBuf, ProjectError> {
+    let tmp = std::env::temp_dir().join(format!("flex-stems-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp)?;
+    let st = std::process::Command::new("ditto").args(["-x", "-k"]).arg(zip).arg(&tmp).status()?;
+    if !st.success() { let _ = std::fs::remove_dir_all(&tmp); return Err(ProjectError::Run(format!("couldn't unpack {}", zip.display()))); }
+    Ok(tmp)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn touch(p: &Path) { std::fs::create_dir_all(p.parent().unwrap()).unwrap(); std::fs::write(p, b"x").unwrap(); }
+
+    #[test]
+    fn finds_stems_the_way_they_are_exported() {
+        let d = std::env::temp_dir().join(format!("flex-stems-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        touch(&d.join("I Am Because We Are.mp3"));
+        touch(&d.join("I Am Because We Are (1).mp3"));
+        touch(&d.join("I Am Because We Are Stems/0 Lead Vocals.wav"));
+        touch(&d.join("I Am Because We Are Stems.zip"));
+        touch(&d.join("Clock It.mp3"));
+        touch(&d.join("Clock It Stems.zip"));
+        touch(&d.join("Other.mp3"));
+        let at = |s: &str| stems_beside(&d.join(s)).map(|p| p.file_name().unwrap().to_string_lossy().to_string());
+        assert_eq!(at("I Am Because We Are.mp3").as_deref(), Some("I Am Because We Are Stems"), "the folder over the zip");
+        assert_eq!(at("I Am Because We Are (1).mp3").as_deref(), Some("I Am Because We Are Stems"), "a re-download's (1)");
+        assert_eq!(at("Clock It.mp3").as_deref(), Some("Clock It Stems.zip"), "only the zip");
+        assert_eq!(at("Other.mp3"), None);
+        touch(&d.join("stems/drums.wav"));
+        assert_eq!(at("Other.mp3").as_deref(), Some("stems"), "a plain stems/ first (the library's)");
+        let _ = std::fs::remove_dir_all(&d);
+    }
 }

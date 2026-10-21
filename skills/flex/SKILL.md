@@ -42,7 +42,8 @@ may be one repo or several (a frontend, a backend, an e2e suite). Work in this o
 3. **Get the app running** with the commands found in step 1, on the branch the author chose, and check each URL
    answers. Don't run anything that resets or seeds data without the author's yes.
 4. **Start the project** where the author said: `flex new <dir> --music <song>` (it writes the imports for this
-   machine), then `flex music <dir>`; `flex show <dir>` opens it in the app.
+   machine, and copies the song's stems from beside it: `stems/`, or Suno's `<song> Stems/` or `<song> Stems.zip`), then
+   `flex music <dir>`; `flex show <dir>` opens it in the app.
 5. **Plan on the music:** `script.json`, one beat per flow step on the song's bars (`flex script`, `flex storyboard`).
    Get the author's nod before recording.
 6. **Personas:** in `capture.personas`, a command printing each user's browser cookies as JSON, ported from the tests'
