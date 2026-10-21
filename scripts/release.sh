@@ -146,9 +146,10 @@ $FLEX_RELEASE_TRAILERS}"
   fi
   git push -q origin HEAD
   echo "==> GitHub release v$VERSION"
-  # --latest: the app is what github.com/jestrux/flex/releases/latest leads to, never a song-library release
-  gh release create "v$VERSION" "$ZIP" --target "$(git rev-parse HEAD)" --title "Flex $VERSION" --generate-notes --latest \
+  gh release create "v$VERSION" "$ZIP" --target "$(git rev-parse HEAD)" --title "Flex $VERSION" --generate-notes \
     --notes "Download the zip, unzip it, and drag Flex to Applications. Requires macOS 14 or later on Apple silicon. Then run flex doctor: it lists what recording and rendering need (Node, ffmpeg, Playwright's Chromium) and how to install each. Signed and notarized."
+  # the app is what releases/latest leads to, never a song-library release (set through the API: older gh has no --latest)
+  gh api -X PATCH "repos/{owner}/{repo}/releases/$(gh api "repos/{owner}/{repo}/releases/tags/v$VERSION" -q .id)" -f make_latest=true > /dev/null
 elif [ "$VERSION" != "$CURRENT" ]; then
   echo "==> version files are bumped but not committed; run with --publish to release, or commit them yourself"
 fi
