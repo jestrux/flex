@@ -1,0 +1,53 @@
+diff --git a/lib/capture.ts b/lib/capture.ts
+index 6a08885..7d888ae 100644
+--- a/lib/capture.ts
++++ b/lib/capture.ts
+@@ -60,6 +60,24 @@ export type Events = {
+ };
+ type Target = string | Locator;
+ 
++// scroll(): glide `el`'s nearest scrollable box (else the page) by dy px over ms, one position per painted frame. Each
++// position is set instantly (CSS smooth scrolling would chase it) and snapping is off for the glide. A string, as above.
++const GLIDE = `((el, [dy, ms]) => new Promise((done) => {
++  const scrolls = (e) => { const o = getComputedStyle(e).overflowY; return (o === "auto" || o === "scroll" || o === "overlay") && e.scrollHeight > e.clientHeight; };
++  const d = document; let box = el;
++  while (box && box !== d.body && box !== d.documentElement && !scrolls(box)) box = box.parentElement;
++  if (!box || box === d.body || box === d.documentElement) box = d.scrollingElement || d.documentElement;
++  const keep = box.style.scrollSnapType;
++  box.style.scrollSnapType = "none";
++  const from = box.scrollTop, to = Math.max(0, Math.min(box.scrollHeight - box.clientHeight, from + dy)), t0 = performance.now();
++  const step = (now) => {
++    const u = Math.min(1, (now - t0) / ms), e = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
++    box.scrollTo({ top: from + (to - from) * e, behavior: "instant" });
++    if (u < 1) requestAnimationFrame(step);
++    else { box.style.scrollSnapType = keep; done(); }
++  };
++  requestAnimationFrame(step);
++}))`;
+ export const VIEWPORT = { w: 1440, h: 810 };
+ /** capture pixel density: 2 by default; CAPTURE_DPR=3 for takes that will be rendered at 4K (1440 css × 3 = 4320 px) */
+ export const DPR = Number(process.env.CAPTURE_DPR ?? 2);
+@@ -253,16 +271,15 @@ export class Cam {
+     await this.page.keyboard.press("ControlOrMeta+A"); await this.pause(160);
+     await this.type(text, perKey);
+   }
+-  /** scroll a list/panel like a person: move over it, then wheel `dy` px in small eased steps.
++  /** scroll a list/panel (or the whole page: "body") like a person: move over it, then glide `dy` px, eased.
++   *  The glide moves on every frame the browser paints (not in wheel steps, which read as stairs over a long page);
++   *  it scrolls `within` or the nearest scrollable box around it, else the page. ms: default ~1 s per screen of travel, at least 900.
+    *  Place effects on things inside it AFTER this (targets are captured when you call them). */
+-  async scroll(within: Target, dy: number, ms = 900) {
++  async scroll(within: Target, dy: number, ms?: number) {
+     const r = await this.moveTo(within); if (!r) return;
+-    const steps = Math.max(6, Math.round(ms / 40)); let done = 0;
+-    for (let i = 1; i <= steps; i++) {
+-      const u = i / steps, e = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2, to = Math.round(dy * e);
+-      await this.page.mouse.wheel(0, to - done); done = to;
+-      await this.page.waitForTimeout(ms / steps);
+-    }
++    ms ??= Math.max(900, Math.round((Math.abs(dy) / VIEWPORT.h) * 1000));
++    // a bare wrapper (no named functions inside for tsx to tag) that evaluates GLIDE in the page and hands it the element
++    await this.loc(within).evaluate((el, a) => (0, eval)(a.glide)(el, a.args), { glide: GLIDE, args: [dy, ms] });
+     await this.pause(300);
+     await this.recheck();
+   }
