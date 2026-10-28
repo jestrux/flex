@@ -254,3 +254,12 @@ review folders, mocks (`circles-tape-variants`, `circles-rap-mock`, `circles-kwa
   (`media/overview.mp4`, `money.mp4`) and Flex's own test media are symlinks into Downloads/flex-videos, and the Heaven
   projects link into Downloads/heaven baby: those move, never delete. Nothing deleted until the author's decisions come
   back.
+- 2026-10-28: **Phase 8 done ✅** on the author's decisions (they changed 49 of my calls). 116 items (8.9 GB) moved to
+  the Trash, in one folder (`~/.Trash/downloads-cleanup-2026-10-28`, recoverable until it's emptied); Downloads 22 → 12
+  GB. Moved: the Circles films' footage to `release-videos/circles/_footage/` (gitignored, both films' `media/` links
+  re-pointed; overview-60 paints it), the cover gallery into `flex-test-media/` (the sheet test's links re-pointed).
+  Checks: no broken link except the 30 into `heaven baby`, which the author chose to delete (the Heaven explorations
+  and Flex's crop/cutout/onsets test media; those tests skip without it, `cargo test` passes); a deleted render
+  regenerated (`flex render` of the trial film, an excerpt); memories that named a trashed path are marked. Board cards
+  on four boards (Ubuntu Legacy in citybuild/e2e above all, switchboard, otesha, horizon) still show trashed media:
+  left as they are (board files change only through `switchboard`), the author's call.
