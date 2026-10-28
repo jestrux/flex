@@ -306,7 +306,8 @@ in `look.ts` or any `cards/*.ts`.
 
 **A phone take** (recorded with `export const device = "iphone"`, see capture.md) is painted with the kit's
 `phoneLayers(ctx, { take: "<take>", at: takeMs, x, y, height })`: Flex's own iPhone (the one `flex mockup` uses), the
-take's frame, the status bar's glyphs by the colour behind them, and the touch gliding to each tap. `phoneFind(o,
+take's frame, the status bar's glyphs by the colour behind them, and the touch gliding to each tap (frames recorded 80 ms or less apart, as in a scroll
+Chrome sent slowly, are blended so the film never shows one twice; a longer gap is a still screen and cuts on time). `phoneFind(o,
 "<name>")` gives the box of a phrase the journey found with `c.find`; `phoneScreen(o)` gives the take's frame and where
 the screen sits, as a lens's source.
 
