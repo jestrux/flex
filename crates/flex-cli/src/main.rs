@@ -176,6 +176,20 @@ enum Cmd {
         #[arg(long)]
         json: bool,
     },
+    /// Does every clip advance a frame per film frame? On a project: each clip's source frames through the plan (nothing
+    /// painted), flagging repeats (a source frame shown twice inside motion: a stutter), skips, and footage playing at
+    /// any speed but 1:1; long stills are listed as holds. On a video file: frames that repeat while the picture moves
+    Stutter {
+        /// a project folder, or a rendered video
+        path: PathBuf,
+        #[arg(long)]
+        scene: Option<String>,
+        /// list every clip run, the clean ones too
+        #[arg(long)]
+        all: bool,
+        #[arg(long)]
+        json: bool,
+    },
     /// Write the film's frames (from the cache, painting what's missing) as numbered files
     Play {
         dir: PathBuf,
@@ -1394,6 +1408,30 @@ fn run() -> Result<()> {
                 let n = joins.iter().filter(|j| j.jumps).count();
                 let c = joins.iter().filter(|j| j.cut).count();
                 println!("{} joins, {n} jump{}, {c} intended cut{}", joins.len(), if n == 1 { "" } else { "s" }, if c == 1 { "" } else { "s" });
+            }
+        }
+        Cmd::Stutter { path, scene, all, json } => {
+            if path.is_file() {
+                let (n, fps, rep) = flex_core::stutter::check_video(&path)?;
+                if json { println!("{}", serde_json::to_string_pretty(&serde_json::json!({ "frames": n, "fps": fps, "repeats": rep }))?); } else {
+                    for r in &rep { println!("✗ repeat  frame {:>5}  {:>7.2}s  Δ {:.2}/255 (motion either side {:.1}, {:.1})", r.frame, r.t, r.diff, r.before, r.after); }
+                    println!("{n} frames, {} repeat{} inside motion", rep.len(), if rep.len() == 1 { "" } else { "s" });
+                }
+            } else {
+                let s = Session::open(&path)?;
+                let runs = flex_core::stutter::check(&s, scene.as_deref())?;
+                if json { println!("{}", serde_json::to_string_pretty(&runs)?); } else {
+                    let fps = s.manifest().fps as f64;
+                    let at = |f: u32| format!("{:.2}s", f as f64 / fps);
+                    for r in runs.iter().filter(|r| all || !r.ok()) {
+                        println!("{} {:<16} {:<28} {:>8}–{:<8} speed {:.3}{}", if r.ok() { "✓" } else { "✗" }, r.scene, r.clip, at(r.first), at(r.last), r.speed,
+                            if r.holds.is_empty() { String::new() } else { format!("  holds: {}", r.holds.iter().map(|(f, n)| format!("{} ×{n}", at(*f))).collect::<Vec<_>>().join(", ")) });
+                        if !r.repeats.is_empty() { println!("    repeats at {}", r.repeats.iter().map(|f| at(*f)).collect::<Vec<_>>().join(", ")); }
+                        if !r.skips.is_empty() { println!("    skips at {}", r.skips.iter().map(|f| at(*f)).collect::<Vec<_>>().join(", ")); }
+                    }
+                    let bad = runs.iter().filter(|r| !r.ok()).count();
+                    println!("{} clip run{}, {bad} with a stutter, skip or speed ≠ 1", runs.len(), if runs.len() == 1 { "" } else { "s" });
+                }
             }
         }
         Cmd::Play { dir, to_dir, scene, width } => {

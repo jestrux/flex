@@ -27,7 +27,9 @@ export function videoFrame(file: string, at: number, fps = 30, alpha = false) {
     rmSync(dir, { recursive: true, force: true }); renameSync(tmp, dir);
   }
   const n = count();
-  const i = Math.min(n, Math.max(1, Math.floor(at * fps) + 1));
+  // Flex (patch 19): 1e-6 forgives float error, so a time computed to land on a frame boundary doesn't show the
+  // previous frame again (a one-frame stutter); the same as Flex's painter (frame_index in paint.rs)
+  const i = Math.min(n, Math.max(1, Math.floor(at * fps + 1e-6) + 1));
   return join(dir, `f${String(i).padStart(6, "0")}.${ext}`);
 }
 

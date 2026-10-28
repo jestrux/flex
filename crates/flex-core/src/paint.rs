@@ -83,7 +83,7 @@ fn image(file: &str, alpha: bool, level: u32) -> Result<Arc<sk::Pixmap>, PaintEr
 
 /// The pipeline's video frames (`videoFrame` in lib/presets/layers.ts, patch 11): a file's frames at 30 fps, extracted once
 /// into `<work>/.cache/frames/<sha1("file|30")[..12]>/f000001.jpg` (PNG with alpha under `"file|30|alpha"`); the frame
-/// for `at` is number floor(at × 30) + 1, held on the last past the end. Shared with the pipeline, so a clip is extracted
+/// for `at` is number floor(at × 30 + 1e-6) + 1 (`frame_index`), held on the last past the end. Shared with the pipeline, so a clip is extracted
 /// once and both painters show the same frame.
 pub fn video_frame(file: &str, at: f64, alpha: bool) -> Result<std::path::PathBuf, PaintError> {
     const FPS: f64 = 30.;
@@ -121,9 +121,15 @@ pub fn video_frame(file: &str, at: f64, alpha: bool) -> Result<std::path::PathBu
         }
     };
     drop(counts);
-    let i = ((at * FPS).floor() as i64 + 1).clamp(1, n as i64);
+    let i = (frame_index(at) as i64).clamp(1, n as i64);
     Ok(dir.join(format!("f{i:06}.{ext}")))
 }
+
+/// The 1-based frame (at 30 fps) a source time shows. The 1e-6 forgives float error: a time computed to land on a frame
+/// boundary (a segment starting at `k/30`, film seconds × speed) can come out a hair under it, and plain `floor` would
+/// show the previous frame again, a one-frame stutter (the Circles films hid it with a 1/60 s offset). Same in the
+/// pipeline's `videoFrame` (patch 19).
+pub fn frame_index(at: f64) -> i64 { (at * 30. + 1e-6).floor() as i64 + 1 }
 
 /// SHA-1 as hex (the pipeline names its frame caches by it)
 fn sha1_hex(data: &[u8]) -> String {
@@ -729,6 +735,20 @@ pub fn compare(reference: &std::path::Path, ours: &sk::Pixmap, map: Option<&std:
 
 #[cfg(test)]
 mod video_tests {
+    #[test]
+    fn a_boundary_a_hair_short_gets_its_own_frame() {
+        use super::frame_index;
+        for k in [1i64, 7, 30, 663, 1186] {
+            let at = k as f64 / 30.;
+            assert_eq!(frame_index(at), k + 1, "exactly on {k}/30");
+            assert_eq!(frame_index(at - 1e-12), k + 1, "a float hair under {k}/30");
+            assert_eq!(frame_index(at - 0.5 / 30.), k, "half a frame before");
+        }
+        // the Circles motion scene: 22.4 + film steps of 1/30 summed in floats
+        let mut t = 22.4; let mut prev = frame_index(t);
+        for _ in 0..200 { t += 1. / 30.; let i = frame_index(t); assert_eq!(i, prev + 1, "at {t}"); prev = i; }
+    }
+
     #[test]
     fn sha1_matches_the_pipelines_cache_names() {
         assert_eq!(super::sha1_hex(b"abc"), "a9993e364706816aba3e25717850c26c9cd0d89d");

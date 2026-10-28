@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 
 pub const JPEG_QUALITY: u8 = 86;
 /// Bump when the painter's output changes: older paintings then stop matching.
-pub const PAINTER_VERSION: u32 = 7;
+pub const PAINTER_VERSION: u32 = 8;
 
 /// Where a frame comes from, once asked for.
 #[derive(Debug, Clone, PartialEq)]

@@ -156,4 +156,9 @@ Left in the projects (KinPay-only): `seed-org`, `stills.mjs`, `make-book-plain`,
 
 ## Status
 
-- 2026-10-28: plan written. Phase 1 next.
+- 2026-10-28: plan written.
+- 2026-10-28: **Phase 1 done ✅** (`frame_index` + patch 19, `PAINTER_VERSION` 8, `flex stutter`). A copy of the 90 s
+  film without its `F2` offsets: the old rounding shows 30 repeat-then-skip pairs in the intro and 19 in motion; the new
+  one, none. A render with a frame doubled (ffmpeg `freezeframes`) is caught at that frame; a clean one passes. Found on
+  the way: the 90 s film rendered today repeats 21 frames in its intro (it never had the offset), exactly the old
+  rounding's list, plus two at 54.4 s: its next render with this build fixes the intro (Phase 7).

@@ -33,6 +33,7 @@ mod vips;
 pub mod renders;
 pub mod server;
 pub mod sheet;
+pub mod stutter;
 pub mod waveform;
 
 pub use capture::CaptureRun;
