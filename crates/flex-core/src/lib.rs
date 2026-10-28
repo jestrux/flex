@@ -13,6 +13,7 @@ pub mod cutout;
 pub mod doctor;
 pub mod musicjoins;
 pub mod narration;
+pub mod pages;
 pub mod onsets;
 pub mod new;
 pub mod script;

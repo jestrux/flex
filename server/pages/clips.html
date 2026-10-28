@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scene Review</title>
+<style>
+:root{--bg:#0B0B14;--panel:#15141F;--fg:#EEEBF5;--muted:#A39DB3;--line:#2A2838;--accent:#D5FC31;--accent-ink:#2B3300}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#F6F5F1;--panel:#FFFFFF;--fg:#16141C;--muted:#5F5A6B;--line:#E3E0EA}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Helvetica Neue",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:32px 16px 96px}
+h1{font-size:26px;margin:0 0 6px}
+.lede{color:var(--muted);margin:0 0 20px;max-width:80ch}
+section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+@media (max-width:760px){section{grid-template-columns:1fr}}
+h2{font-size:17px;margin:0 0 2px}
+.when{color:var(--muted);font:13px ui-monospace,Menlo,monospace;margin-bottom:10px}
+video{width:100%;aspect-ratio:16/9;border-radius:10px;background:#000;display:block}
+label{display:flex;gap:8px;align-items:flex-start;margin:6px 0;cursor:pointer}
+input[type=checkbox]{margin-top:4px;accent-color:var(--accent)}
+.done{color:var(--muted);text-decoration:line-through}
+textarea{width:100%;min-height:72px;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:12px;align-items:center;justify-content:center}
+.bar button{font:600 14px system-ui,sans-serif;background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
+.bar span{color:var(--muted);font-size:13px}
+</style></head><body><main>
+<h1 id="title"></h1>
+<p class="lede" id="lede"></p>
+<div id="scenes"></div>
+</main>
+<div class="bar"><button id="copy">Copy feedback</button><span id="status"></span></div>
+<script>
+const D = /*DATA*/null;
+const KEY = `flex-clips:${D.film}:${D.render}`;
+let S = {}; try { S = JSON.parse(localStorage.getItem(KEY) ?? "{}"); } catch {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+const fmt = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+document.getElementById("title").textContent = `${D.film}: scene by scene`;
+document.getElementById("lede").textContent = `Each scene of the render (${D.render}) as its own clip, with what to check in it. Ticks and notes stay in this browser; Copy feedback puts them on the clipboard as text.`;
+document.getElementById("scenes").innerHTML = D.scenes.map((s, i) => {
+  const st = S[s.id] ?? {};
+  const items = (s.notes?.asks ?? []).map((a, j) => `<label><input type="checkbox" data-s="${s.id}" data-j="${j}" ${st.ticks?.[j] ? "checked" : ""}><span class="${st.ticks?.[j] ? "done" : ""}">${esc(a)}</span></label>`).join("");
+  return `<section><div><h2>${i + 1} · ${esc(s.id)}</h2><div class="when">${fmt(s.start)}–${fmt(s.end)} · ${(s.end - s.start).toFixed(1)} s</div><video src="${s.clip}#t=0.05" controls preload="metadata" playsinline></video></div>`
+    + `<div>${s.notes?.note ? `<p>${esc(s.notes.note)}</p>` : ""}${items}<textarea data-s="${s.id}" placeholder="Notes on this scene">${esc(st.note ?? "")}</textarea></div></section>`;
+}).join("");
+document.addEventListener("change", (e) => { const c = e.target; if (c.type !== "checkbox") return; const s = (S[c.dataset.s] ??= {}); (s.ticks ??= {})[c.dataset.j] = c.checked; c.nextElementSibling.className = c.checked ? "done" : ""; save(); });
+document.addEventListener("input", (e) => { const t = e.target; if (t.tagName !== "TEXTAREA") return; (S[t.dataset.s] ??= {}).note = t.value; save(); });
+document.addEventListener("play", (e) => { for (const v of document.querySelectorAll("video")) if (v !== e.target) v.pause(); }, true);
+document.getElementById("copy").onclick = async () => {
+  const lines = [`${D.film} — feedback on ${D.render}`];
+  for (const s of D.scenes) {
+    const st = S[s.id] ?? {}, asks = s.notes?.asks ?? [];
+    const open = asks.filter((_, j) => !st.ticks?.[j]);
+    if (!st.note && !open.length && !asks.length) continue;
+    lines.push("", `${s.id} (${fmt(s.start)})`);
+    asks.forEach((a, j) => lines.push(`  [${st.ticks?.[j] ? "x" : " "}] ${a}`));
+    if (st.note) lines.push(`  note: ${st.note}`);
+  }
+  const text = lines.join("\n");
+  try { await navigator.clipboard.writeText(text); document.getElementById("status").textContent = "Copied."; }
+  catch { document.getElementById("status").textContent = "Couldn't reach the clipboard: the text is in the console."; console.log(text); }
+};
+</script></body></html>

@@ -176,6 +176,38 @@ enum Cmd {
         #[arg(long)]
         json: bool,
     },
+    /// The same picture under each value of a variant flag (a music edit, a mix): one mp4 per value, from the latest
+    /// render's picture and that value's own mix, and a page to compare them (synced timelines of the scenes and each
+    /// value's music edit, moment buttons, one player at a time)
+    Compare {
+        dir: PathBuf,
+        /// a value to compare, NAME=VALUE (two or more, one flag); the project declares the flag in its variants
+        #[arg(long = "with", required = true)]
+        with: Vec<String>,
+        /// moments to jump to: film seconds, each optionally "=what" (38.3=the rap comes in)
+        #[arg(long, value_delimiter = ',')]
+        moments: Vec<String>,
+        /// the render whose picture to use (default: the film's latest)
+        #[arg(long)]
+        render: Option<PathBuf>,
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// The latest render cut scene by scene, with a review page: each scene's clip, what to check in it (from a notes file:
+    /// { "<scene id>": { "note": "…", "asks": ["…"] } }), ticks and notes kept in the browser, feedback to copy
+    Clips {
+        dir: PathBuf,
+        #[arg(long)]
+        notes: Option<PathBuf>,
+        #[arg(long)]
+        render: Option<PathBuf>,
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
     /// Is every line of display text on screen long enough to read? Frames every 100 ms painted at 960 and read by macOS's
     /// text recognition; lines at least --min-height film px tall (slides, captions, lenses, not an app's interface)
     /// followed through the film and grouped into blocks; a block needs 0.3 s a word + 0.7 s
@@ -1492,6 +1524,24 @@ fn run() -> Result<()> {
                 let c = joins.iter().filter(|j| j.cut).count();
                 println!("{} joins, {n} jump{}, {c} intended cut{}", joins.len(), if n == 1 { "" } else { "s" }, if c == 1 { "" } else { "s" });
             }
+        }
+        Cmd::Compare { dir, with, moments, render, out, json } => {
+            let dirc = std::fs::canonicalize(&dir)?;
+            let mut name = String::new(); let mut values = vec![];
+            for w in &with {
+                let (k, v) = w.split_once('=').ok_or_else(|| anyhow::anyhow!("--with takes NAME=VALUE, not \"{w}\""))?;
+                anyhow::ensure!(name.is_empty() || name == k, "--with compares one flag's values ({name}, not {k})");
+                name = k.to_string(); values.push(v.to_string());
+            }
+            let moments = moments.iter().map(|m| { let (t, w) = m.split_once('=').unwrap_or((m, "")); Ok((t.trim_end_matches('s').parse::<f64>().map_err(|_| anyhow::anyhow!("{m}: a moment is film seconds"))?, w.to_string())) }).collect::<Result<Vec<_>>>()?;
+            let p = flex_core::pages::compare(&dirc, &flex_core::pages::Compare { name, values, moments, render, out })?;
+            if json { println!("{}", serde_json::json!({ "ok": true, "page": p })); } else { println!("compare → {}", p.display()); }
+        }
+        Cmd::Clips { dir, notes, render, out, json } => {
+            let dirc = std::fs::canonicalize(&dir)?;
+            let srv = flex_core::Server::start(&dirc)?;
+            let p = flex_core::pages::clips(&dirc, &srv.manifest, &flex_core::pages::Clips { notes, render, out })?;
+            if json { println!("{}", serde_json::json!({ "ok": true, "page": p })); } else { println!("clips → {}", p.display()); }
         }
         Cmd::Reading { dir, scene, min_height, step, slack, all, json } => {
             let s = Session::open(&dir)?;

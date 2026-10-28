@@ -137,8 +137,9 @@ Left in the projects (KinPay-only): `seed-org`, `stills.mjs`, `make-book-plain`,
 
 ## Phase 6 — Review pages (gaps 13, 14)
 
-- `flex compare <dir> --variant NAME=a --variant NAME=b … [--moments 38.3,57.5] [-o folder]`: renders the picture
-  once, mixes each variant's sound (`flex mix`), muxes one mp4 per variant, and writes a page: synced players (one
+- `flex compare <dir> --with NAME=a --with NAME=b … [--moments 38.3=what,57.5] [-o folder]` (`--with`: the global
+  `--variant` already sets a flag for the whole run): takes the latest render's picture, mixes each value's sound,
+  muxes one mp4 per value, and writes a page: synced players (one
   sounds at a time), the music edit of each as a timeline, moment buttons. Projects declare the variants already.
 - `flex clips <dir> [--notes notes.json] [-o folder]`: a clip per scene from the latest render, and a checklist page
   (scene, time, clip, notes per scene, a box per item, feedback to copy back), the generic part of `review-doc.mjs`.
@@ -218,3 +219,7 @@ review folders, mocks (`circles-tape-variants`, `circles-rap-mock`, `circles-kwa
 - 2026-10-28: **Phase 5 done ✅** (patch 23, warnings in `flex frame`). The lens over the share-out take: the amount
   escapes and rolls with the app's figure; read at 0.62 s / 1.3 s / 2.1 s: K 7.62, K 4,771.64, K 6,152.50. A band
   centred on the corner stays whole in the frame with its escape. A 1.2 s lens warns.
+- 2026-10-28: **Phase 6 done ✅** (`flex compare`, `flex clips`, `server/pages/`). Compare on the scratch copy with a
+  MUSIC variant (the Flex-built edit vs the round-6 extension): two mp4s in 12 s, their sound uncorrelated, the page's
+  timelines show each edit, a moment moves both players to 2 s before it, no sideways scroll at 390 px. Clips on the
+  90 s film: 9 clips in 9 s, each its scene's length to the frame; ticks and notes survive a reload.
