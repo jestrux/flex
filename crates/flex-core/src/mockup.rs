@@ -31,14 +31,25 @@ pub fn absolute(input: &str) -> String {
     std::path::absolute(Path::new(input)).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| input.to_string())
 }
 
+/// Where the overlays live (built or not): by a hash of the frame's CSS and the script that draws them.
+pub fn device_overlays_dir() -> std::path::PathBuf {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    SCRIPT.hash(&mut h); FRAMES[0].1.hash(&mut h);
+    crate::project::support_dir().join("device-frames").join(format!("{:012x}", h.finish() & 0xffff_ffff_ffff))
+}
+
+/// Does the project have a phone take (a take recorded in a device: `"device"` in its events.json)?
+pub fn has_phone_takes(dir: &Path) -> bool {
+    let Ok(rd) = std::fs::read_dir(dir.join("takes")) else { return false };
+    rd.filter_map(|e| e.ok()).any(|e| std::fs::read_to_string(e.path().join("events.json")).is_ok_and(|s| s.contains("\"device\"")))
+}
+
 /// The iPhone's parts as transparent PNGs for painting phone takes (`mockup.mts --overlays`): built once into the support
 /// folder, again only when the frame's CSS or the script changes. The pipeline's `phoneLayers` reads them through
 /// `FLEX_DEVICE_FRAMES`, which Flex sets for every server.
 pub fn device_overlays() -> Result<std::path::PathBuf, ProjectError> {
-    use std::hash::{Hash, Hasher};
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    SCRIPT.hash(&mut h); FRAMES[0].1.hash(&mut h);
-    let dir = crate::project::support_dir().join("device-frames").join(format!("{:012x}", h.finish() & 0xffff_ffff_ffff));
+    let dir = device_overlays_dir();
     if dir.join("frame.json").exists() { return Ok(dir); }
     let mut c = command(&["--overlays".into(), "-o".into(), dir.to_string_lossy().into_owned()])?;
     let o = c.output()?;

@@ -174,7 +174,9 @@ impl Server {
             .env("FLEX_VOICE_CACHE", voice_cache())
             .env("FLEX_PROJECTS", crate::tools::projects_link(&dir)?.0);
         // the phone's parts for phone takes (patch 22's phoneLayers); a project without phones never reads them
-        if let Ok(d) = crate::mockup::device_overlays() { cmd.env("FLEX_DEVICE_FRAMES", d); }
+        // (drawn, once, only for a project with phone takes: a few seconds of Chromium no other server start should pay)
+        let frames = if crate::mockup::has_phone_takes(&dir) { crate::mockup::device_overlays().unwrap_or_else(|_| crate::mockup::device_overlays_dir()) } else { crate::mockup::device_overlays_dir() };
+        cmd.env("FLEX_DEVICE_FRAMES", frames);
         // a variant (END=dark …): the project's declared flags, passed as the pipeline reads them, from the environment
         for (k, v) in variants { cmd.env(k, v); }
         crate::secrets::apply(&mut cmd, &dir); // the stored OpenAI key, unless the project pins Kokoro

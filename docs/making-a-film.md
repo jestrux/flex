@@ -285,6 +285,19 @@ A card lasts its `dur` (or `bars`) exactly, short or long; a silent card with ne
 <dir> <type> [--params '{…}'] [--at ms | -o x.mp4]` renders one alone, as a still or a clip. A look's cards and effects
 need distinct names.
 
+**A project's own look and cards.** `look.ts` in the project folder (`export default defineLook({ name, tokens, cards:
+{ phone: phoneCard, … } })`) is found by the project's `name` (in `project.ts`; `flex new` sets it to the folder's): set `feel: "<that name>"` and
+`defineLook({ name: "<that name>" })`, and its cards
+are `look.cards.<name>`. A card is `defineCard<Params>({ kind: "broll" | "title", label, defaults, dur, render: (p, ctx)
+=> Layer[] })`; a scene places it with `card(look.cards.phone, { …params }, { dur, sfx })` (from `lib/look.ts`).
+`ctx.t` is the card's own clock (ms from its start): to carry something across scenes (a phone that stays put while the
+story changes), give the card the scene's film start as a param and draw from film time, or make one card span the
+scenes.
+
+**Variants.** `export const variants = { MUSIC: ["a", "b"] }` in `project.ts` declares a flag; its value arrives as an
+environment variable (`process.env.MUSIC`), the first value by default. `--variant MUSIC=b` on any command (frame,
+render, mix, music --joins) runs the film with it; `flex compare --with MUSIC=a --with MUSIC=b` puts them side by side.
+
 `flex assets <dir>` lists everything the film is made from (the song, stems and sounds, takes and versions, cards, the
 look, labs, freezes and stills, renders), and `flex assets <dir> --preview <id> -o x.png|x.mp4` shows any one the way the
 author sees it in the assets panel. A card previews with its defaults, which may not draw anything (a card that needs a

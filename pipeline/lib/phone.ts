@@ -48,7 +48,7 @@ let FRAME: Frame | null = null;
 const URIS = new Map<string, string>();
 function parts(): { dir: string; f: Frame } {
   const dir = process.env.FLEX_DEVICE_FRAMES;
-  if (!dir || !existsSync(join(dir, "frame.json"))) throw new Error("phoneLayers: no device frames (Flex sets FLEX_DEVICE_FRAMES; flex doctor)");
+  if (!dir || !existsSync(join(dir, "frame.json"))) throw new Error("phoneLayers: no device frames yet (Flex draws them when the project has a phone take: capture one, or run flex mockup --overlays)");
   FRAME ??= JSON.parse(readFileSync(join(dir, "frame.json"), "utf8"));
   return { dir, f: FRAME! };
 }

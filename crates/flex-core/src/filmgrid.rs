@@ -79,7 +79,9 @@ impl FilmGrid {
     /// a song second of stretch `i`'s track → the film second it plays at, if the stretch plays it
     fn in_stretch(&self, i: usize, song: f64) -> Option<f64> {
         let s = self.segments[i];
-        (song >= s[0] - 1e-6 && song < s[1] - 1e-6).then(|| ((self.starts[i] + song - s[0]) * 1000.0).round() / 1000.0)
+        // a beat a few ms before the stretch's start is the stretch's first beat (a join placed by tempo arithmetic lands
+        // just after its downbeat; dropping that beat would number every later bar one late)
+        (song >= s[0] - 0.012 && song < s[1] - 0.012).then(|| ((self.starts[i] + (song - s[0]).max(0.0)) * 1000.0).round() / 1000.0)
     }
 
     /// a song second → every film second it plays at (none if the edit skips it); with more than one track, only the

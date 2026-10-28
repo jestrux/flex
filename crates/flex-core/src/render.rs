@@ -176,7 +176,8 @@ pub fn render_film(s: &Session, part: &Part, size: Option<&str>, say: impl Fn(&s
             if t + d <= t_from || t >= t_to { continue; }
             srt += &format!("{}\n{} --> {}\n{}\n\n", srt.matches(" --> ").count() + 1, srt_t((t - t_from) * 1000.), srt_t((t + d - t_from) * 1000.), l["text"].as_str().unwrap_or(""));
         }
-        std::fs::write(out.with_extension("srt"), srt)?;
+        // no narration, no subtitles: an empty .srt beside a film reads as a failed export (and an old one would be stale)
+        if srt.is_empty() { let _ = std::fs::remove_file(out.with_extension("srt")); } else { std::fs::write(out.with_extension("srt"), srt)?; }
         let lines: Vec<&str> = cr["credits"].as_array().into_iter().flatten().filter_map(|x| x.as_str()).collect();
         let credits = out.with_extension("credits.txt");
         if lines.is_empty() { let _ = std::fs::remove_file(&credits); } else { std::fs::write(&credits, lines.join("\n") + "\n")?; }

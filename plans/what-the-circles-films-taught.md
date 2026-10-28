@@ -223,3 +223,27 @@ review folders, mocks (`circles-tape-variants`, `circles-rap-mock`, `circles-kwa
   MUSIC variant (the Flex-built edit vs the round-6 extension): two mp4s in 12 s, their sound uncorrelated, the page's
   timelines show each edit, a moment moves both players to 2 s before it, no sideways scroll at 390 px. Clips on the
   90 s film: 9 clips in 9 s, each its scene's length to the frame; ticks and notes survive a reload.
+- 2026-10-28: **Phase 7: reinstalled, the agent trial run, its trip-ups fixed.** A fresh agent made a 36 s phone film
+  (`~/Documents/web/flex-trial/share-out`) from a brief that named none of the new tools, and used every one of them
+  unprompted (phone capture, `phoneLayers`, `phoneFind`, `phoneScreen`, `lensLayers`, `counterSvg`, `--joins`, `cuts`,
+  `reading`, `stutter`, `compare`, `clips`). What tripped it, fixed (patch 24 and Flex):
+  - `flex music --at` used tempo arithmetic, 2–3 ms off the track's downbeats; joins placed by it dropped a bar from the
+    film grid ("+527 ms between beats" on a cut on the join). `--at` reads the grid's downbeats; the film grid keeps a
+    beat up to 12 ms before a stretch. Reproduced on a copy: +527 ms → −9 ms.
+  - `flex compare -o <relative>` wrote its mix into the pipeline's folder: paths are absolute now (compare and clips).
+  - the status bar's colour changed one frame before the screen: each change moves to the first frame showing it.
+  - `flex new --music <library key>`: the song used in place, its licence and stems from the library.
+  - an empty `.srt` beside a film with no narration: not written.
+  - `flex library remove <key>` (and `--stems`).
+  - docs: a project look is found by the project's `name`; `defineCard` / `card()`; variants arrive as env vars; a
+    card's clock vs film time; a still page records few frames.
+  - drawing the device overlays at every server start (seconds of Chromium in a fresh support folder) made the engine
+    tests race: drawn only for a project with phone takes; `flex mockup --overlays` draws them by hand.
+  Left as follow-ups (below): a layer that persists across scenes, project fonts for `counterSvg`.
+
+## Follow-ups (from the trial)
+
+- **A layer across scenes.** The trial built one card for the whole film so the phone carried across scene cuts. A
+  scene-spanning layer (an item with `span: ["home", "amount"]` drawn on film time) would make that a declaration.
+- **Project fonts in the painter.** `counterSvg` can only use installed fonts; an app's own (JetBrains Mono here) should
+  load from the project (`fonts/`), as the pipeline's looks do for theirs.

@@ -34,7 +34,11 @@ if (atArg) {
   if (!existsSync(mf)) fail(`no ${basename(mf)} yet: run flex music first`);
   const m = JSON.parse(readFileSync(mf, "utf8"));
   const bm = atArg.match(/^(\d+)(?:\.(\d+(?:\.\d+)?))?$/), secs = atArg.match(/^(\d+(?:\.\d+)?)s$/);
-  if (bm) { const t = m.firstDownbeat + (Number(bm[1]) - 1) * m.bar + (Number(bm[2] ?? 1) - 1) * m.beat; out(flag("json") ? JSON.stringify({ ok: true, at: atArg, t: Math.round(t * 1000) / 1000 }) : `${atArg} = ${t.toFixed(3)} s`); }
+  // the track's own downbeats (grid.json), not tempo arithmetic: a song drifts a few ms from a strict clock, and a join
+  // placed by arithmetic lands just after its downbeat (the film grid then loses that bar)
+  const gf = track.replace(/\.[^./]+$/, ".grid.json"), gd: number[] = existsSync(gf) ? JSON.parse(readFileSync(gf, "utf8")).downbeats ?? [] : [];
+  const barAt = (n: number) => gd[n - 1] ?? m.firstDownbeat + (n - 1) * m.bar;
+  if (bm) { const t = barAt(Number(bm[1])) + (Number(bm[2] ?? 1) - 1) * m.beat; out(flag("json") ? JSON.stringify({ ok: true, at: atArg, t: Math.round(t * 1000) / 1000 }) : `${atArg} = ${t.toFixed(3)} s`); }
   else if (secs) { const t = Number(secs[1]), rel = (t - m.firstDownbeat) / m.bar, bar = Math.floor(rel) + 1, beat = Math.round(((rel - Math.floor(rel)) * 4 + 1) * 100) / 100;
     out(flag("json") ? JSON.stringify({ ok: true, t, bar, beat }) : `${t} s = bar ${bar} beat ${beat}`); }
   else fail(`--at takes bar.beat (15.2.5) or seconds (33.3s), not "${atArg}"`);

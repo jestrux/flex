@@ -179,6 +179,9 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>, 
     await journey(cam);
     if (timer) clearInterval(timer);
     if (barTimer) clearInterval(barTimer);
+    // the colour is read from the page a frame or so before the screencast delivers the frame that shows it: each change
+    // moves to the first frame at or after it, so the glyphs never change one frame ahead of the screen
+    if (ev.bars) for (const b of ev.bars) { const f = ev.frames.find((fr) => fr.t >= b.t); if (f) b.t = f.t; }
     if (o.dry && shots.length) await cameraSheet(dir, shots, { ...ev, duration: now() + 1 });
     await cam.settle();
     await page.waitForTimeout(600);

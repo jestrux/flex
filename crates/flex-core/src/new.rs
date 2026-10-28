@@ -42,7 +42,12 @@ pub fn create(dir: &Path, name: Option<&str>, music: &Path, feel: Option<&str>, 
     let feel_given = feel.is_some();
     let feel = feel.unwrap_or("clean");
     if dir.join("project.ts").exists() { return Err(ProjectError::Invalid(format!("{} already has a project.ts", dir.display()))); }
-    if !music.is_file() { return Err(ProjectError::Invalid(format!("no music file at {}", music.display()))); }
+    // a song from Flex's library, by its key: used where it is (downloaded if needed), its licence and stems from the library
+    let lib = if music.is_file() { None } else { crate::library::song(&music.to_string_lossy()) };
+    if !music.is_file() && lib.is_none() { return Err(ProjectError::Invalid(format!("no music file at {}, and no song \"{}\" in Flex's library (flex library)", music.display(), music.display()))); }
+    let lib_file = match &lib { Some(s) => crate::library::ensure(&s.key)?, None => None };
+    let lib_stems = match &lib { Some(s) if s.stems.is_some() => crate::library::ensure_stems(&s.key).ok(), _ => None };
+    let music: &Path = lib_file.as_deref().unwrap_or(music);
     std::fs::create_dir_all(dir)?;
     let dir = std::fs::canonicalize(dir)?;
     let name = name.map(String::from).unwrap_or_else(|| slug(&dir.file_name().unwrap_or_default().to_string_lossy()));
@@ -51,6 +56,8 @@ pub fn create(dir: &Path, name: Option<&str>, music: &Path, feel: Option<&str>, 
     let ext = music.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_else(|| "mp3".into());
     let track = format!("{}.{ext}", slug(&music.file_stem().unwrap_or_default().to_string_lossy()));
     let key = format!("{name}-music");
+    let lib_licence = lib.as_ref().map(|s| match &s.attribution { Some(a) => format!("{} ({a})", s.licence), None => s.licence.clone() });
+    let licence = licence.or(lib_licence.as_deref());
     let mut files = vec![];
     let mut put = |rel: &str, body: String| -> Result<(), ProjectError> {
         let p = dir.join(rel);
@@ -84,9 +91,10 @@ export default scene({{
 "#))?;
     put("audio.json", serde_json::to_string_pretty(&serde_json::json!({
         "_doc": "This project's audio: music tracks (key → file, relative to this folder), stems for analysis (not played), sound effects. Keys are unique across projects. A track's beat grid sits next to it (flex music).",
-        "music": { &key: { "file": format!("audio/{track}"), "source": music.display().to_string(),
+        "music": { &key: { "file": if lib.is_some() { relative(&dir, music) } else { format!("audio/{track}") },
+            "source": lib.as_ref().map(|s| format!("Flex's library: {} ({})", s.title, s.source)).unwrap_or_else(|| music.display().to_string()),
             "licence": licence.unwrap_or("not recorded: set it (owned, CC-BY with its attribution, …); the credits print it") } },
-        "stems": "audio/stems/",
+        "stems": lib_stems.as_ref().map(|d| format!("{}/", relative(&dir, d))).unwrap_or_else(|| "audio/stems/".into()),
         "sfx": {}
     })).unwrap() + "\n")?;
     put("package.json", format!("{{\n  \"private\": true,\n  \"type\": \"module\",\n  \"description\": \"{name}: a film project (Flex)\"\n}}\n"))?;
@@ -94,6 +102,7 @@ export default scene({{
     put(".gitignore", "takes/\n.flex/\n".into())?;
     std::fs::create_dir_all(dir.join("journeys"))?;
     std::fs::create_dir_all(dir.join("audio"))?;
+    if lib.is_some() { return Ok(Created { dir, name, music_key: key, files, stems: lib_stems }); } // the library's own files, linked
     std::fs::copy(music, dir.join("audio").join(&track))?;
     files.push(format!("audio/{track}"));
     // stems beside the track, copied for analysis

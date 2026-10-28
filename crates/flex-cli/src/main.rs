@@ -45,6 +45,13 @@ enum LibraryCmd {
         #[arg(long)]
         stems: bool,
     },
+    /// Delete downloaded songs from this Mac (they download again when a film uses them): <support>/library/<key>/
+    Remove {
+        keys: Vec<String>,
+        /// only the stems, keeping the song
+        #[arg(long)]
+        stems: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -262,7 +269,8 @@ enum Cmd {
     /// Start a film project: project.ts, the track (and a stems/ folder beside it) in audio/, a placeholder scene
     New {
         dir: PathBuf,
-        /// the song the film is cut to (its stems next to it are copied too: stems/, "<song> Stems/" or "<song> Stems.zip")
+        /// the song the film is cut to: a file (its stems next to it are copied too: stems/, "<song> Stems/" or "<song>
+        /// Stems.zip"), or a song from Flex's library by its key (flex library), used in place with its licence and stems
         #[arg(long)]
         music: PathBuf,
         /// the film's name (default: the folder's)
@@ -501,8 +509,12 @@ enum Cmd {
     /// project needed. Into ~/Downloads/flex-mockups/<folder>/ unless -o
     Mockup {
         /// pages (.html, URLs), screenshots (.png/.jpg) or folders of them
-        #[arg(required = true)]
+        #[arg(required_unless_present = "overlays")]
         inputs: Vec<String>,
+        /// draw the iPhone's parts for phone takes (phoneLayers) into Flex's support folder, and print where (Flex
+        /// draws them itself for a project with a phone take)
+        #[arg(long)]
+        overlays: bool,
         #[arg(short, long)]
         out: Option<PathBuf>,
         /// iphone, iphone-max, ipad, ipad-11, ipad-mini, mac, mac-16, display; several with commas
@@ -785,6 +797,14 @@ fn run() -> Result<()> {
     if !cli.takes.is_empty() { std::env::set_var("FLEX_TAKE_VERSIONS", cli.takes.join(",")); }
     match cli.cmd {
         Cmd::Assets(a) => assets::run(a)?,
+        Cmd::Library { cmd: Some(LibraryCmd::Remove { keys, stems }), .. } => {
+            anyhow::ensure!(!keys.is_empty(), "name the songs to remove (flex library lists them)");
+            for k in &keys {
+                anyhow::ensure!(flex_core::library::song(k).is_some(), "no song \"{k}\" in Flex's library");
+                let d = if stems { flex_core::library::stems_dir(k) } else { flex_core::library::dir().join(k) };
+                if d.exists() { std::fs::remove_dir_all(&d)?; println!("removed {}", d.display()); } else { println!("{k}: nothing downloaded"); }
+            }
+        }
         Cmd::Library { cmd: Some(LibraryCmd::Pull { keys, all, stems }), .. } => {
             use flex_core::library;
             let songs = library::songs();
@@ -1313,7 +1333,8 @@ fn run() -> Result<()> {
                 if lines.is_empty() { println!("(no narration)"); }
             }
         }
-        Cmd::Mockup { inputs, out, device, theme, finish, landscape, status, bg, shadow, scale, sheet, json } => {
+        Cmd::Mockup { overlays: true, .. } => println!("device overlays → {}", flex_core::mockup::device_overlays()?.display()),
+        Cmd::Mockup { inputs, out, device, theme, finish, landscape, status, bg, shadow, scale, sheet, json, .. } => {
             let mut a: Vec<String> = inputs.iter().map(|i| flex_core::mockup::absolute(i)).collect();
             if let Some(o) = out { a.push("-o".into()); a.push(std::path::absolute(&o)?.to_string_lossy().into_owned()); }
             for (k, v) in [("--device", Some(device)), ("--theme", Some(theme)), ("--finish", finish), ("--status", Some(status)), ("--bg", Some(bg)), ("--scale", scale.map(|s| s.to_string()))] { if let Some(v) = v { a.push(k.into()); a.push(v); } }
@@ -1534,12 +1555,15 @@ fn run() -> Result<()> {
                 name = k.to_string(); values.push(v.to_string());
             }
             let moments = moments.iter().map(|m| { let (t, w) = m.split_once('=').unwrap_or((m, "")); Ok((t.trim_end_matches('s').parse::<f64>().map_err(|_| anyhow::anyhow!("{m}: a moment is film seconds"))?, w.to_string())) }).collect::<Result<Vec<_>>>()?;
+            // paths as the caller meant them: the mix runs in the pipeline's folder, so a relative -o would land there
+            let out = out.map(|o| std::path::absolute(o)).transpose()?; let render = render.map(|r| std::path::absolute(r)).transpose()?;
             let p = flex_core::pages::compare(&dirc, &flex_core::pages::Compare { name, values, moments, render, out })?;
             if json { println!("{}", serde_json::json!({ "ok": true, "page": p })); } else { println!("compare → {}", p.display()); }
         }
         Cmd::Clips { dir, notes, render, out, json } => {
             let dirc = std::fs::canonicalize(&dir)?;
             let srv = flex_core::Server::start(&dirc)?;
+            let (out, render, notes) = (out.map(std::path::absolute).transpose()?, render.map(std::path::absolute).transpose()?, notes.map(std::path::absolute).transpose()?);
             let p = flex_core::pages::clips(&dirc, &srv.manifest, &flex_core::pages::Clips { notes, render, out })?;
             if json { println!("{}", serde_json::json!({ "ok": true, "page": p })); } else { println!("clips → {}", p.display()); }
         }

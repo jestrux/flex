@@ -1,0 +1,27 @@
+diff --git a/lib/capture.ts b/lib/capture.ts
+index 74ec3db..6d68d86 100644
+--- a/lib/capture.ts
++++ b/lib/capture.ts
+@@ -179,6 +179,9 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>,
+     await journey(cam);
+     if (timer) clearInterval(timer);
+     if (barTimer) clearInterval(barTimer);
++    // the colour is read from the page a frame or so before the screencast delivers the frame that shows it: each change
++    // moves to the first frame at or after it, so the glyphs never change one frame ahead of the screen
++    if (ev.bars) for (const b of ev.bars) { const f = ev.frames.find((fr) => fr.t >= b.t); if (f) b.t = f.t; }
+     if (o.dry && shots.length) await cameraSheet(dir, shots, { ...ev, duration: now() + 1 });
+     await cam.settle();
+     await page.waitForTimeout(600);
+diff --git a/lib/phone.ts b/lib/phone.ts
+index 16d1b22..27a2093 100644
+--- a/lib/phone.ts
++++ b/lib/phone.ts
+@@ -48,7 +48,7 @@ let FRAME: Frame | null = null;
+ const URIS = new Map<string, string>();
+ function parts(): { dir: string; f: Frame } {
+   const dir = process.env.FLEX_DEVICE_FRAMES;
+-  if (!dir || !existsSync(join(dir, "frame.json"))) throw new Error("phoneLayers: no device frames (Flex sets FLEX_DEVICE_FRAMES; flex doctor)");
++  if (!dir || !existsSync(join(dir, "frame.json"))) throw new Error("phoneLayers: no device frames yet (Flex draws them when the project has a phone take: capture one, or run flex mockup --overlays)");
+   FRAME ??= JSON.parse(readFileSync(join(dir, "frame.json"), "utf8"));
+   return { dir, f: FRAME! };
+ }

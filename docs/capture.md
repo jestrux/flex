@@ -81,6 +81,8 @@ The page lays itself out as on the phone (under the status bar and above the hom
 status bar (`bars`) for the glyphs. A phone take has no zoom plan: paint it with the kit's `phoneLayers` and move it in
 its card.
 
+- A take only gets a frame when the screen changes (Chrome's screencast): a page that sits still for 30 s may be 8
+  frames. That's normal; the painter holds each frame until the next.
 - `c.find("K 6,152.50", "amount")` records where a phrase sits on screen now (`finds` in the take), for a lens or a
   callout to aim at by name (`phoneFind`) instead of pixel boxes.
 - `c.state(fn)` sets a page's state and waits until it's painted: for a page with no clock of its own (a prototype, a
