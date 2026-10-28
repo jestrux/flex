@@ -111,7 +111,20 @@ flex library pull <key> --stems         # a song (and its stems) now; songs othe
 flex render <dir> --range 20s:30s       # an excerpt with its sound, for review (seconds or bar.beat)
 flex render <dir> [--scene <id>]        # the film → ~/Downloads/flex-videos/<film>/<film>.mp4 (+ .srt, .credits.txt)
 flex accept <dir> --film <mp4>          # paint frames across every scene and compare with a render; the mix's loudness
+flex stutter <dir | mp4>                # clips that repeat or skip frames, footage not at 1:1
+flex reading <dir>                      # display text on screen long enough to read (0.3 s a word + 0.7 s)
+flex music <dir> --joins                # the music edit's joins through the stems: two bass lines, a moved "1"
+flex music <dir> <key> --map            # the song map beside the song (fill <song>.curation.json from it)
+flex cuts <dir> --suggest               # the song's slams and drop returns against the scene changes
+flex compare <dir> --with K=a --with K=b   # one picture under each variant's sound, a page to compare
+flex clips <dir> [--notes n.json]       # the render scene by scene, with a checklist page
 ```
+
+- Before a render: `flex music --joins` (after any change to the edit), `flex reading`, `flex stutter`. Each is
+  evidence; the film decides.
+- An app on a phone: a journey with `export const device = "iphone"` records it; the kit's `phoneLayers` paints it in
+  Flex's iPhone, `lensLayers` magnifies what matters, `counterSvg` rolls figures (reference/capture.md,
+  reference/making-a-film.md).
 
 - With the app open on the project, `flex frame` and `flex render` run in the app's warm session (no server to start,
   and the author sees the render's progress). Without it they run on their own. Either way the result is the same.

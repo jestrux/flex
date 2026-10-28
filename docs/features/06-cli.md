@@ -49,3 +49,10 @@ hand-off: no image assets, any scale) with a status bar whose glyphs follow the 
 transparent PNG. `--sheet` adds `sheet.png`, every mockup on one page. No film project is needed: it runs on Flex's own
 pipeline (Chromium, sharp).
 
+## Checks and review pages (2026-10-28)
+
+`flex stutter` (repeated or skipped frames, footage at the wrong speed), `flex reading` (display text on screen long
+enough to read), `flex music --joins` (joins heard through the stems) and `--map` (the song map beside the song), `flex
+cuts --suggest` (the song's hits against the scene changes), `flex compare` (a variant's sound under one picture) and
+`flex clips` (a scene-by-scene review page). `flex frame` prints the scene code's warnings.
+

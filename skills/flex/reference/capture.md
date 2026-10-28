@@ -67,6 +67,26 @@ flex camera <project> <take> <id> [--start ms] [--end ms] [--shift ms] [--on|--o
 flex camera <project> <take> --lock | --unlock
 ```
 
+## Phone takes and pages with states
+
+A journey records in a phone with two exports beside `take` and `run`:
+
+```ts
+export const device = "iphone";              // Flex's iPhone: 402 × 874 pt at 3×, touch, its safe areas (62 / 34)
+export const clock = "2026-10-18T15:00:00";  // optional: the app's day, so "Today" and dates read the same every take
+```
+
+The page lays itself out as on the phone (under the status bar and above the home indicator, as it would on a device),
+`c.click` taps (no cursor is recorded; the phone layer draws the touch), and the take records the colour behind the
+status bar (`bars`) for the glyphs. A phone take has no zoom plan: paint it with the kit's `phoneLayers` and move it in
+its card.
+
+- `c.find("K 6,152.50", "amount")` records where a phrase sits on screen now (`finds` in the take), for a lens or a
+  callout to aim at by name (`phoneFind`) instead of pixel boxes.
+- `c.state(fn)` sets a page's state and waits until it's painted: for a page with no clock of its own (a prototype, a
+  USSD handset exposing `window.show(state)`), one state per planned beat:
+  `await b.at(8); await c.state((p) => p.evaluate(() => window.show({ ch: "loan", s: 2 })));`
+
 ## The camera plan
 
 A take's `edl.json` holds its zoom segments and effects, each with an `id`, `start` and `end` in take ms. It is the

@@ -155,6 +155,29 @@ centred); the default is mono stems.
 levelled to −21 LUFS. A film mixed by hand gives a fixed `gain` in dB instead: `music: { …, gain: 0 }` plays the songs
 at their own level with no automatic fades, and a sound's `gain: 0` plays the clip as it is.
 
+**Two songs at one level.** Songs mastered differently need levelling at the switch: `gains: [4.1, 4.1, 0]` (dB per
+stretch; a raised stretch is limited so it can't clip), or `match: { "new": [20, 36], "old": [20, 36] }`: each track's
+reference stretch where the two play the same thing (a re-sung verse), and Flex levels every track to the first
+stretch's. `match: true` compares everything each plays in the edit, which levels a verse against a finale: use the
+reference form when you can.
+
+**Joins the ear will catch.** `flex music <dir> --joins` reads each join of the edit through the stems (each track's
+`.music.json`): ✗ where the bass plays on both sides (two bass lines meet), ✗ where an out- or in-point is off its song's
+bar lines (the bar's "1" moves, the band falls out of time even though every beat lines up), ~ where the lead vocal sings
+through. For a bass fight it lists bar lines nearby where the bass rests on one side. A whole-bar repeat or skip of the
+same song is a repeat, never a fight. Run it after every change to `segments`.
+
+**The song map.** `flex music <dir> <key> --map` writes `<song>.map.json` and `<song>.map.md` beside the song, so every
+film that uses the song reads it: the grid and how far the song drifts from it bar by bar, each bar's stems, level, hits
+and words, the drops (drums and bass resting between bars that play), the slams (the biggest one-beat rises), the sung
+lines. Its curated layer is `<song>.curation.json` (section names, the best moments and what to use them for), which
+Flex creates empty and never writes over: fill it from the measurements, and it's merged into the map on every run.
+`flex cuts <dir> --suggest` then names each scene change's nearest slam or drop return, and the song's hits no scene
+change uses.
+
+**Beats in code.** `import { beats, projectBeats } from ".../lib/beats.ts"`: `beats({ bpm: 100, downbeat: 2.31 })` gives
+`bar(6)`, `beat(25)` (from bar 1's "1"), `at("6.3.5")`, `of(15.6)`, `snap(t)`; `projectBeats(dir)` reads audio.json.
+
 ## The script and the storyboard
 
 The film's plan, before it is built: `script.json` in the project, its beats on the film's bars. Flex places it, shows it
@@ -268,6 +291,20 @@ author sees it in the assets panel. A card previews with its defaults, which may
 page). Give it sample values beside your cards: `export const previews = { "<card type>": { params: {…}, dur: 3000 } }`
 in `look.ts` or any `cards/*.ts`.
 
+**A phone take** (recorded with `export const device = "iphone"`, see capture.md) is painted with the kit's
+`phoneLayers(ctx, { take: "<take>", at: takeMs, x, y, height })`: Flex's own iPhone (the one `flex mockup` uses), the
+take's frame, the status bar's glyphs by the colour behind them, and the touch gliding to each tap. `phoneFind(o,
+"<name>")` gives the box of a phrase the journey found with `c.find`; `phoneScreen(o)` gives the take's frame and where
+the screen sits, as a lens's source.
+
+**A lens** (kit `lensLayers`): any image placed on the frame magnified around a point, a circle or a band, the rest
+dimmed. What it's about escapes the glass (`escape` boxes drawn bigger, over the rim) and the lens and its escapes stay
+whole on the frame. `overlay` SVG is drawn magnified in the lens and the escapes (a counter keeps counting there). Hold
+a lens open 2 s or more: shorter warns (`flex frame` prints the scene code's warnings).
+
+**Rolling figures** (kit `counterSvg(ctx.t, { at, dur, from, to, box, format: money("K ") })`): drawn live, the film
+counters' curve; give it a `bg` to paper over the figure it replaces.
+
 ## 5. Check and render
 
 ```sh
@@ -283,7 +320,21 @@ flex cuts <dir> [--off]          # each cut's distance from the nearest beat and
 flex narration <dir>             # each line's words in film bar.beat, and any word over the song's singing
 flex duck <dir>                  # the music's dip under each line: depth, attack, release, pumping, voice over music
 flex shift <dir> --at 43.1 --by +2   # what moves if bars are added or cut at a point (a preview)
+flex stutter <dir | film.mp4>    # clips that repeat or skip a frame, or play at a speed other than 1:1; holds listed
+flex reading <dir> [--scene id]  # display text on screen long enough to read (0.3 s a word + 0.7 s), read off the frames
 ```
+
+**Footage plays 1:1.** A clip segment at any speed but 1:1 shows repeated or skipped frames by construction: `flex
+stutter` lists them per clip run (and on a render, the frames that repeat inside motion). **Text gets its time.**
+`flex reading` paints the film every 100 ms, reads its display text (lines 40 film px or taller: slides, captions,
+lenses, not an app's interface) and flags each block on screen for less than its reading time. Overlapping lines don't
+count as readable.
+
+**Review pages.** `flex compare <dir> --with MUSIC=a --with MUSIC=b [--moments 38.3=the rap]`: the latest render's
+picture under each value of a variant flag the project declares (`export const variants`), one mp4 each, and a page with
+the scenes and each value's music edit as timelines. `flex clips <dir> [--notes notes.json]`: the latest render cut scene
+by scene, with a checklist per scene (`{ "<scene>": { "note": "…", "asks": ["…"] } }`), ticks and notes kept in the
+browser, feedback to copy. Both write next to the renders unless `-o`.
 
 `flex render <dir> --scene <id>` draws the scene exactly as it plays in the film (its last card holds or cuts as there);
 it used to play as the film's end, so a film stitched from scene renders drew differently.
