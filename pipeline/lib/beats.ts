@@ -1,0 +1,49 @@
+// Flex (patch 21): beat arithmetic for scene and card code, so a project doesn't redefine bar() and beat() itself.
+//   const B = beats({ bpm: 100, downbeat: 2.31 });   // the film's bar 1 starts at 2.31 s
+//   B.bar(6) → 14.31   B.beat(25) → 17.31 (beats counted from bar 1's "1", 0-based)   B.at("6.3") → 15.51   B.at("6.3.5") → 15.81
+//   B.of(15.6) → { bar: 6, beat: 3.5, label: "6.3.5" }   B.snap(15.58) → 15.51 (the nearest beat; "bar" for the nearest bar line)
+// Times are film seconds, rounded to the millisecond. A film whose music is an edit across songs has one grid per
+// stretch: build one `beats` per stretch, or read the film grid with `flex grid`.
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+export type Beats = {
+  bpm: number; beatLen: number; barLen: number; downbeat: number;
+  bar(n: number): number;
+  beat(k: number): number;
+  at(pos: string | number): number;
+  of(t: number): { bar: number; beat: number; label: string };
+  snap(t: number, to?: "beat" | "bar"): number;
+};
+
+const ms = (t: number) => Math.round(t * 1000) / 1000;
+
+export function beats(o: { bpm: number; downbeat: number; perBar?: number }): Beats {
+  const beatLen = 60 / o.bpm, per = o.perBar ?? 4, barLen = beatLen * per, d = o.downbeat;
+  const bar = (n: number) => ms(d + (n - 1) * barLen);
+  const beat = (k: number) => ms(d + k * beatLen);
+  const at = (pos: string | number) => {
+    const [b, bt = "1", frac = "0"] = String(pos).split(".");
+    return ms(d + (Number(b) - 1) * barLen + (Number(bt) - 1 + Number(`0.${frac}`)) * beatLen);
+  };
+  const of = (t: number) => {
+    const rel = (t - d) / barLen, b = Math.floor(rel) + 1, bt = Math.round(((rel - Math.floor(rel)) * per + 1) * 100) / 100;
+    const whole = Math.floor(bt), frac = Math.round((bt - whole) * 100) / 100;
+    return { bar: b, beat: bt, label: frac ? `${b}.${whole}.${String(frac).slice(2)}` : `${b}.${whole}` };
+  };
+  const snap = (t: number, to: "beat" | "bar" = "beat") => { const L = to === "bar" ? barLen : beatLen; return ms(d + Math.round((t - d) / L) * L); };
+  return { bpm: o.bpm, beatLen, barLen, downbeat: d, bar, beat, at, of, snap };
+}
+
+/** The grid of a project's track as audio.json records it (`bpm`, `downbeat`: the song second of any bar's "1"; bar 1
+ *  is the first "1" from the song's start, as `flex music` numbers them), on the
+ *  song's own clock: the film's clock too when the film plays the song from its start. `key`: default the first track. */
+export function projectBeats(dir: string, key?: string): Beats {
+  const f = join(dir, "audio.json");
+  if (!existsSync(f)) throw new Error(`no audio.json in ${dir}`);
+  const music = JSON.parse(readFileSync(f, "utf8")).music ?? {}, k = key ?? Object.keys(music)[0], m = music[k];
+  if (!m) throw new Error(`no music "${k}" in ${f}`);
+  if (typeof m.bpm !== "number" || typeof m.downbeat !== "number") throw new Error(`audio.json's "${k}" needs bpm and downbeat (flex music shows the evidence for the downbeat)`);
+  const barLen = (60 / m.bpm) * 4;
+  return beats({ bpm: m.bpm, downbeat: ms(m.downbeat - Math.floor(m.downbeat / barLen + 1e-9) * barLen) });
+}

@@ -1,0 +1,94 @@
+diff --git a/lib/audio.ts b/lib/audio.ts
+index cfe0754..37c66af 100644
+--- a/lib/audio.ts
++++ b/lib/audio.ts
+@@ -4,7 +4,7 @@
+ //   music  → the track normalised from its library loudness to AUDIO.bed, ducked under the voice
+ // then summed and true-peak limited. Stems are kept (audio/voice.wav, sfx.wav, music.wav,
+ // mix.wav) so `npm run check` can measure exactly what was mixed.
+-import { execFileSync } from "node:child_process";
++import { execFileSync, spawnSync } from "node:child_process";
+ import { mkdirSync } from "node:fs";
+ import { join } from "node:path";
+ import { loudness, music as musicAsset, sfx as sfxAsset } from "./assets.ts";
+@@ -54,9 +54,53 @@ export type MusicRef = string | false | { key: string; from?: number; ending?: "
+    *  `joins`, every join is a 120 ms crossfade centred on it. */
+   joins?: ({ out: number; in: number } | null)[];
+   /** Flex (patch 14): keep the music and sound effects in stereo (the voice stays mono, centred). Default: mono stems */
+-  stereo?: boolean };
++  stereo?: boolean;
++  /** Flex (patch 20): dB per segment (n entries; missing = 0), for an edit across songs mastered at different levels;
++   *  a segment raised above 0 dB is limited (peaks ≤ 0.95) so it can't clip */
++  gains?: number[];
++  /** Flex (patch 20): level each segment's track to the first segment's track, added to `gains`. `true`: by the
++   *  integrated loudness (ffmpeg ebur128) of what each track plays in the edit. Better, a reference stretch per track
++   *  (song seconds) where the songs play the same thing, e.g. a re-sung verse: { "new-song": [20, 36], "old-song": [20, 36] }
++   *  (comparing one song's verse with another's finale levels the wrong thing) */
++  match?: boolean | Record<string, [number, number]> };
+ export const musicKey = (m?: MusicRef) => (m ? (typeof m === "string" ? m : m.key) : null);
+ 
++/** Flex (patch 20): integrated loudness (LUFS) of these stretches of a file, played back to back */
++export function stretchLufs(file: string, segs: [number, number][]): number {
++  const inputs = segs.flatMap(([a, b]) => ["-ss", String(a), "-t", String(b - a), "-i", file]);
++  const f = segs.length > 1 ? `${segs.map((_, i) => `[${i}:a]`).join("")}concat=n=${segs.length}:v=0:a=1,ebur128=framelog=quiet` : "ebur128=framelog=quiet";
++  const r = spawnSync("ffmpeg", ["-hide_banner", "-nostats", ...inputs, segs.length > 1 ? "-filter_complex" : "-af", f, "-f", "null", "-"], { encoding: "utf8" });
++  const m = [...(r.stderr ?? "").matchAll(/I:\s+(-?[\d.]+) LUFS/g)].pop();
++  return m ? Number(m[1]) : NaN;
++}
++
++/** Flex (patch 20): each segment's gain in dB: `gains`, plus `match`'s levelling to the first segment's track */
++export function segmentGains(music: MusicRef, pathOf: (i: number) => string): number[] {
++  if (typeof music !== "object" || !music || !music.segments?.length) return [];
++  const segs = music.segments, g = segs.map((_, i) => music.gains?.[i] ?? 0);
++  const keyOf = (i: number) => music.tracks?.[i] ?? music.key;
++  if (music.match && typeof music.match === "object") {
++    const ref = music.match, lufs = new Map<string, number>();
++    for (let i = 0; i < segs.length; i++) {
++      const k = keyOf(i);
++      if (lufs.has(k)) continue;
++      if (!ref[k]) throw new Error(`music.match has no reference stretch for "${k}" (give each track of the edit one)`);
++      lufs.set(k, stretchLufs(pathOf(i), [ref[k]]));
++    }
++    const r0 = lufs.get(keyOf(0))!;
++    segs.forEach((_, i) => { const l = lufs.get(keyOf(i))!; if (Number.isFinite(l) && Number.isFinite(r0)) g[i] += Math.round((r0 - l) * 10) / 10; });
++  } else if (music.match) {
++    const byFile = new Map<string, [number, number][]>();
++    segs.forEach((s, i) => { const f = pathOf(i); byFile.set(f, [...(byFile.get(f) ?? []), s]); });
++    const lufs = new Map([...byFile].map(([f, ss]) => [f, stretchLufs(f, ss)]));
++    const ref = lufs.get(pathOf(0))!;
++    segs.forEach((_, i) => { const l = lufs.get(pathOf(i))!; if (Number.isFinite(l) && Number.isFinite(ref)) g[i] += Math.round((ref - l) * 10) / 10; });
++  }
++  return g;
++}
++/** the ffmpeg filter for a segment's gain ("" at 0 dB) */
++const gainFilter = (db: number) => (db ? `,volume=${db}dB${db > 0 ? ",alimiter=limit=0.95:level=false" : ""}` : "");
++
+ /** dB the mono stems lose when the sum spreads them to stereo (patch 09) */
+ const PAN_LAW = 3.01;
+ 
+@@ -104,11 +148,11 @@ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sf
+       const bed = join(A, "music-edited.wav"), n = segs.length;
+       const trk = typeof o.music === "object" ? o.music.tracks : undefined;
+       const pathOf = (i: number) => (trk?.[i] && trk[i] !== musicKey(o.music) ? musicAsset(trk[i]).path : m.path);
+-      let F = 0; const args: string[] = [], f: string[] = [];
++      let F = 0; const args: string[] = [], f: string[] = [], gdb = segmentGains(o.music, pathOf);
+       segs.forEach(([a, b], i) => {
+         const jIn = i > 0 ? joins[i - 1] : null, jOut = i < n - 1 ? joins[i] : null, out = jOut?.out ?? 0, inn = jIn?.in ?? 0, len = b - a + out;
+         args.push("-ss", String(a), "-t", String(len), "-i", pathOf(i));
+-        f.push(`[${i}:a]aresample=48000,aformat=channel_layouts=${CL}${inn > 0 ? `,afade=t=in:st=0:d=${inn}:curve=tri` : ""}${out > 0 ? `,afade=t=out:st=${(b - a).toFixed(4)}:d=${out}:curve=tri` : ""},adelay=${Math.round(F * 1000)}:all=1[j${i}]`);
++        f.push(`[${i}:a]aresample=48000,aformat=channel_layouts=${CL}${gainFilter(gdb[i] ?? 0)}${inn > 0 ? `,afade=t=in:st=0:d=${inn}:curve=tri` : ""}${out > 0 ? `,afade=t=out:st=${(b - a).toFixed(4)}:d=${out}:curve=tri` : ""},adelay=${Math.round(F * 1000)}:all=1[j${i}]`);
+         F += b - a;
+       });
+       ff([...args, "-filter_complex", `${f.join(";")};${segs.map((_, i) => `[j${i}]`).join("")}amix=inputs=${n}:normalize=0,atrim=0:${F.toFixed(4)}[out]`, "-map", "[out]", bed]);
+@@ -118,8 +162,9 @@ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sf
+       const trk = typeof o.music === "object" ? o.music.tracks : undefined;
+       const pathOf = (i: number) => (trk?.[i] && trk[i] !== musicKey(o.music) ? musicAsset(trk[i]).path : m.path);
+       const inputs = segs.flatMap(([a, b], i) => { const s0 = i > 0 ? a - X : a, e0 = i < n - 1 ? b + X : b; return ["-ss", String(Math.max(0, s0)), "-t", String(e0 - Math.max(0, s0)), "-i", pathOf(i)]; });
+-      const f = n === 1 ? ["[0:a]anull[x0]"] : segs.slice(1).map((_, i) => `${i === 0 ? "[0:a]" : `[x${i - 1}]`}[${i + 1}:a]acrossfade=d=${2 * X}:c1=tri:c2=tri[x${i}]`);
+-      ff([...inputs, "-filter_complex", `${f.join(";")};[x${Math.max(0, n - 2)}]aresample=48000,aformat=channel_layouts=${CL}[out]`, "-map", "[out]", bed]);
++      const gdb = segmentGains(o.music, pathOf), pre = segs.map((_, i) => `[${i}:a]aresample=48000,aformat=channel_layouts=${CL}${gainFilter(gdb[i] ?? 0)}[g${i}]`);
++      const f = n === 1 ? ["[g0]anull[x0]"] : segs.slice(1).map((_, i) => `${i === 0 ? "[g0]" : `[x${i - 1}]`}[g${i + 1}]acrossfade=d=${2 * X}:c1=tri:c2=tri[x${i}]`);
++      ff([...inputs, "-filter_complex", `${pre.join(";")};${f.join(";")};[x${Math.max(0, n - 2)}]aresample=48000,aformat=channel_layouts=${CL}[out]`, "-map", "[out]", bed]);
+       m.path = bed;
+     }
+     if (splice) { // A = [from, from+at) then B = the track's ending from trackFrom, 120 ms crossfade on the bar

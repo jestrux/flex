@@ -4,6 +4,7 @@
 //   music.mts <project> [<key>] [--lyrics] [--json]
 //   music.mts <project> [<key>] --at <bar.beat | 12.5s>      (convert on the analysed grid)
 //   music.mts <project> [<key>] --sheet [--from s --to s] [-o f.png]   (the audio as a picture)
+//   music.mts <project> [<key>] --map     (the song map, beside the song, for every film that uses it: see writeMap)
 // Writes, next to the track: <track>.grid.json (the pipeline's grid, phase-corrected; `snap` and the planner read it),
 // <track>.music.json (all of the below), <track>.lyrics.json (Whisper's words, cached by the stem's size and date).
 // Runs with Flex's tool env (FLEX_PIPELINE, FLEX_PROJECTS: crates/flex-core/src/tools.rs).
@@ -237,6 +238,66 @@ const result = {
   stems: activity, hits: hitList, phrases, words, notes,
 };
 writeFileSync(track.replace(/\.[^./]+$/, ".music.json"), JSON.stringify(result, null, 1));
+if (flag("map")) { writeMap(); process.exit(0); }
+
+/** --map: the song map, beside the song (`<song>.map.json` + `.map.md`), so every film that uses the song reads it
+ *  instead of measuring again. Two layers, kept apart:
+ *  - measured (rewritten each run): the grid and how far the song drifts from it bar by bar, each bar's stems, mix
+ *    level, hits and words, the drops (drums and bass rest while the bars around them play), the slams (the biggest
+ *    one-beat rises), the entries, the sung lines;
+ *  - curated (`<song>.curation.json`, never written over): the sections' names, the best moments and what to use them
+ *    for, notes. Flex writes an empty one the first time; an agent or the author fills it from the measurements. */
+function writeMap() {
+  const base = track.replace(/\.[^./]+$/, ""), curFile = `${base}.curation.json`;
+  if (!existsSync(curFile)) writeFileSync(curFile, JSON.stringify({ _doc: "The song map's curated layer: sections by bar (1-based on the map's grid) with a name and what's in them, the best moments (bar.beat, what, what to use it for), notes. Flex merges it into the map and never writes over it.", sections: [], treasure: [], notes: [] }, null, 2) + "\n");
+  const cur = JSON.parse(readFileSync(curFile, "utf8"));
+  const x = decode(track), mixDb = downbeats.map((t: number, i: number) => {
+    const a = Math.round(t * SR), b = Math.round((downbeats[i + 1] ?? t + barLen) * SR); let q = 0; for (let j = a; j < b && j < x.length; j++) q += x[j] * x[j];
+    return Math.round(10 * Math.log10(q / Math.max(1, b - a) + 1e-12) * 10) / 10; });
+  // drift: the strong drum and bass hits' median distance from the nearest 16th of the grid, per bar (ms; + = the song
+  // is late). 16ths, not beats: a groove's offbeat hits are on the grid too
+  const rhythm = hitList.filter((h) => !h.entry && h.strength >= 0.5 && /drum|bass|perc/i.test(h.stem));
+  const drift = downbeats.map((t: number) => {
+    const d = rhythm.filter((h) => h.t >= t - beatLen / 2 && h.t < t + barLen - beatLen / 2).map((h) => { const q = beatLen / 4, k = Math.round((h.t - t) / q); return (h.t - (t + k * q)) * 1000; }).sort((a, b) => a - b);
+    return d.length >= 2 ? Math.round(d[Math.floor(d.length / 2)]) : null; });
+  const names = Object.keys(activity), find = (re: RegExp) => names.find((n) => re.test(n));
+  const dr = find(/drum/i), ba = find(/bass/i);
+  // drops: a bar where the drums and the bass both rest (≤ 1/8) between bars where they play
+  const rests = (i: number) => (!dr || activity[dr][i] <= 1) && (!ba || activity[ba][i] <= 1);
+  const plays = (i: number) => i >= 0 && i < bars && ((dr && activity[dr][i] >= 3) || (ba && activity[ba][i] >= 3));
+  const drops: { bar: number; t: number; bars: number }[] = [];
+  for (let i = 1; i < bars - 1; i++) if (rests(i) && !rests(i - 1) && plays(i - 1)) { let j = i; while (j < bars && rests(j)) j++; if (j < bars && plays(j)) drops.push({ bar: i + 1, t: downbeats[i], bars: j - i }); }
+  // slams: the mix's biggest one-beat rises (dB, beat against the beat before), the top 12, a bar apart
+  const beatDb = beats.map((b: number, i: number) => { const a = Math.round(b * SR), e = Math.round((beats[i + 1] ?? b + beatLen) * SR); let q = 0; for (let j = a; j < e && j < x.length; j++) q += x[j] * x[j]; return Math.max(-60, 10 * Math.log10(q / Math.max(1, e - a) + 1e-12)); }); // silence floored at -60 dB: a rise as heard
+  const rises = beatDb.map((v: number, i: number) => ({ t: beats[i], rise: i ? v - beatDb[i - 1] : 0 })).filter((r: any) => r.rise > 6).sort((a: any, b: any) => b.rise - a.rise);
+  const slams: { t: number; at: string; rise: number }[] = [];
+  for (const r of rises) if (slams.length < 12 && slams.every((s) => Math.abs(s.t - r.t) > barLen)) slams.push({ t: r.t, at: pos4(r.t), rise: Math.round(r.rise * 10) / 10 });
+  slams.sort((a, b) => a.t - b.t);
+  const lines: { at: string; t: number; text: string }[] = (phrases as any[]).filter((p) => p.text).map((p) => ({ at: p.at, t: p.start, text: p.text }));
+  const barRows = downbeats.map((t: number, i: number) => ({ bar: i + 1, t: Math.round(t * 1000) / 1000, mixDb: mixDb[i], driftMs: drift[i],
+    stems: Object.fromEntries(names.map((n) => [n, activity[n][i]])),
+    hits: hitList.filter((h) => !h.entry && h.t >= t && h.t < (downbeats[i + 1] ?? t + barLen)).map((h) => ({ stem: h.stem, at: h.at, strength: h.strength })),
+    sung: words.filter((w) => w.start >= t && w.start < (downbeats[i + 1] ?? t + barLen)).map((w) => w.word).join(" ") }));
+  const map = { song: basename(track), measured: new Date().toISOString().slice(0, 10), duration: g.duration, bpm: g.bpm, beat: beatLen, bar: barLen,
+    firstDownbeat: d0, downbeat: downFrom, bars: barRows, drops, slams, entries: hitList.filter((h) => h.entry), lines,
+    energySteps: result.sections, curated: cur, notes };
+  writeFileSync(`${base}.map.json`, JSON.stringify(map, null, 1));
+  const BL = " ▁▂▃▄▅▆▇█", f2 = (t: number) => t.toFixed(2), md: string[] = [];
+  md.push(`# Song map: ${basename(track)}`, "", `${g.duration} s · ${g.bpm} bpm · beat ${beatLen.toFixed(3)} s · bar ${barLen.toFixed(3)} s · bar 1 at ${d0.toFixed(3)} s (${downFrom}) · ${bars} bars. Written by \`flex music --map\` from the mix and its stems (nothing here was heard). Positions are bar.beat on this grid. The curated layer is \`${basename(curFile)}\`; everything else is measured and rewritten each run.`, "");
+  const late = drift.map((d: number | null, i: number) => [i + 1, d] as const).filter(([, d]) => d !== null && Math.abs(d!) >= 20);
+  md.push("## Grid", "", late.length ? `Strong drum and bass hits sit off the grid by 20 ms or more in ${late.length} bar${late.length === 1 ? "" : "s"}: ${late.map(([b, d]) => `${b} (${d! > 0 ? "+" : ""}${d} ms)`).join(", ")}. A cut on those bar lines lands that much early (+) or late (−); use the hit's own second.` : "Strong drum and bass hits sit within 20 ms of the grid in every bar.", "");
+  if (cur.sections?.length) { md.push("## Sections (curated)", "", "| bars | seconds | name | what's in it |", "|---|---|---|---|"); for (const c of cur.sections) { const [a, b] = c.bars; md.push(`| ${a}–${b} | ${f2(downbeats[a - 1] ?? 0)}–${f2(downbeats[b] ?? g.duration)} | ${c.name ?? ""} | ${c.what ?? ""} |`); } md.push(""); }
+  if (cur.treasure?.length) { md.push("## The best moments (curated)", "", "| at | what | use it for |", "|---|---|---|"); for (const c of cur.treasure) md.push(`| ${c.at ?? ""} | ${c.what ?? ""} | ${c.use ?? ""} |`); md.push(""); }
+  md.push("## Drops", "", drops.length ? drops.map((d) => `- bar ${d.bar} (${f2(d.t)} s): drums and bass rest for ${d.bars} bar${d.bars === 1 ? "" : "s"}, back on bar ${d.bar + d.bars} (${f2(downbeats[d.bar + d.bars - 1])} s)`).join("\n") : "none", "");
+  md.push("## Slams (the biggest one-beat rises)", "", slams.map((s) => `- ${s.at} (${f2(s.t)} s): +${s.rise} dB`).join("\n") || "none", "");
+  md.push("## Bars", "", `| bar | time | mix dB | drift | ${names.map((n) => n.slice(0, 6)).join(" | ")} | sung |`, `|---|---|---|---|${names.map(() => "---").join("|")}|---|`);
+  for (const r of barRows) md.push(`| ${r.bar} | ${f2(r.t)} | ${r.mixDb} | ${r.driftMs ?? ""} | ${names.map((n) => BL[r.stems[n]]).join(" | ")} | ${r.sung} |`);
+  md.push("");
+  if (lines.length) { md.push("## Sung lines", ""); for (const l of lines) md.push(`- ${l.at} (${f2(l.t)} s) ${l.text}`); md.push(""); }
+  for (const c of cur.notes ?? []) md.push(`> ${c}`);
+  writeFileSync(`${base}.map.md`, md.join("\n") + "\n");
+  out(flag("json") ? JSON.stringify({ ok: true, map: `${base}.map.json`, md: `${base}.map.md`, curation: curFile }) : `song map → ${base}.map.{json,md} (curated: ${basename(curFile)})`);
+}
 // --sheet [--from s --to s]: the audio as a picture an agent can read (it can't listen): each stem's energy as a band,
 // bar lines (numbered) and beats, hits as dots sized by strength (rings: entries), the sung words under the lead vocal
 if (flag("sheet")) {

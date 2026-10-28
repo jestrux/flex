@@ -62,3 +62,35 @@ pub fn check(dir: &Path, m: &Manifest) -> Result<Vec<Cut>, crate::project::Proje
     }
     Ok(out)
 }
+
+/// A moment in the song worth cutting on, as the film plays it: a slam (the biggest one-beat rises) or the bar a drop
+/// comes back on, from each track's song map (`flex music --map`), placed through the edit.
+#[derive(Debug, Clone, Serialize)]
+pub struct SongHit { pub t: f64, pub what: String }
+
+pub fn song_hits(dir: &Path, m: &Manifest) -> Result<Vec<SongHit>, crate::project::ProjectError> {
+    let music = Music { key: m.music.key.clone(), segments: m.music.segments.clone(), from: m.music.from, tracks: m.music.tracks.clone() };
+    let g = FilmGrid::load(dir, &music, m.duration)?;
+    let mut keys: Vec<String> = m.music.tracks.clone().unwrap_or_default();
+    if keys.is_empty() { keys.push(m.music.key.clone()); }
+    keys.sort(); keys.dedup();
+    let mut out = vec![];
+    for k in keys {
+        let Some(p) = crate::musicjoins::map_path(dir, &k).map(|p| p.with_extension("").with_extension("map.json")) else { continue };
+        let Some(v) = std::fs::read_to_string(&p).ok().and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok()) else { continue };
+        for s in v["slams"].as_array().into_iter().flatten() {
+            let (Some(t), Some(r)) = (s["t"].as_f64(), s["rise"].as_f64()) else { continue };
+            for f in g.to_film_in(&k, t) { out.push(SongHit { t: f, what: format!("slam +{r} dB ({k} {})", s["at"].as_str().unwrap_or("")) }); }
+        }
+        let bar = v["bar"].as_f64().unwrap_or(2.4);
+        for d in v["drops"].as_array().into_iter().flatten() {
+            let (Some(t), Some(n)) = (d["t"].as_f64(), d["bars"].as_f64()) else { continue };
+            for f in g.to_film_in(&k, t + n * bar) { out.push(SongHit { t: f, what: format!("back from a {n}-bar drop ({k} bar {})", d["bar"].as_i64().unwrap_or(0) + n as i64) }); }
+        }
+    }
+    out.sort_by(|a, b| a.t.partial_cmp(&b.t).unwrap());
+    // one moment, one line: a slam that is also a drop's return
+    let mut merged: Vec<SongHit> = vec![];
+    for h in out { match merged.last_mut() { Some(l) if (h.t - l.t).abs() < 0.04 => { l.what = format!("{}, {}", l.what, h.what); } _ => merged.push(h) } }
+    Ok(merged)
+}

@@ -356,6 +356,16 @@ enum Cmd {
         /// the audio as a picture (stems over bar lines, hits, sung words), for eyes that can't listen
         #[arg(long)]
         sheet: bool,
+        /// write the song map beside the track (<track>.map.json and .map.md): the grid and its drift, each bar's stems,
+        /// level, hits and words, drops, slams, sung lines; with the curated layer (<track>.curation.json, never written
+        /// over: section names, best moments) merged in. Every film using the song reads it
+        #[arg(long)]
+        map: bool,
+        /// check the film's music edit instead: at every join of music.segments, what each stem plays either side (from
+        /// each track's map), flagging a join where the bass plays on both sides (two bass lines meeting) or the lead
+        /// vocal sings through, with bar lines nearby where the bass rests on one side
+        #[arg(long)]
+        joins: bool,
         /// the sheet's stretch, song seconds
         #[arg(long)]
         from: Option<f64>,
@@ -418,6 +428,10 @@ enum Cmd {
         /// only the cuts between beats (more than 40 ms from every beat and declared hit)
         #[arg(long)]
         off: bool,
+        /// for each scene change, the song's nearest slam or drop return within a bar (from the song maps, flex music
+        /// --map), and the song's hits no scene change lands on
+        #[arg(long)]
+        suggest: bool,
         #[arg(long)]
         json: bool,
     },
@@ -1083,9 +1097,32 @@ fn run() -> Result<()> {
                 println!("→ {}", flex_core::tools::out_dir(&dirc).display());
             }
         }
-        Cmd::Music { dir, key, lyrics, at, sheet, from, to, out, json } => {
+        Cmd::Music { dir, key, lyrics, at, sheet, map, joins, from, to, out, json } => {
+            if joins {
+                let dirc = std::fs::canonicalize(&dir)?;
+                let srv = flex_core::Server::start(&dirc)?;
+                let js = flex_core::musicjoins::check(&dirc, &srv.manifest)?;
+                if json { println!("{}", serde_json::to_string_pretty(&js)?); return Ok(()); }
+                let lv = |s: &flex_core::musicjoins::Side| s.levels.iter().filter(|(_, l)| *l >= flex_core::musicjoins::PLAYS).map(|(n, l)| format!("{n} {l}")).collect::<Vec<_>>().join(", ");
+                for j in &js {
+                    let mark = if j.unknown.is_some() { "?" } else if j.bad() { "✗" } else if j.vocal_through { "~" } else { "✓" };
+                    println!("{mark} join {} at film {:.2}s: {} {:.2}s (bar {}) → {} {:.2}s (bar {})", j.index + 1, j.t, j.out.track, j.out.song, j.out.bar, j.inn.track, j.inn.song, j.inn.bar);
+                    if let Some(u) = &j.unknown { println!("    {u}"); continue; }
+                    println!("    before: {}", { let s = lv(&j.out); if s.is_empty() { "nothing".into() } else { s } });
+                    println!("    after:  {}", { let s = lv(&j.inn); if s.is_empty() { "nothing".into() } else { s } });
+                    if j.repeat { println!("    a repeat of the song's own bars"); }
+                    if j.bar_shift != 0 { println!("    the bar's \"1\" moves by {} beat{}: the in- or out-point is off its song's bar lines", j.bar_shift, if j.bar_shift == 1 { "" } else { "s" }); }
+                    if j.bass_fights { println!("    the bass plays on both sides: two bass lines meet"); }
+                    if j.vocal_through { println!("    the lead vocal sings on both sides"); }
+                    for (side, song, _) in &j.suggest { println!("    the bass rests {} song {:.2}s ({} {})", if side == "out" { "before" } else { "after" }, song, if side == "out" { "out-point" } else { "in-point" }, if side == "out" { &j.out.track } else { &j.inn.track }); }
+                }
+                let (n, k) = (js.iter().filter(|j| j.bass_fights).count(), js.iter().filter(|j| j.bar_shift != 0).count());
+                println!("{} join{}, {n} where two bass lines meet, {k} where the bar's \"1\" moves", js.len(), if js.len() == 1 { "" } else { "s" });
+                return Ok(());
+            }
             let mut a: Vec<String> = key.into_iter().collect();
             if sheet { a.push("--sheet".into()); }
+            if map { a.push("--map".into()); }
             if let Some(f) = from { a.push("--from".into()); a.push(f.to_string()); }
             if let Some(t) = to { a.push("--to".into()); a.push(t.to_string()); }
             if let Some(o) = out { a.push("-o".into()); a.push(std::path::absolute(&o)?.to_string_lossy().into_owned()); } // the script runs in the pipeline: a path relative to here
@@ -1167,9 +1204,28 @@ fn run() -> Result<()> {
             if json { println!("{}", serde_json::json!({ "ok": true, "file": out, "only": only, "from": a, "to": b, "lufs": lufs, "truePeak": peak, "seconds": t0.elapsed().as_secs_f64() })); }
             else { println!("{} · {} · peak {} · {:.1} s", out.display(), lufs.unwrap_or_default(), peak.unwrap_or_default(), t0.elapsed().as_secs_f64()); }
         }
-        Cmd::Cuts { dir, off, json } => {
+        Cmd::Cuts { dir, off, suggest, json } => {
             let dirc = std::fs::canonicalize(&dir)?;
             let srv = flex_core::Server::start(&dirc)?;
+            if suggest {
+                let hits = flex_core::cuts::song_hits(&dirc, &srv.manifest)?;
+                anyhow::ensure!(!hits.is_empty(), "no song map for this film's music yet: run flex music <dir> <key> --map");
+                let cuts: Vec<_> = flex_core::cuts::check(&dirc, &srv.manifest)?.into_iter().filter(|c| c.scene).collect();
+                let bar = { let p = Project::open(&dirc)?; 4.0 * flex_core::filmgrid::FilmGrid::load(&p.dir, &p.music, p.duration)?.beat };
+                let near = |t: f64| hits.iter().map(|h| (h, h.t - t)).filter(|(_, d)| d.abs() <= bar).min_by(|a, b| a.1.abs().partial_cmp(&b.1.abs()).unwrap());
+                if json { println!("{}", serde_json::to_string(&serde_json::json!({ "hits": hits, "cuts": cuts.iter().map(|c| serde_json::json!({ "t": c.t, "to": c.to, "hit": near(c.t).map(|(h, d)| serde_json::json!({ "t": h.t, "what": h.what, "off": d })) })).collect::<Vec<_>>() }))?); return Ok(()); }
+                println!("scene changes and the song's nearest hit (within a bar):");
+                for c in &cuts {
+                    match near(c.t) {
+                        Some((h, d)) if d.abs() < 0.04 => println!("  ✓ {:>8.3}s  {:<24} on {}", c.t, c.to.split('/').next().unwrap_or(""), h.what),
+                        Some((h, d)) => println!("  · {:>8.3}s  {:<24} {:+.2}s to {} at {:.3}s", c.t, c.to.split('/').next().unwrap_or(""), d, h.what, h.t),
+                        None => println!("  · {:>8.3}s  {:<24} no hit within a bar", c.t, c.to.split('/').next().unwrap_or("")),
+                    }
+                }
+                let unused: Vec<_> = hits.iter().filter(|h| !cuts.iter().any(|c| (c.t - h.t).abs() < 0.04)).collect();
+                if !unused.is_empty() { println!("the song's hits no scene change lands on (a card's entrance or a reveal could):"); for h in unused { println!("    {:>8.3}s  {}", h.t, h.what); } }
+                return Ok(());
+            }
             let cuts: Vec<_> = flex_core::cuts::check(&dirc, &srv.manifest)?.into_iter().filter(|c| !off || !c.on).collect();
             if json { println!("{}", serde_json::to_string(&cuts)?); } else {
                 println!("{:>8}  {:<10} {:<44} {:<22} {:>7}", "film", "bar.beat", "cut", "nearest", "from it");

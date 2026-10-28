@@ -11,6 +11,7 @@ pub mod control;
 pub mod cuts;
 pub mod cutout;
 pub mod doctor;
+pub mod musicjoins;
 pub mod narration;
 pub mod onsets;
 pub mod new;

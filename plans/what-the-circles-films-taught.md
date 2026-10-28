@@ -49,22 +49,24 @@ Left in the projects (KinPay-only): `seed-org`, `stills.mjs`, `make-book-plain`,
 
 ## Phase 2 — Music (gaps 3–7)
 
-- **Per-segment gain and offset** (patch 20): `music.gains?: number[]` (dB, per segment) and `music.match?: true`
-  (each segment's track levelled to the first's integrated loudness, measured once and cached beside the track).
-  Segment times may be fractional song seconds already; `offsets` aren't needed once segments carry the exact times,
-  so the 0.09 s alignment is expressed as segment start times (documented).
-- **The edit's stems:** `flex music <dir> --edit` analyses the film's edit, not the source track: the stems cut by the
-  same segments (the analysis the hand-made `stems-ussd/` gave us).
-- **Join check:** `flex music <dir> --joins` (and in `flex cuts`): for every join of the edit, each stem's level in the
-  bar before and the bar after, flagging a join where the bass (or a lead vocal) plays through on both sides from
-  different places in the song, and suggesting the nearest bar lines where it's out on one side.
-- **The song map:** `flex music <song> --map` writes `song-map.json` and `song-map.md` beside the song (or in the
-  library song's folder): bars with time, section, each stem's activity, the words sung, the hits (strong onsets on the
-  drums, brass, FX), and a `curation` block an agent or the author fills (best stretches, what each section feels like),
-  kept across re-runs. `flex music <dir>` reads a map beside its track when there is one.
-- **Hits:** the map's hits become suggestions in `flex cuts` (`--suggest`): each scene change's nearest hit.
-- **Beat helpers** (patch 21): `lib/beats.ts` exports `beats(grid | {bpm, firstBar})` → `{ bar(n), beat(k), at(bar.beat) }`
-  in film seconds, and `projectBeats()` reading the project's own film grid.
+- **Per-segment gain** (patch 20): `music.gains?: number[]` (dB per segment; a raised segment is limited so it can't
+  clip) and `music.match` (level each track to the first segment's: `true` by what each plays in the edit, or a
+  reference stretch per track, `{ "new": [20, 36], "old": [20, 36] }`, where the songs play the same thing). An
+  alignment offset needs nothing new: segments already take exact song seconds.
+- **Join check:** `flex music <dir> --joins`: for every join of the edit, each stem's level in the bar before (the
+  outgoing song) and after (the incoming one), from each track's `.music.json`. Flags two bass lines meeting, a join
+  off its song's bar lines (the bar's "1" moves), and the lead vocal singing through (a softer note); a whole-bar
+  repeat or skip of the same song is a repeat, not a fight. For a fight, bar lines within two bars where the bass rests.
+  (No `--edit` analysis: the check reads the tracks' own maps, so the edit's stems never need cutting.)
+- **The song map:** `flex music <dir> <key> --map` writes `<song>.map.json` and `<song>.map.md` beside the song:
+  the grid and its drift per bar (strong drum and bass hits against the nearest 16th), each bar's stems, mix level,
+  hits and words, drops (drums and bass resting between bars that play), slams (the biggest one-beat rises, silence
+  floored at −60 dB), entries, sung lines; merged with `<song>.curation.json` (section names, best moments, notes),
+  which Flex creates empty once and never writes over.
+- **Hits:** `flex cuts <dir> --suggest`: each scene change's nearest slam or drop return within a bar, placed through
+  the edit, and the song's hits no scene change lands on.
+- **Beat helpers** (patch 21): `lib/beats.ts`: `beats({ bpm, downbeat })` → `bar(n)`, `beat(k)` (from bar 1's "1"),
+  `at("6.3.5")`, `of(t)`, `snap(t)`; `projectBeats(dir)` from audio.json (bar 1 = the first "1" from the start).
 
 **Verifiables**
 - The 90 s film's music rebuilt as a `segments` + `tracks` + `gains` edit in a scratch copy of overview-60: `flex mix
@@ -73,7 +75,8 @@ Left in the projects (KinPay-only): `seed-org`, `stills.mjs`, `make-book-plain`,
   shipped edit it flags none.
 - `flex music --map` on the 4-minute song reproduces the hand-made map's sections and bar times (±1 beat), and keeps a
   hand-written curation block across a re-run.
-- `beats()` gives `bar(6) = 14.31`, `beat(5) = 17.31` for the circles grid; a unit test.
+- `beats()` gives `bar(6) = 14.31`, and `beat(k + 20)` equals every circles `fbeat(k)`; a unit test
+  (`server/tests/beats.test.ts`).
 
 ## Phase 3 — Reading time (gap 8)
 
@@ -154,6 +157,25 @@ Left in the projects (KinPay-only): `seed-org`, `stills.mjs`, `make-book-plain`,
 - The agent's report and transcript: which of the new tools it used unprompted, every trip-up listed, each fixed or
   written up below as a follow-up.
 
+## Phase 8 — Clean up ~/Downloads (after the agent trial)
+
+Months of film work left partial work in `~/Downloads`: renders Flex can make again (`flex-videos/`, `flex-mockups/`),
+review folders, mocks (`circles-tape-variants`, `circles-rap-mock`, `circles-kwacha-mock`), scratch copies, hand-offs.
+
+- Inventory every top-level item: size, last modified, and what it is (which film or project made it, whether a
+  project or Flex can regenerate it and with what command, whether anything links to it: a PLAN.md, a board card, a
+  memory, an artifact).
+- Sort into **regenerable** (renders, review clips, mock renders: the command that remakes it), **keep** (the author's
+  own sources: songs, Suno exports, hand-offs, designs, anything not reproducible), **move** (sources a project needs,
+  into that project's folder or the song folder), **unsure**.
+- Show the author the list (a page with sizes and the recommendation per item); delete or move only what they approve,
+  and nothing in **keep** or **unsure** without a yes item by item. Fix any link that pointed into Downloads.
+
+**Verifiables**
+- The inventory page lists every top-level item in ~/Downloads with its class and reason.
+- After the approved clean-up: each deleted item's regenerate command runs (spot-check one render and one mock), every
+  project still opens (`flex open`) and its media resolve, and no PLAN.md, board card or memory points at a deleted path.
+
 ## Status
 
 - 2026-10-28: plan written.
@@ -162,3 +184,15 @@ Left in the projects (KinPay-only): `seed-org`, `stills.mjs`, `make-book-plain`,
   one, none. A render with a frame doubled (ffmpeg `freezeframes`) is caught at that frame; a clean one passes. Found on
   the way: the 90 s film rendered today repeats 21 frames in its intro (it never had the offset), exactly the old
   rounding's list, plus two at 54.4 s: its next render with this build fixes the intro (Phase 7).
+- 2026-10-28: **Phase 2 done ✅** (patches 20–21, `flex music --joins` / `--map`, `flex cuts --suggest`).
+  - The 90 s music as a Flex edit (7 segments, two songs, `gains` +4.1): 0 ms off the hand-made file at every join,
+    section loudness within 0.4 LU. The mix ends 0.17 s shorter: room tone at −66 dB trimmed by the existing
+    level-and-duck stage, not the edit. `match` with a verse reference per song gives +4.1 dB, as measured by hand
+    (`true`, over everything each plays, gives +5.8: why the reference form exists).
+  - `--joins` on the long version's first cut flags both joins the author heard (50.31: two bass lines; 67.11: the
+    in-point a beat off its bar line), and suggests 131.93 for the first, where the fix went (131.91). The shipped
+    edit: no bass fight, no moved "1"; the repeated tail bars read as repeats.
+  - `--map` on the 4-minute song finds the hand map's drops (bars 55, 64, 78, 86, 94, 96) and slams (2.1, 6.1, 56.1,
+    80.1, 98.2) and its drift (+20–30 ms bars 66–78, +33–46 ms in the guitar break). The hand map's sections and
+    treasure, carried into `Combined.curation.json`, survive a re-run.
+  - `cuts --suggest` on the 90 s edit names the drop at 14.32 and the slam at 59.93, both used by the film.
