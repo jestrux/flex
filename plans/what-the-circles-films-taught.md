@@ -117,17 +117,23 @@ Left in the projects (KinPay-only): `seed-org`, `stills.mjs`, `make-book-plain`,
 
 ## Phase 5 — Lens and figures (gaps 11, 12)
 
-- **A lens** (patch 23) in the kit: `lensLayers({ at, out, target: Box | {find}, mag, shape: "circle" | "band",
-  escape?: Box[], grow = 0.45 })`. Escapes are drawn magnified past the rim and clamped inside the frame (24 px margin,
-  an optional `keepRight`); a lens open for less than 2 s warns in `flex check` (`lens-short`).
-- **Rolling figures** (patch 23): `counterLayer({ at, dur, from, to, format, box, font, size, ink, bg })`, drawn live
-  (no PNG per frame), easing like the desk's `Roll`; usable inside a lens escape.
+- **A lens** (patch 23): `lensLayers(ctx, { src: { file, rect, px }, at, out, target, reach, mag, shape: "circle" |
+  "band", centre?, escape?, grow = 0.45, keep?, overlay? })` magnifies any image placed on the frame (a take frame: a
+  phone take's comes from `phoneScreen(...)`). Escapes are drawn bigger than the lens magnifies them, over the rim, and
+  kept whole in the frame (24 px margin, or `keep`); so is the lens itself. `overlay` (SVG in the image's coordinates)
+  is drawn magnified in the lens and every escape. A lens open under 2 s warns, and `flex frame` now prints the
+  scene code's warnings (they were lost in the server's log).
+- **Rolling figures** (patch 23): `counterSvg(t, { at, dur, from, to, box, format, size, font, ink, bg, align })`
+  drawn live (no PNG per frame), the films' counter curve; `money("K ")` formats; usable as a lens `overlay`.
 
 **Verifiables**
-- A scratch card with `lensLayers` on the desk still at 61 s of the 90 s film paints within 4/255 of the shipped frame.
-- `counterLayer` from 0 to 5,250 in `K #,##0.00` over 1.4 s: frames at 0, 0.7 and 1.4 s read `K 0.00`, a middle value
-  and `K 5,250.00` (`flex read`).
-- An escape placed off the right edge is drawn inside the frame.
+- On the share-out phone take: a lens on the amount, the amount escaping, the counter rolling under it in the app, the
+  lens and the escape at once.
+- `flex read` on frames at the counter's start, middle and end reads a small value, a middle one and `K 6,152.50`.
+- A band centred at the frame's corner: it and its escape are drawn whole inside the frame.
+- A lens open 1.2 s: `flex frame` prints the warning.
+- (Written first as "paints within 4/255 of the desk's shipped lens frame": dropped, since the desk card's lens also
+  carries its cursor, patches and dims, so the comparison would test the desk card, not the lens.)
 
 ## Phase 6 — Review pages (gaps 13, 14)
 
@@ -209,3 +215,6 @@ review folders, mocks (`circles-tape-variants`, `circles-rap-mock`, `circles-kwa
   over the device, the same status glyphs (white over the purple), the touch gliding onto View all. Found on the way:
   a second CDP session clears Chromium's safe-area override (the take now uses one session for both), and the app's
   colours come as oklch (the take converts them to rgb in the page).
+- 2026-10-28: **Phase 5 done ✅** (patch 23, warnings in `flex frame`). The lens over the share-out take: the amount
+  escapes and rolls with the app's figure; read at 0.62 s / 1.3 s / 2.1 s: K 7.62, K 4,771.64, K 6,152.50. A band
+  centred on the corner stays whole in the frame with its escape. A 1.2 s lens warns.

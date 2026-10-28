@@ -77,6 +77,14 @@ export function phoneFind(o: Omit<PhoneOpts, "at" | "touch" | "shadow">, name: s
   return { x: sx + hit.rect.x * s, y: sy + hit.rect.y * s, w: hit.rect.w * s, h: hit.rect.h * s };
 }
 
+/** the take's frame at `at` and where its screen sits on the frame (film px): a lens's source (lensLayers' `src`) */
+export function phoneScreen(o: Omit<PhoneOpts, "touch" | "shadow">) {
+  const dirT = takeDir(o.take), T = take(dirT), { f } = parts(), fr = lastAt(T.frames, o.at);
+  if (!fr) throw new Error(`phoneScreen: ${o.take} has no frames`);
+  const s = o.height / (f.screen.h + 2 * f.side), dpr = T.device?.dpr ?? 3;
+  return { file: join(dirT, "frames", fr.file), rect: { x: o.x - (f.screen.w / 2) * s, y: o.y - (f.screen.h / 2) * s, w: f.screen.w * s, h: f.screen.h * s }, px: { w: f.screen.w * dpr, h: f.screen.h * dpr } };
+}
+
 const REST = { x: 0.64, y: 0.86 }, GLIDE = 650, LAND = 80;
 
 export function phoneLayers(ctx: SceneCtx, o: PhoneOpts): Layer[] {

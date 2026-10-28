@@ -865,6 +865,11 @@ fn run() -> Result<()> {
                     for sk in p.skipped { eprintln!("  ! left out: {sk}"); }
                     println!("{} · frame {f} ({:.2}s, {}) · {} layers · painted in {} ms", out.display(), f as f64 / s.manifest().fps as f64,
                         s.manifest().scene_at(f).map(|x| x.id.as_str()).unwrap_or("?"), layers.len(), t.elapsed().as_millis());
+                    // what the scene's code warned while drawing this frame (a lens too short to read …)
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                    // (opening the session keys the whole film, so these are the film's, each once)
+                    let mut seen = std::collections::HashSet::new();
+                    for w in s.server.log.lock().unwrap().iter().filter(|l| l.trim_start().starts_with('!')) { if seen.insert(w.clone()) { eprintln!("{w}"); } }
                 }
             }
         }
