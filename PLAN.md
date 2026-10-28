@@ -18,7 +18,15 @@ Decided with the author (2026-10-16):
   told the playhead. The timeline is drawn in SwiftUI.
 - The sample lives in `samples/circles-overview`, out of git.
 
-## Next (2026-10-20): the film's home, the board as the project window
+## Current (2026-10-28): what the Circles films taught
+
+Every tool the KinPay Circles films had to build by hand, made Flex's own: footage that never stutters (and
+`flex stutter`), music edits across songs with joins checked against the stems, a song map beside the song, beat
+helpers, a reading-time check, phone takes in capture, a lens and rolling figures in the kit, compare and clip review
+pages; then a reinstall and a fresh agent trying it. Plan, phases and verifiables:
+[plans/what-the-circles-films-taught.md](plans/what-the-circles-films-taught.md).
+
+## Next, after it (2026-10-20): the film's home, the board as the project window
 
 The review board (`review/index.html`, prototype done) becomes the window a project opens in: hosted in the app, live,
 the film so far playing end to end as scenes get built, notifications when something needs the author, agent-drawn
