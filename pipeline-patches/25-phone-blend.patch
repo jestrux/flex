@@ -1,0 +1,28 @@
+diff --git a/lib/phone.ts b/lib/phone.ts
+index 27a2093..9a7f217 100644
+--- a/lib/phone.ts
++++ b/lib/phone.ts
+@@ -85,6 +85,9 @@ export function phoneScreen(o: Omit<PhoneOpts, "touch" | "shadow">) {
+   return { file: join(dirT, "frames", fr.file), rect: { x: o.x - (f.screen.w / 2) * s, y: o.y - (f.screen.h / 2) * s, w: f.screen.w * s, h: f.screen.h * s }, px: { w: f.screen.w * dpr, h: f.screen.h * dpr } };
+ }
+ 
++/** two recorded frames this close (ms) are one motion: the film blends between them */
++export const BLEND_GAP = 80;
++
+ const REST = { x: 0.64, y: 0.86 }, GLIDE = 650, LAND = 80;
+ 
+ export function phoneLayers(ctx: SceneCtx, o: PhoneOpts): Layer[] {
+@@ -97,7 +100,12 @@ export function phoneLayers(ctx: SceneCtx, o: PhoneOpts): Layer[] {
+   if (o.shadow !== false) out.push({ svg: frameSvg(ctx, `<rect x="${fmt(bx)}" y="${fmt(by + 30 * s)}" width="${fmt(BODY.w * s)}" height="${fmt(BODY.h * s)}" rx="${fmt((SCR.r + f.side) * s)}" fill="#000" opacity="0.45" filter="url(#phsh)"/>`,
+     `<filter id="phsh" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="${fmt(30 * s)}"/></filter>`) });
+   const fr = lastAt(T.frames, o.at);
+-  if (fr) out.push({ image: join(dirT, "frames", fr.file), radius: SCR.r * s * k, rect: { x: sx * k, y: sy * k, w: SCR.w * s * k, h: SCR.h * s * k } });
++  const scr = { x: sx * k, y: sy * k, w: SCR.w * s * k, h: SCR.h * s * k };
++  if (fr) out.push({ image: join(dirT, "frames", fr.file), radius: SCR.r * s * k, rect: scr });
++  // in motion (a scroll), Chrome may deliver frames only every ~50 ms: a 30 fps film would show some twice. Between two
++  // frames that close, the next one fades in over the gap; a longer gap is a screen that didn't change (it cuts on time)
++  const nx = fr && T.frames[T.frames.indexOf(fr) + 1];
++  if (fr && nx && nx.t - fr.t <= BLEND_GAP && o.at > fr.t) out.push({ image: join(dirT, "frames", nx.file), radius: SCR.r * s * k, rect: scr, opacity: (o.at - fr.t) / (nx.t - fr.t) });
+   const over = (file: string) => `<image href="${uri(dir, file)}" x="${fmt(c.x - (CANVAS.w / 2) * s)}" y="${fmt(c.y - (CANVAS.h / 2) * s)}" width="${fmt(CANVAS.w * s)}" height="${fmt(CANVAS.h * s)}"/>`;
+   const bar = lastAt(T.bars ?? [], o.at)?.c ?? "rgb(255, 255, 255)";
+   let fx = over("device.png") + over(darkColour(bar) ? "status-light.png" : "status-dark.png");
