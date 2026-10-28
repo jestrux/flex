@@ -61,3 +61,25 @@ pub fn run(file: &Path, fast: bool, langs: &[String]) -> Result<Text, ProjectErr
     if !o.status.success() { return Err(ProjectError::Invalid(format!("{}: {}", file.display(), String::from_utf8_lossy(&o.stderr).trim()))); }
     serde_json::from_slice(&o.stdout).map_err(|e| ProjectError::Invalid(e.to_string()))
 }
+
+/// Read many images in one recogniser process (`ocr --batch`): one result per file, in order (an unreadable file gives
+/// an error in its place).
+pub fn run_batch(files: &[PathBuf], fast: bool) -> Result<Vec<Result<Text, String>>, ProjectError> {
+    use std::io::{BufRead, Write};
+    let mut c = Command::new(binary()?);
+    c.arg("--batch");
+    if fast { c.arg("--fast"); }
+    let mut ch = c.stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).spawn()?;
+    let mut stdin = ch.stdin.take().unwrap();
+    let list: String = files.iter().map(|f| format!("{}\n", f.display())).collect();
+    let writer = std::thread::spawn(move || { let _ = stdin.write_all(list.as_bytes()); });
+    let mut out = vec![];
+    for line in std::io::BufReader::new(ch.stdout.take().unwrap()).lines() {
+        let line = line?;
+        let v: serde_json::Value = serde_json::from_str(&line).map_err(|e| ProjectError::Invalid(e.to_string()))?;
+        out.push(match v.get("error").and_then(|e| e.as_str()) { Some(e) => Err(e.to_string()), None => serde_json::from_value(v).map_err(|e| e.to_string()) });
+    }
+    let _ = writer.join();
+    ch.wait()?;
+    Ok(out)
+}

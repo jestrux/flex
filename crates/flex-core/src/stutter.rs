@@ -74,7 +74,7 @@ pub fn check(s: &Session, scene: Option<&str>) -> Result<Vec<Run>, ProjectError>
     for sc in m.scenes.iter().filter(|x| scene.is_none_or(|id| x.id == id)) {
         // per clip key: the open run (first frame, source frames), closed when the clip leaves the screen
         let mut open: BTreeMap<(String, usize), (u32, Vec<i64>)> = BTreeMap::new();
-        let mut close = |key: &(String, usize), (first, src): (u32, Vec<i64>), out: &mut Vec<Run>| {
+        let close = |key: &(String, usize), (first, src): (u32, Vec<i64>), out: &mut Vec<Run>| {
             if src.len() < 2 { return; }
             let (speed, repeats, skips, holds) = classify(first, &src);
             let clip = Path::new(&key.0).file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_else(|| key.0.clone());

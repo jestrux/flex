@@ -176,6 +176,28 @@ enum Cmd {
         #[arg(long)]
         json: bool,
     },
+    /// Is every line of display text on screen long enough to read? Frames every 100 ms painted at 960 and read by macOS's
+    /// text recognition; lines at least --min-height film px tall (slides, captions, lenses, not an app's interface)
+    /// followed through the film and grouped into blocks; a block needs 0.3 s a word + 0.7 s
+    Reading {
+        dir: PathBuf,
+        #[arg(long)]
+        scene: Option<String>,
+        /// a line's box height in film px (1080 high) to count as display text
+        #[arg(long, default_value_t = 40.0)]
+        min_height: f64,
+        /// sample every N film frames (3 = 100 ms at 30 fps)
+        #[arg(long, default_value_t = 3)]
+        step: u32,
+        /// seconds a line is readable while it fades in and out but isn't recognised yet, added to its recognised time
+        #[arg(long, default_value_t = 0.4)]
+        slack: f64,
+        /// list every block, not only the short ones
+        #[arg(long)]
+        all: bool,
+        #[arg(long)]
+        json: bool,
+    },
     /// Does every clip advance a frame per film frame? On a project: each clip's source frames through the plan (nothing
     /// painted), flagging repeats (a source frame shown twice inside motion: a stutter), skips, and footage playing at
     /// any speed but 1:1; long stills are listed as holds. On a video file: frames that repeat while the picture moves
@@ -1464,6 +1486,19 @@ fn run() -> Result<()> {
                 let n = joins.iter().filter(|j| j.jumps).count();
                 let c = joins.iter().filter(|j| j.cut).count();
                 println!("{} joins, {n} jump{}, {c} intended cut{}", joins.len(), if n == 1 { "" } else { "s" }, if c == 1 { "" } else { "s" });
+            }
+        }
+        Cmd::Reading { dir, scene, min_height, step, slack, all, json } => {
+            let s = Session::open(&dir)?;
+            let t0 = Instant::now();
+            let blocks = flex_core::reading::check(&s, &flex_core::reading::Options { scene, min_height, step, slack })?;
+            if json { println!("{}", serde_json::to_string_pretty(&blocks)?); } else {
+                for b in blocks.iter().filter(|b| all || b.short) {
+                    println!("{} {:>7.2}s–{:<7.2}s {:<14} {:>4.1}s of {:>3.1}s  \"{}\"", if b.short { "✗" } else { "✓" }, b.from, b.to, b.scene, b.shown, b.need,
+                        if b.text.chars().count() > 70 { b.text.chars().take(69).collect::<String>() + "…" } else { b.text.clone() });
+                }
+                let n = blocks.iter().filter(|b| b.short).count();
+                println!("{} block{} of display text, {n} on screen for less than 0.3 s a word + 0.7 s ({:.0} s)", blocks.len(), if blocks.len() == 1 { "" } else { "s" }, t0.elapsed().as_secs_f64());
             }
         }
         Cmd::Stutter { path, scene, all, json } => {

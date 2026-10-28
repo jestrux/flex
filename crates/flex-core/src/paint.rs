@@ -86,7 +86,6 @@ fn image(file: &str, alpha: bool, level: u32) -> Result<Arc<sk::Pixmap>, PaintEr
 /// for `at` is number floor(at × 30 + 1e-6) + 1 (`frame_index`), held on the last past the end. Shared with the pipeline, so a clip is extracted
 /// once and both painters show the same frame.
 pub fn video_frame(file: &str, at: f64, alpha: bool) -> Result<std::path::PathBuf, PaintError> {
-    const FPS: f64 = 30.;
     static COUNTS: OnceLock<Mutex<HashMap<std::path::PathBuf, usize>>> = OnceLock::new();
     let work = std::env::var_os("FLEX_WORK").map(std::path::PathBuf::from).unwrap_or_else(|| crate::project::support_dir().join("work"));
     let tag = if alpha { format!("{file}|30|alpha") } else { format!("{file}|30") };

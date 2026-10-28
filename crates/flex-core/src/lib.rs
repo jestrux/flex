@@ -28,6 +28,7 @@ pub mod mockup;
 pub mod paint;
 pub mod project;
 pub mod read;
+pub mod reading;
 pub mod render;
 mod roundmask;
 mod vips;

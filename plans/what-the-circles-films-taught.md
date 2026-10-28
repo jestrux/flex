@@ -84,7 +84,8 @@ Left in the projects (KinPay-only): `seed-org`, `stills.mjs`, `make-book-plain`,
   read their text (macOS Vision, as `flex read`), follow each line of display text (cap height ≥ `--min-height` film
   px, so a screen recording's UI labels don't count) from its first frame to its last, and flag each line on screen for
   less than 0.3 s a word + 0.7 s. Lines read inside a magnifier count too, so a lens closing too early is caught.
-- `flex check` gains it as a WARN (`text-unread`).
+- Its own command, not a `flex check` WARN: it paints and reads the whole film (about a minute), too slow for a check
+  that runs on every edit. `--slack` (0.4 s) is the time a line reads while fading but isn't recognised yet.
 
 **Verifiables**
 - On overview-ussd, `flex reading` agrees with `scripts/reading-check.py` on every line the script can see, and finds
@@ -196,3 +197,8 @@ review folders, mocks (`circles-tape-variants`, `circles-rap-mock`, `circles-kwa
     80.1, 98.2) and its drift (+20–30 ms bars 66–78, +33–46 ms in the guitar break). The hand map's sections and
     treasure, carried into `Combined.curation.json`, survive a re-run.
   - `cuts --suggest` on the 90 s edit names the drop at 14.32 and the slam at 59.93, both used by the film.
+- 2026-10-28: **Phase 3 done ✅** (`flex reading`, `flex read`'s batch mode). On the long version, 67 s: 39 of
+  `cut.ts`'s 40 card lines found, none it passes flagged (the 40th, "Bwalya dials / *546#.", reads as its first line:
+  a line of digits and symbols isn't text). Found what the script can't see: "Loans go out. / And come back." (an
+  expression `out`) is on screen 1.6 s for a 2.5 s read in both films, and the USSD/SMS lens bands show 9–13 words for
+  ~2.1 s. A/B in a scratch copy: held 2.9 s, the same line passes. Overlapping lines don't count as readable.
