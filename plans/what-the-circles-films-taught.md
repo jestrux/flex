@@ -247,3 +247,10 @@ review folders, mocks (`circles-tape-variants`, `circles-rap-mock`, `circles-kwa
   scene-spanning layer (an item with `span: ["home", "amount"]` drawn on film time) would make that a declaration.
 - **Project fonts in the painter.** `counterSvg` can only use installed fonts; an app's own (JetBrains Mono here) should
   load from the project (`fonts/`), as the pipeline's looks do for theirs.
+- 2026-10-28: **Phase 8 started: the inventory, waiting on the author.** `~/Documents/web/downloads-cleanup/index.html`
+  (built by `classify.py` there): 401 items changed since 15 Sep (the render folders film by film), each with a call,
+  why, what brings it back, the project links into it and the files that mention it. My calls: delete 3.4 GB (67),
+  move 746 MB (2), keep the rest; 1,837 older items (9.2 GB) not listed, untouched. Found: the Circles films' footage
+  (`media/overview.mp4`, `money.mp4`) and Flex's own test media are symlinks into Downloads/flex-videos, and the Heaven
+  projects link into Downloads/heaven baby: those move, never delete. Nothing deleted until the author's decisions come
+  back.
