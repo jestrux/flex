@@ -57,6 +57,12 @@ export type Events = {
    *  mark: when the change shows); t − due is how late the step was (Flex's timing report) */
   beat?: { bpm: number; mark: string; t0: number };
   beats?: { n: number; label: string; t: number; due: number }[];
+  /** Flex (patch 22): a take recorded in a device (its points, density and safe areas) */
+  device?: { name: string; w: number; h: number; dpr: number; top: number; bottom: number };
+  /** the colour behind the status bar from t on (CSS colour) */
+  bars?: { t: number; c: string }[];
+  /** c.find: where a phrase sat on screen at t (page px), for a lens or a zoom to aim at */
+  finds?: { t: number; name: string; text: string; rect: Rect }[];
 };
 type Target = string | Locator;
 
@@ -78,14 +84,26 @@ const GLIDE = `((el, [dy, ms]) => new Promise((done) => {
   };
   requestAnimationFrame(step);
 }))`;
-export const VIEWPORT = { w: 1440, h: 810 };
+export let VIEWPORT = { w: 1440, h: 810 };
 /** capture pixel density: 2 by default; CAPTURE_DPR=3 for takes that will be rendered at 4K (1440 css × 3 = 4320 px) */
-export const DPR = Number(process.env.CAPTURE_DPR ?? 2);
+export let DPR = Number(process.env.CAPTURE_DPR ?? 2);
+
+/** Flex (patch 22): the devices a take can be recorded in, as `flex mockup` frames them (points, the screen's pixel
+ *  density, its safe areas). A journey says `export const device = "iphone"`: the page lays itself out as on that phone
+ *  (touch, the safe areas under the status bar and home indicator), taps instead of clicks, no cursor; the take
+ *  records the colour behind the status bar (`bars`), for the phone layer's glyphs. */
+export const DEVICES = {
+  iphone: { w: 402, h: 874, dpr: 3, top: 62, bottom: 34 },
+} as const;
+export type DeviceName = keyof typeof DEVICES;
 
 /** dry: a rehearsal in its own fresh browser — no frames; real voice timing (lines are cached);
  *  a missing target stops the run; a screenshot at every c.mark() (and every click with shots)
  *  and at the end in build/dry/<take>/; takes/<take> is untouched */
-export async function capture(take: string, journey: (c: Cam) => Promise<void>, o: { dry?: boolean; shots?: boolean } = {}) {
+export async function capture(take: string, journey: (c: Cam) => Promise<void>, o: { dry?: boolean; shots?: boolean; device?: DeviceName; clock?: string } = {}) {
+  const dev = o.device ? DEVICES[o.device] : null;
+  if (o.device && !dev) throw new Error(`no device "${o.device}" (${Object.keys(DEVICES).join(", ")})`);
+  if (dev) { VIEWPORT = { w: dev.w, h: dev.h }; DPR = dev.dpr; }
   const dir = o.dry ? join(process.env.FLEX_DRY ?? join(process.env.FLEX_WORK ?? join(import.meta.dirname, ".."), "build", "dry"), take) : join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take);
   needDisk(join(import.meta.dirname, ".."), o.dry ? 0.3 : 0.8, o.dry ? "dry run" : "capture");
   // fresh frames + events; keep edl.json (hand edits survive a re-capture; plan respects "locked")
@@ -94,8 +112,13 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>, 
 
   // the flag is what makes the screencast deliver device pixels (the context DPR alone gives 1× frames)
   const browser = await chromium.launch({ headless: true, args: [`--force-device-scale-factor=${DPR}`] });
-  const ctx = await browser.newContext({ viewport: { width: VIEWPORT.w, height: VIEWPORT.h }, deviceScaleFactor: DPR });
+  const ctx = await browser.newContext({ viewport: { width: VIEWPORT.w, height: VIEWPORT.h }, deviceScaleFactor: DPR, ...(dev ? { isMobile: true, hasTouch: true } : {}) });
+  // a fixed day for the app's clock (`export const clock = "2026-10-18T15:00"`): "Today" and dates read the same every take
+  if (o.clock) await ctx.clock.setFixedTime(new Date(o.clock));
   const page = await ctx.newPage();
+  // one CDP session for the take (a second one clears the safe-area override): the device's insets, then the screencast
+  const cdp = await ctx.newCDPSession(page);
+  if (dev) await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets: { top: dev.top, bottom: dev.bottom, left: 0, right: 0 } });
   // hide scrollbars for the whole take
   await page.addInitScript(() => {
     const css = "html{scrollbar-width:none}::-webkit-scrollbar{display:none}";
@@ -103,7 +126,8 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>, 
     add();
   });
 
-  const ev: Events = { viewport: VIEWPORT, dpr: DPR, duration: 0, frames: [], cursor: [], clicks: [], focus: [], narration: [], marks: [], effects: [], freeze: [] };
+  const ev: Events = { viewport: VIEWPORT, dpr: DPR, duration: 0, frames: [], cursor: [], clicks: [], focus: [], narration: [], marks: [], effects: [], freeze: [],
+    ...(dev ? { device: { name: o.device!, ...dev }, bars: [], finds: [] } : {}) };
   // the take clock pauses while a new voice line is generated (TTS can take seconds; that wait
   // must not be filmed as dead air); frames that arrive during a pause are dropped
   let t0 = 0, pausedMs = 0, pauseStart = 0;
@@ -111,9 +135,10 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>, 
   const clock = { pause: () => { if (!pauseStart) pauseStart = Date.now(); }, resume: () => { if (pauseStart) { pausedMs += Date.now() - pauseStart; pauseStart = 0; } } };
   const cam = new Cam(page, ev, now, clock);
   cam.take = take;
+  cam.device = dev ? o.device! : null;
+  cam.pos = { x: VIEWPORT.w / 2, y: VIEWPORT.h * 0.62 };
   if (o.dry) { cam.dry = dir; cam.shots = !!o.shots; }
 
-  const cdp = await ctx.newCDPSession(page);
   let n = 0;
   cdp.on("Page.screencastFrame", (f) => {
     void cdp.send("Page.screencastFrameAck", { sessionId: f.sessionId }).catch(() => {}); // no ack → Chrome stops sending
@@ -138,8 +163,22 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>, 
       if (busy || !t0 || pauseStart || shots.length >= 150) return; busy = true; // skip while the take clock is paused (voice generating)
       try { const t = now(); shots.push({ t, buf: await page.screenshot({ type: "jpeg", quality: 70 }) }); } catch { /* page navigating */ } finally { busy = false; }
     }, 1000) : null;
+    // a phone's status bar: the colour behind it, sampled through the take (the phone layer picks light or dark glyphs)
+    let sampling = false;
+    const barTimer = dev ? setInterval(async () => {
+      if (sampling || !t0 || pauseStart) return; sampling = true;
+      try {
+        const c = await page.evaluate(([x]) => { for (let el = document.elementFromPoint(x, 2); el; el = el.parentElement) { const c = getComputedStyle(el).backgroundColor; if (c && c !== "transparent" && !/rgba\(.*, 0\)$/.test(c)) {
+            // as rgb, whatever the CSS wrote (oklch, oklab, color-mix …): the canvas converts it, over white
+            const k = document.createElement("canvas").getContext("2d")!; k.fillStyle = "#fff"; k.fillRect(0, 0, 1, 1); k.fillStyle = c; k.fillRect(0, 0, 1, 1);
+            const [r, g, b] = k.getImageData(0, 0, 1, 1).data; return `rgb(${r}, ${g}, ${b})`; } } return "rgb(255, 255, 255)"; }, [VIEWPORT.w / 2]);
+        const b = ev.bars!, l = b[b.length - 1];
+        if (!l || l.c !== c) b.push({ t: now(), c });
+      } catch { /* navigating */ } finally { sampling = false; }
+    }, 60) : null;
     await journey(cam);
     if (timer) clearInterval(timer);
+    if (barTimer) clearInterval(barTimer);
     if (o.dry && shots.length) await cameraSheet(dir, shots, { ...ev, duration: now() + 1 });
     await cam.settle();
     await page.waitForTimeout(600);
@@ -158,6 +197,8 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>, 
 
 export class Cam {
   pos = { x: VIEWPORT.w / 2, y: VIEWPORT.h * 0.62 };
+  /** Flex (patch 22): the device the take is recorded in (taps, no cursor), or null for the desktop browser */
+  device: DeviceName | null = null;
   onReady: () => Promise<void> = async () => {};
   /** the take being captured (files that belong to it go in takes/<take>/) */
   take = "";
@@ -184,7 +225,7 @@ export class Cam {
     return this.kind;
   }
   /** re-read the cursor kind where the pointer rests (after a click the UI under it may change) */
-  async recheck() { const k = await this.kindAt(this.pos.x, this.pos.y); this.ev.cursor.push({ t: this.now(), ...this.pos, k }); }
+  async recheck() { if (this.device) return; const k = await this.kindAt(this.pos.x, this.pos.y); this.ev.cursor.push({ t: this.now(), ...this.pos, k }); }
   /** a visible, sized element's box (CSS px), else null — hidden, closing or zero-size targets
    *  count as missing (a warning on camera, a hard stop in a dry run) instead of aiming at nothing */
   async rectOf(t: Target): Promise<Rect | null> {
@@ -200,9 +241,9 @@ export class Cam {
     await this.loc(readySel).waitFor({ state: "visible", timeout: 30_000 });
     if (prep) await prep(this.page);
     await this.pause(400);
-    await this.page.mouse.move(this.pos.x, this.pos.y);
+    if (!this.device) await this.page.mouse.move(this.pos.x, this.pos.y);
     await this.onReady();
-    this.ev.cursor.push({ t: this.now(), ...this.pos });
+    if (!this.device) this.ev.cursor.push({ t: this.now(), ...this.pos });
   }
 
   /** glide the real mouse to a target (hover states fire) and log the path */
@@ -218,6 +259,8 @@ export class Cam {
     // clip: aim at the part of the element visible inside `clip` (no scrolling)
     if (clip) { const c = await this.rectOf(clip); if (c) { const x = Math.max(r.x, c.x), y = Math.max(r.y, c.y); r = { x, y, w: Math.min(r.x + r.w, c.x + c.w) - x, h: Math.min(r.y + r.h, c.y + c.h) - y }; } }
     const to = { x: r.x + r.w / 2, y: r.y + r.h / 2 };
+    // a phone has no pointer: the finger is where it taps (the phone layer draws its glide)
+    if (this.device) { this.pos = to; return r; }
     const from = { ...this.pos };
     const dist = Math.hypot(to.x - from.x, to.y - from.y);
     // the cursor goes straight there, briskly, and then waits (never drifts slowly to fill time)
@@ -244,10 +287,30 @@ export class Cam {
     await this.pause(140);
     if (o.zoom) await this.focus(o.on ?? t, { kind: o.zoom, scale: o.scale, label: o.label, hold: 0 });
     this.ev.clicks.push({ t: this.now(), x: this.pos.x, y: this.pos.y, rect: r, label: o.label });
-    if (o.clip) await this.page.mouse.click(this.pos.x, this.pos.y); else await this.loc(t).click();
+    if (this.device) { if (o.clip) await this.page.touchscreen.tap(this.pos.x, this.pos.y); else await this.loc(t).tap(); }
+    else if (o.clip) await this.page.mouse.click(this.pos.x, this.pos.y); else await this.loc(t).click();
     await this.pause(o.settle ?? 700);
     if (this.dry && this.shots) await this.page.screenshot({ path: join(this.dry, `click-${String(this.ev.clicks.length).padStart(3, "0")}.png`) });
-    await this.recheck();
+    if (!this.device) await this.recheck();
+  }
+
+  /** Flex (patch 22): where a phrase sits on screen now (the first visible element containing `text`), recorded in the
+   *  take as `finds` under `name` (default: the text), for a lens or zoom to aim at by name instead of pixel boxes */
+  async find(text: string, name = text) {
+    const l = this.page.getByText(text, { exact: false });
+    const n = await l.count();
+    for (let i = 0; i < n; i++) {
+      const r = await this.rectOf(l.nth(i));
+      if (r) { (this.ev.finds ??= []).push({ t: this.now(), name, text, rect: r }); return r; }
+    }
+    this.missing("text", text); return null;
+  }
+
+  /** Flex (patch 22): set a page's state for a page with no clock of its own (a prototype, a USSD handset exposing
+   *  window.show): run `fn`, then wait two painted frames so the screencast has it before the next beat */
+  async state(fn: (page: Page) => Promise<unknown>) {
+    await fn(this.page);
+    await this.page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null)))));
   }
 
   /** type into the focused field like a person (paced keystrokes) */

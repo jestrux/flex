@@ -23,6 +23,35 @@ const VALUED = ["-o", "--out", "--device", "--theme", "--finish", "--status", "-
 const opt = (...fs: string[]) => { for (const f of fs) { const i = argv.indexOf(f); if (i >= 0) return argv[i + 1]; } return undefined; };
 const inputs = argv.filter((a, i) => !a.startsWith("-") && !(i > 0 && VALUED.includes(argv[i - 1])));
 const fail = (m: string): never => { if (flag("json")) out(JSON.stringify({ ok: false, error: m })); else console.error(`!! ${m}`); process.exit(1); };
+// --overlays -o <dir>: the iPhone's parts as transparent PNGs, for painting a phone take (the pipeline's phoneLayers,
+// patch 22) in the same device `flex mockup` frames screens in: the device with its screen cut out and the Dynamic Island
+// put back (device.png), the status bar alone with white or black glyphs (status-light.png / status-dark.png), and
+// frame.json { scale, pad, side, screen: { w, h, r } } in points. Flex builds them once into its support folder.
+if (flag("overlays")) {
+  const OUT = resolve(opt("-o", "--out") ?? "."), SCALE = 3, PAD = 12, SIDE = 18, SCREEN = { w: 402, h: 874, r: 60 };
+  mkdirSync(OUT, { recursive: true });
+  const css = readFileSync(join(HERE, "devices", "iphone-frame.css"), "utf8");
+  const page = (inner: string, extra = "") => `<!doctype html><meta charset="utf-8"><style>${css}
+html,body{margin:0;background:transparent} .iphone__screen{background:transparent} ${extra}</style>
+<div class="stage" style="display:inline-block;padding:${PAD}px"><figure class="iphone iphone--pro iphone--black" style="margin:0">${inner}</figure></div>`;
+  const bare = ".iphone{background:none;box-shadow:none}.iphone::before,.iphone::after{display:none}";
+  const browser = await chromium.launch();
+  const p = await (await browser.newContext({ viewport: { width: 600, height: 1000 }, deviceScaleFactor: SCALE })).newPage();
+  const shot = async (html: string, file: string) => { await p.setContent(html, { waitUntil: "load" }); await p.locator(".stage").screenshot({ path: join(OUT, file), omitBackground: true }); };
+  await shot(page(`<div class="iphone__screen"></div><span class="iphone__buttons" aria-hidden="true"></span>`), "frame-solid.png");
+  await shot(page(`<div class="iphone__screen"></div>`, ".iphone{background:none;box-shadow:none}.iphone::before{display:none}"), "island.png");
+  const at = (v: number) => v * SCALE, IN = PAD + SIDE;
+  // the bezel runs under the screen: cut the screen's rounded rect out of it, then put the island back over the hole
+  const hole = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${at(SCREEN.w + 2 * IN)}" height="${at(SCREEN.h + 2 * IN)}"><rect x="${at(IN)}" y="${at(IN)}" width="${at(SCREEN.w)}" height="${at(SCREEN.h)}" rx="${at(SCREEN.r)}" fill="#000"/></svg>`);
+  const cut = await sharp(join(OUT, "frame-solid.png")).composite([{ input: hole, blend: "dest-out" }]).png().toBuffer();
+  await sharp(cut).composite([{ input: join(OUT, "island.png") }]).png().toFile(join(OUT, "device.png"));
+  await shot(page(`<div class="iphone__screen"><div class="iphone__status">9:41</div></div>`, bare), "status-light.png");
+  await shot(page(`<div class="iphone__screen"><div class="iphone__status iphone__status--dark">9:41</div></div>`, bare), "status-dark.png");
+  await browser.close();
+  writeFileSync(join(OUT, "frame.json"), JSON.stringify({ device: "iphone", scale: SCALE, pad: PAD, side: SIDE, screen: SCREEN }, null, 1) + "\n");
+  out(flag("json") ? JSON.stringify({ ok: true, dir: OUT }) : `device overlays → ${OUT}`);
+  process.exit(0);
+}
 if (!inputs.length) fail("name a page, a screenshot or a folder: flex mockup <input>… (flex mockup --help)");
 
 /* ── the devices: their screen in points, safe areas, status bar, figure class ── */

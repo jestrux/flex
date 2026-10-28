@@ -173,6 +173,8 @@ impl Server {
             .env("FLEX_PIPELINE", &pipeline)
             .env("FLEX_VOICE_CACHE", voice_cache())
             .env("FLEX_PROJECTS", crate::tools::projects_link(&dir)?.0);
+        // the phone's parts for phone takes (patch 22's phoneLayers); a project without phones never reads them
+        if let Ok(d) = crate::mockup::device_overlays() { cmd.env("FLEX_DEVICE_FRAMES", d); }
         // a variant (END=dark …): the project's declared flags, passed as the pipeline reads them, from the environment
         for (k, v) in variants { cmd.env(k, v); }
         crate::secrets::apply(&mut cmd, &dir); // the stored OpenAI key, unless the project pins Kokoro

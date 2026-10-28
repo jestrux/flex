@@ -429,7 +429,7 @@ if (cmd === "run") {
   try {
     if (dry || !flag("no-warm")) {
       console.error(dry ? `==> dry run: ${j.name}` : `==> warm-up (a dry run, so the app's pages and servers are warm): ${j.name}`);
-      await capture(mod.take, mod.run, { dry: true });
+      await capture(mod.take, mod.run, { dry: true, device: mod.device, clock: mod.clock });
     }
     if (dry) {
       const dd = join(process.env.FLEX_DRY, j.take), r = report(dd, null);
@@ -437,16 +437,17 @@ if (cmd === "run") {
       process.exit(0);
     }
     if (jd.writes) Object.assign(process.env, jd.writes.env);
-    console.error(`==> capture: ${j.name} → takes/.versions/${j.take}/v${n} at ${dpr}×`);
+    console.error(`==> capture: ${j.name} → takes/.versions/${j.take}/v${n} ${mod.device ? `in an ${mod.device}` : `at ${dpr}×`}`);
     process.stderr.write(`@flex ${JSON.stringify({ recording: vdir })}\n`); // the app's live view watches its frames
-    await capture(mod.take, mod.run, {});
+    await capture(mod.take, mod.run, { device: mod.device, clock: mod.clock }); // a journey's device and day (patch 22)
   } catch (e) {
     if (!dry) rmSync(vdir, { recursive: true, force: true });
     fail(`${j.name}: ${String((e as Error)?.message ?? e).split("\n")[0]}`);
   }
 
-  // the zoom plan for this capture (kept as edl.auto.json); the film keeps its own locked plan, carried over at pick
-  planTake(j.take);
+  // the zoom plan for this capture (kept as edl.auto.json); the film keeps its own locked plan, carried over at pick. A
+  // phone take has none: the phone layer frames the whole screen, its card moves the camera
+  if (!mod.device) planTake(j.take);
   const cur = join(TAKES, j.take);
   if (existsSync(join(vdir, "edl.json"))) cpSync(join(vdir, "edl.json"), join(vdir, "edl.auto.json"));
   const curEdl = existsSync(join(cur, "edl.json")) ? JSON.parse(readFileSync(join(cur, "edl.json"), "utf8")) : null;

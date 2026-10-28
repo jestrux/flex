@@ -95,13 +95,14 @@ Left in the projects (KinPay-only): `seed-org`, `stills.mjs`, `make-book-plain`,
 
 ## Phase 4 — Phone takes and pages with states (gaps 9, 10)
 
-- **A phone in capture** (patch 22): a journey's `capture(take, fn, { device: "iphone" })` (and `capture.device` in
-  project config) records in the iPhone `flex mockup` uses: 402 × 874 pt at 3×, touch, its safe areas (CDP
+- **A phone in capture** (patch 22): a journey that says `export const device = "iphone"` (and `export const clock`
+  for a fixed day) records in the iPhone `flex mockup` uses: 402 × 874 pt at 3×, touch, its safe areas (CDP
   `Emulation.setSafeAreaInsetsOverride`, 62 / 34), the clock fixable (`clock: "2026-10-18T15:00"`), taps recorded as
   events (the scene draws the touch), and the colour behind the status bar sampled through the take (`bars`).
-- **A phone layer** (patch 22): `phoneLayers(take, { x, y, height, at })` in the kit frames a take in Flex's own device
-  frame (the same CSS as `flex mockup`, rendered once into the support folder), with the status bar's glyphs picked by
-  `bars`, and the taps drawn.
+- **A phone layer** (patch 22): `phoneLayers(ctx, { take, at, x, y, height, touch })` in the kit frames a take (by name,
+  through FLEX_TAKES) in Flex's own device frame (the same CSS as `flex mockup`, drawn once into the support folder by
+  `mockup.mts --overlays`, passed as FLEX_DEVICE_FRAMES), the status bar's glyphs picked by `bars`, the taps drawn.
+  `phoneFind(o, name)` gives a found phrase's box on the device, film px.
 - **Text finds:** `c.find(text, name?)` records the box of a phrase on screen at that moment into the take's marks
   (`finds`), so a lens can target `find: "K 550.00"` instead of pixel boxes.
 - **States on beats:** the documented pattern for pages with no clock (a page exposing its states, a journey setting one
@@ -202,3 +203,9 @@ review folders, mocks (`circles-tape-variants`, `circles-rap-mock`, `circles-kwa
   a line of digits and symbols isn't text). Found what the script can't see: "Loans go out. / And come back." (an
   expression `out`) is on screen 1.6 s for a 2.5 s read in both films, and the USSD/SMS lens bands show 9–13 words for
   ~2.1 s. A/B in a scratch copy: held 2.9 s, the same line passes. Overlapping lines don't count as readable.
+- 2026-10-28: **Phase 4 done ✅** (patch 22, `mockup.mts --overlays`, FLEX_DEVICE_FRAMES). The share-out screen recorded
+  by `flex capture` from a journey with `device = "iphone"`: 1.38/255 from `phone/_rec.mjs`'s still, `c.find` on the
+  amount (972, 1735) against the hand-measured (972, 1734); painted by `phoneLayers`, 1.56/255 from `cards/phone.ts`
+  over the device, the same status glyphs (white over the purple), the touch gliding onto View all. Found on the way:
+  a second CDP session clears Chromium's safe-area override (the take now uses one session for both), and the app's
+  colours come as oklch (the take converts them to rgb in the page).

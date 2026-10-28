@@ -30,3 +30,20 @@ pub fn absolute(input: &str) -> String {
     if input.starts_with("http://") || input.starts_with("https://") { return input.to_string(); }
     std::path::absolute(Path::new(input)).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| input.to_string())
 }
+
+/// The iPhone's parts as transparent PNGs for painting phone takes (`mockup.mts --overlays`): built once into the support
+/// folder, again only when the frame's CSS or the script changes. The pipeline's `phoneLayers` reads them through
+/// `FLEX_DEVICE_FRAMES`, which Flex sets for every server.
+pub fn device_overlays() -> Result<std::path::PathBuf, ProjectError> {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    SCRIPT.hash(&mut h); FRAMES[0].1.hash(&mut h);
+    let dir = crate::project::support_dir().join("device-frames").join(format!("{:012x}", h.finish() & 0xffff_ffff_ffff));
+    if dir.join("frame.json").exists() { return Ok(dir); }
+    let mut c = command(&["--overlays".into(), "-o".into(), dir.to_string_lossy().into_owned()])?;
+    let o = c.output()?;
+    if !o.status.success() || !dir.join("frame.json").exists() {
+        return Err(ProjectError::Invalid(format!("couldn't draw the device overlays: {}", String::from_utf8_lossy(&o.stderr).trim())));
+    }
+    Ok(dir)
+}

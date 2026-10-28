@@ -1,0 +1,337 @@
+diff --git a/lib/capture-run.ts b/lib/capture-run.ts
+index e932c39..4838518 100644
+--- a/lib/capture-run.ts
++++ b/lib/capture-run.ts
+@@ -11,7 +11,8 @@ const name = process.argv[2] ?? "studio-social";
+ const [proj, pj] = name.includes("/") ? name.split("/") : [null, null];
+ const j = await import(proj ? `../projects/${proj}/journeys/${pj}.ts` : `../journeys/${name}.ts`);
+ const F = flags("capture", [], ["dry", "shots"]), dry = F.has("dry");
+-await capture(j.take, j.run, { dry, shots: F.has("shots") });
+-if (!dry) planTake(j.take);
++// Flex (patch 22): a journey may record in a device (`export const device = "iphone"`) on a fixed day (`export const clock`)
++await capture(j.take, j.run, { dry, shots: F.has("shots"), device: j.device, clock: j.clock });
++if (!dry && !j.device) planTake(j.take); // a phone take has no zoom plan: the phone layer frames it whole
+ recap(dry ? "dry run" : "capture");
+ process.exit(0);
+diff --git a/lib/capture.ts b/lib/capture.ts
+index 7d888ae..74ec3db 100644
+--- a/lib/capture.ts
++++ b/lib/capture.ts
+@@ -57,6 +57,12 @@ export type Events = {
+    *  mark: when the change shows); t − due is how late the step was (Flex's timing report) */
+   beat?: { bpm: number; mark: string; t0: number };
+   beats?: { n: number; label: string; t: number; due: number }[];
++  /** Flex (patch 22): a take recorded in a device (its points, density and safe areas) */
++  device?: { name: string; w: number; h: number; dpr: number; top: number; bottom: number };
++  /** the colour behind the status bar from t on (CSS colour) */
++  bars?: { t: number; c: string }[];
++  /** c.find: where a phrase sat on screen at t (page px), for a lens or a zoom to aim at */
++  finds?: { t: number; name: string; text: string; rect: Rect }[];
+ };
+ type Target = string | Locator;
+ 
+@@ -78,14 +84,26 @@ const GLIDE = `((el, [dy, ms]) => new Promise((done) => {
+   };
+   requestAnimationFrame(step);
+ }))`;
+-export const VIEWPORT = { w: 1440, h: 810 };
++export let VIEWPORT = { w: 1440, h: 810 };
+ /** capture pixel density: 2 by default; CAPTURE_DPR=3 for takes that will be rendered at 4K (1440 css × 3 = 4320 px) */
+-export const DPR = Number(process.env.CAPTURE_DPR ?? 2);
++export let DPR = Number(process.env.CAPTURE_DPR ?? 2);
++
++/** Flex (patch 22): the devices a take can be recorded in, as `flex mockup` frames them (points, the screen's pixel
++ *  density, its safe areas). A journey says `export const device = "iphone"`: the page lays itself out as on that phone
++ *  (touch, the safe areas under the status bar and home indicator), taps instead of clicks, no cursor; the take
++ *  records the colour behind the status bar (`bars`), for the phone layer's glyphs. */
++export const DEVICES = {
++  iphone: { w: 402, h: 874, dpr: 3, top: 62, bottom: 34 },
++} as const;
++export type DeviceName = keyof typeof DEVICES;
+ 
+ /** dry: a rehearsal in its own fresh browser — no frames; real voice timing (lines are cached);
+  *  a missing target stops the run; a screenshot at every c.mark() (and every click with shots)
+  *  and at the end in build/dry/<take>/; takes/<take> is untouched */
+-export async function capture(take: string, journey: (c: Cam) => Promise<void>, o: { dry?: boolean; shots?: boolean } = {}) {
++export async function capture(take: string, journey: (c: Cam) => Promise<void>, o: { dry?: boolean; shots?: boolean; device?: DeviceName; clock?: string } = {}) {
++  const dev = o.device ? DEVICES[o.device] : null;
++  if (o.device && !dev) throw new Error(`no device "${o.device}" (${Object.keys(DEVICES).join(", ")})`);
++  if (dev) { VIEWPORT = { w: dev.w, h: dev.h }; DPR = dev.dpr; }
+   const dir = o.dry ? join(process.env.FLEX_DRY ?? join(process.env.FLEX_WORK ?? join(import.meta.dirname, ".."), "build", "dry"), take) : join(process.env.FLEX_TAKES ?? join(import.meta.dirname, "..", "takes"), take);
+   needDisk(join(import.meta.dirname, ".."), o.dry ? 0.3 : 0.8, o.dry ? "dry run" : "capture");
+   // fresh frames + events; keep edl.json (hand edits survive a re-capture; plan respects "locked")
+@@ -94,8 +112,13 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>,
+ 
+   // the flag is what makes the screencast deliver device pixels (the context DPR alone gives 1× frames)
+   const browser = await chromium.launch({ headless: true, args: [`--force-device-scale-factor=${DPR}`] });
+-  const ctx = await browser.newContext({ viewport: { width: VIEWPORT.w, height: VIEWPORT.h }, deviceScaleFactor: DPR });
++  const ctx = await browser.newContext({ viewport: { width: VIEWPORT.w, height: VIEWPORT.h }, deviceScaleFactor: DPR, ...(dev ? { isMobile: true, hasTouch: true } : {}) });
++  // a fixed day for the app's clock (`export const clock = "2026-10-18T15:00"`): "Today" and dates read the same every take
++  if (o.clock) await ctx.clock.setFixedTime(new Date(o.clock));
+   const page = await ctx.newPage();
++  // one CDP session for the take (a second one clears the safe-area override): the device's insets, then the screencast
++  const cdp = await ctx.newCDPSession(page);
++  if (dev) await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets: { top: dev.top, bottom: dev.bottom, left: 0, right: 0 } });
+   // hide scrollbars for the whole take
+   await page.addInitScript(() => {
+     const css = "html{scrollbar-width:none}::-webkit-scrollbar{display:none}";
+@@ -103,7 +126,8 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>,
+     add();
+   });
+ 
+-  const ev: Events = { viewport: VIEWPORT, dpr: DPR, duration: 0, frames: [], cursor: [], clicks: [], focus: [], narration: [], marks: [], effects: [], freeze: [] };
++  const ev: Events = { viewport: VIEWPORT, dpr: DPR, duration: 0, frames: [], cursor: [], clicks: [], focus: [], narration: [], marks: [], effects: [], freeze: [],
++    ...(dev ? { device: { name: o.device!, ...dev }, bars: [], finds: [] } : {}) };
+   // the take clock pauses while a new voice line is generated (TTS can take seconds; that wait
+   // must not be filmed as dead air); frames that arrive during a pause are dropped
+   let t0 = 0, pausedMs = 0, pauseStart = 0;
+@@ -111,9 +135,10 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>,
+   const clock = { pause: () => { if (!pauseStart) pauseStart = Date.now(); }, resume: () => { if (pauseStart) { pausedMs += Date.now() - pauseStart; pauseStart = 0; } } };
+   const cam = new Cam(page, ev, now, clock);
+   cam.take = take;
++  cam.device = dev ? o.device! : null;
++  cam.pos = { x: VIEWPORT.w / 2, y: VIEWPORT.h * 0.62 };
+   if (o.dry) { cam.dry = dir; cam.shots = !!o.shots; }
+ 
+-  const cdp = await ctx.newCDPSession(page);
+   let n = 0;
+   cdp.on("Page.screencastFrame", (f) => {
+     void cdp.send("Page.screencastFrameAck", { sessionId: f.sessionId }).catch(() => {}); // no ack → Chrome stops sending
+@@ -138,8 +163,22 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>,
+       if (busy || !t0 || pauseStart || shots.length >= 150) return; busy = true; // skip while the take clock is paused (voice generating)
+       try { const t = now(); shots.push({ t, buf: await page.screenshot({ type: "jpeg", quality: 70 }) }); } catch { /* page navigating */ } finally { busy = false; }
+     }, 1000) : null;
++    // a phone's status bar: the colour behind it, sampled through the take (the phone layer picks light or dark glyphs)
++    let sampling = false;
++    const barTimer = dev ? setInterval(async () => {
++      if (sampling || !t0 || pauseStart) return; sampling = true;
++      try {
++        const c = await page.evaluate(([x]) => { for (let el = document.elementFromPoint(x, 2); el; el = el.parentElement) { const c = getComputedStyle(el).backgroundColor; if (c && c !== "transparent" && !/rgba\(.*, 0\)$/.test(c)) {
++            // as rgb, whatever the CSS wrote (oklch, oklab, color-mix …): the canvas converts it, over white
++            const k = document.createElement("canvas").getContext("2d")!; k.fillStyle = "#fff"; k.fillRect(0, 0, 1, 1); k.fillStyle = c; k.fillRect(0, 0, 1, 1);
++            const [r, g, b] = k.getImageData(0, 0, 1, 1).data; return `rgb(${r}, ${g}, ${b})`; } } return "rgb(255, 255, 255)"; }, [VIEWPORT.w / 2]);
++        const b = ev.bars!, l = b[b.length - 1];
++        if (!l || l.c !== c) b.push({ t: now(), c });
++      } catch { /* navigating */ } finally { sampling = false; }
++    }, 60) : null;
+     await journey(cam);
+     if (timer) clearInterval(timer);
++    if (barTimer) clearInterval(barTimer);
+     if (o.dry && shots.length) await cameraSheet(dir, shots, { ...ev, duration: now() + 1 });
+     await cam.settle();
+     await page.waitForTimeout(600);
+@@ -158,6 +197,8 @@ export async function capture(take: string, journey: (c: Cam) => Promise<void>,
+ 
+ export class Cam {
+   pos = { x: VIEWPORT.w / 2, y: VIEWPORT.h * 0.62 };
++  /** Flex (patch 22): the device the take is recorded in (taps, no cursor), or null for the desktop browser */
++  device: DeviceName | null = null;
+   onReady: () => Promise<void> = async () => {};
+   /** the take being captured (files that belong to it go in takes/<take>/) */
+   take = "";
+@@ -184,7 +225,7 @@ export class Cam {
+     return this.kind;
+   }
+   /** re-read the cursor kind where the pointer rests (after a click the UI under it may change) */
+-  async recheck() { const k = await this.kindAt(this.pos.x, this.pos.y); this.ev.cursor.push({ t: this.now(), ...this.pos, k }); }
++  async recheck() { if (this.device) return; const k = await this.kindAt(this.pos.x, this.pos.y); this.ev.cursor.push({ t: this.now(), ...this.pos, k }); }
+   /** a visible, sized element's box (CSS px), else null — hidden, closing or zero-size targets
+    *  count as missing (a warning on camera, a hard stop in a dry run) instead of aiming at nothing */
+   async rectOf(t: Target): Promise<Rect | null> {
+@@ -200,9 +241,9 @@ export class Cam {
+     await this.loc(readySel).waitFor({ state: "visible", timeout: 30_000 });
+     if (prep) await prep(this.page);
+     await this.pause(400);
+-    await this.page.mouse.move(this.pos.x, this.pos.y);
++    if (!this.device) await this.page.mouse.move(this.pos.x, this.pos.y);
+     await this.onReady();
+-    this.ev.cursor.push({ t: this.now(), ...this.pos });
++    if (!this.device) this.ev.cursor.push({ t: this.now(), ...this.pos });
+   }
+ 
+   /** glide the real mouse to a target (hover states fire) and log the path */
+@@ -218,6 +259,8 @@ export class Cam {
+     // clip: aim at the part of the element visible inside `clip` (no scrolling)
+     if (clip) { const c = await this.rectOf(clip); if (c) { const x = Math.max(r.x, c.x), y = Math.max(r.y, c.y); r = { x, y, w: Math.min(r.x + r.w, c.x + c.w) - x, h: Math.min(r.y + r.h, c.y + c.h) - y }; } }
+     const to = { x: r.x + r.w / 2, y: r.y + r.h / 2 };
++    // a phone has no pointer: the finger is where it taps (the phone layer draws its glide)
++    if (this.device) { this.pos = to; return r; }
+     const from = { ...this.pos };
+     const dist = Math.hypot(to.x - from.x, to.y - from.y);
+     // the cursor goes straight there, briskly, and then waits (never drifts slowly to fill time)
+@@ -244,10 +287,30 @@ export class Cam {
+     await this.pause(140);
+     if (o.zoom) await this.focus(o.on ?? t, { kind: o.zoom, scale: o.scale, label: o.label, hold: 0 });
+     this.ev.clicks.push({ t: this.now(), x: this.pos.x, y: this.pos.y, rect: r, label: o.label });
+-    if (o.clip) await this.page.mouse.click(this.pos.x, this.pos.y); else await this.loc(t).click();
++    if (this.device) { if (o.clip) await this.page.touchscreen.tap(this.pos.x, this.pos.y); else await this.loc(t).tap(); }
++    else if (o.clip) await this.page.mouse.click(this.pos.x, this.pos.y); else await this.loc(t).click();
+     await this.pause(o.settle ?? 700);
+     if (this.dry && this.shots) await this.page.screenshot({ path: join(this.dry, `click-${String(this.ev.clicks.length).padStart(3, "0")}.png`) });
+-    await this.recheck();
++    if (!this.device) await this.recheck();
++  }
++
++  /** Flex (patch 22): where a phrase sits on screen now (the first visible element containing `text`), recorded in the
++   *  take as `finds` under `name` (default: the text), for a lens or zoom to aim at by name instead of pixel boxes */
++  async find(text: string, name = text) {
++    const l = this.page.getByText(text, { exact: false });
++    const n = await l.count();
++    for (let i = 0; i < n; i++) {
++      const r = await this.rectOf(l.nth(i));
++      if (r) { (this.ev.finds ??= []).push({ t: this.now(), name, text, rect: r }); return r; }
++    }
++    this.missing("text", text); return null;
++  }
++
++  /** Flex (patch 22): set a page's state for a page with no clock of its own (a prototype, a USSD handset exposing
++   *  window.show): run `fn`, then wait two painted frames so the screencast has it before the next beat */
++  async state(fn: (page: Page) => Promise<unknown>) {
++    await fn(this.page);
++    await this.page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null)))));
+   }
+ 
+   /** type into the focused field like a person (paced keystrokes) */
+diff --git a/lib/kit.ts b/lib/kit.ts
+index 547a893..fa58359 100644
+--- a/lib/kit.ts
++++ b/lib/kit.ts
+@@ -11,6 +11,8 @@ export type { SceneCtx, Layer, Rect } from "./presets/types.ts";
+ export { mediaSize } from "./presets/broll-still.ts";
+ export type { Ctx, EffectItem, Pt } from "./effects/types.ts";
+ export type { Feel } from "./feels.ts";
++/** Flex (patch 22): a phone take painted in Flex's iPhone, and where a found phrase sits on it */
++export { phoneLayers, phoneFind, darkColour, type PhoneOpts } from "./phone.ts";
+ 
+ /** baselines that centre a block of text lines optically on cy (cap height ≈ 0.72 em; line pitch lh).
+  *  centreBlock(H / 2, 3, 120, 126) → the 3 baselines, so the visible block sits centred, not high. */
+diff --git a/lib/phone.ts b/lib/phone.ts
+new file mode 100644
+index 0000000..a466cf0
+--- /dev/null
++++ b/lib/phone.ts
+@@ -0,0 +1,124 @@
++// Flex (patch 22): a phone take (recorded with `export const device = "iphone"`, lib/capture.ts) painted in Flex's own
++// iPhone, the device `flex mockup` frames screens in. For a card's render:
++//   layers.push(...phoneLayers(ctx, { take: "pay-a-friend", at: takeMs, x: W / 2, y: H / 2, height: 0.86 * H }));
++// It draws: a soft shadow, the take's frame at `at` (take ms) clipped to the screen's rounded corners, the device (its
++// screen cut out, the Dynamic Island put back), the status bar with light or dark glyphs by the colour the take recorded
++// behind it, and the touch: a dot that glides to each tap ahead of it, presses, and fades after the last.
++// The device's parts are drawn once by Flex (`FLEX_DEVICE_FRAMES`, from server/devices/iphone-frame.css).
++import { existsSync, readFileSync } from "node:fs";
++import { isAbsolute, join } from "node:path";
++import { clamp, ease, fmt, lerp } from "./effects/kit.ts";
++import { frameSvg } from "./presets/title-opening.ts";
++import type { Layer, SceneCtx } from "./presets/types.ts";
++
++type Ev = {
++  device?: { w: number; h: number; dpr: number };
++  frames: { t: number; file: string }[];
++  clicks: { t: number; x: number; y: number }[];
++  bars?: { t: number; c: string }[];
++  finds?: { t: number; name: string; text: string; rect: { x: number; y: number; w: number; h: number } }[];
++};
++export type PhoneTouch = false | { label?: string; fill?: string; ink?: string };
++export type PhoneOpts = {
++  /** the take (its name, as `flex capture` and `flex pick` call it; or an absolute folder), recorded in a device */
++  take: string;
++  /** take time, ms */
++  at: number;
++  /** the device's centre, film px, and its body's height in film px */
++  x: number; y: number; height: number;
++  /** draw the touch (default), optionally carrying a role pill (Figma-style); false: none */
++  touch?: PhoneTouch;
++  /** the shadow under the device (default true) */
++  shadow?: boolean;
++};
++
++/** a take's folder: by name in the film's takes (FLEX_TAKES, set by Flex, versions previewed with --take included) */
++const takeDir = (name: string) => (isAbsolute(name) ? name : join(process.env.FLEX_TAKES ?? "takes", name));
++const TAKES = new Map<string, Ev>();
++function take(dir: string): Ev {
++  if (!TAKES.has(dir)) {
++    const f = join(dir, "events.json");
++    if (!existsSync(f)) throw new Error(`phoneLayers: no take at ${dir} (flex capture its journey)`);
++    TAKES.set(dir, JSON.parse(readFileSync(f, "utf8")));
++  }
++  return TAKES.get(dir)!;
++}
++type Frame = { pad: number; side: number; screen: { w: number; h: number; r: number } };
++let FRAME: Frame | null = null;
++const URIS = new Map<string, string>();
++function parts(): { dir: string; f: Frame } {
++  const dir = process.env.FLEX_DEVICE_FRAMES;
++  if (!dir || !existsSync(join(dir, "frame.json"))) throw new Error("phoneLayers: no device frames (Flex sets FLEX_DEVICE_FRAMES; flex doctor)");
++  FRAME ??= JSON.parse(readFileSync(join(dir, "frame.json"), "utf8"));
++  return { dir, f: FRAME! };
++}
++const uri = (dir: string, f: string) => {
++  const p = join(dir, f);
++  if (!URIS.has(p)) URIS.set(p, `data:image/png;base64,${readFileSync(p).toString("base64")}`);
++  return URIS.get(p)!;
++};
++const lastAt = <T extends { t: number }>(xs: T[], t: number): T | undefined => { let r: T | undefined; for (const x of xs) { if (x.t <= t) r = x; else break; } return r ?? xs[0]; };
++
++/** is a CSS colour dark (the status bar wants white glyphs over it)? rgb()/rgba()/#hex; anything else counts as light */
++export function darkColour(c: string): boolean {
++  let rgb: number[] | null = null;
++  const m = c.match(/rgba?\(([^)]+)\)/);
++  if (m) rgb = m[1].split(/[ ,/]+/).slice(0, 3).map(Number);
++  else if (/^#[0-9a-f]{6}$/i.test(c)) { const n = parseInt(c.slice(1), 16); rgb = [n >> 16, (n >> 8) & 255, n & 255]; }
++  if (!rgb || rgb.some((v) => Number.isNaN(v))) return false;
++  return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2] < 150;
++}
++
++/** where a found phrase sits on the device on screen (film px), for a lens or a callout: c.find(text, name) in the take */
++export function phoneFind(o: Omit<PhoneOpts, "at" | "touch" | "shadow">, name: string) {
++  const T = take(takeDir(o.take)), { f } = parts(), hit = T.finds?.find((x) => x.name === name);
++  if (!hit) throw new Error(`phoneFind: no find "${name}" in ${o.take} (c.find in its journey)`);
++  const s = o.height / (f.screen.h + 2 * f.side), sx = o.x - (f.screen.w / 2) * s, sy = o.y - (f.screen.h / 2) * s;
++  return { x: sx + hit.rect.x * s, y: sy + hit.rect.y * s, w: hit.rect.w * s, h: hit.rect.h * s };
++}
++
++const REST = { x: 0.64, y: 0.86 }, GLIDE = 650, LAND = 80;
++
++export function phoneLayers(ctx: SceneCtx, o: PhoneOpts): Layer[] {
++  const dirT = takeDir(o.take), T = take(dirT), { dir, f } = parts();
++  const k = ctx.out.w / 1920, SCR = f.screen, IN = f.pad + f.side;
++  const s = o.height / (SCR.h + 2 * f.side), c = { x: o.x, y: o.y };
++  const BODY = { w: SCR.w + 2 * f.side, h: SCR.h + 2 * f.side }, CANVAS = { w: SCR.w + 2 * IN, h: SCR.h + 2 * IN };
++  const bx = c.x - (BODY.w / 2) * s, by = c.y - (BODY.h / 2) * s, sx = c.x - (SCR.w / 2) * s, sy = c.y - (SCR.h / 2) * s;
++  const out: Layer[] = [];
++  if (o.shadow !== false) out.push({ svg: frameSvg(ctx, `<rect x="${fmt(bx)}" y="${fmt(by + 30 * s)}" width="${fmt(BODY.w * s)}" height="${fmt(BODY.h * s)}" rx="${fmt((SCR.r + f.side) * s)}" fill="#000" opacity="0.45" filter="url(#phsh)"/>`,
++    `<filter id="phsh" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="${fmt(30 * s)}"/></filter>`) });
++  const fr = lastAt(T.frames, o.at);
++  if (fr) out.push({ image: join(dirT, "frames", fr.file), radius: SCR.r * s * k, rect: { x: sx * k, y: sy * k, w: SCR.w * s * k, h: SCR.h * s * k } });
++  const over = (file: string) => `<image href="${uri(dir, file)}" x="${fmt(c.x - (CANVAS.w / 2) * s)}" y="${fmt(c.y - (CANVAS.h / 2) * s)}" width="${fmt(CANVAS.w * s)}" height="${fmt(CANVAS.h * s)}"/>`;
++  const bar = lastAt(T.bars ?? [], o.at)?.c ?? "rgb(255, 255, 255)";
++  let fx = over("device.png") + over(darkColour(bar) ? "status-light.png" : "status-dark.png");
++  if (o.touch !== false) fx += touchSvg(T.clicks, o.at, sx, sy, s, SCR, o.touch || undefined);
++  out.push({ svg: frameSvg(ctx, fx) });
++  return out;
++}
++
++/** iOS "show touches": a dark see-through dot with a white rim, gliding to each tap ahead of it (screen points) */
++function touchSvg(taps: Ev["clicks"], tt: number, sx: number, sy: number, s: number, SCR: Frame["screen"], role?: { label?: string; fill?: string; ink?: string }) {
++  if (!taps.length) return "";
++  const first = taps[0], lastTap = taps[taps.length - 1], start = first.t - LAND - GLIDE - 250;
++  if (tt < start || tt > lastTap.t + 500) return "";
++  let x = REST.x * SCR.w, y = REST.y * SCR.h, from = { x, y }, i = 0;
++  for (; i < taps.length && taps[i].t - LAND <= tt; i++) from = { x: taps[i].x, y: taps[i].y };
++  ({ x, y } = from);
++  if (i < taps.length) {
++    const to = taps[i], g0 = Math.max(i ? taps[i - 1].t + 350 : start + 250, to.t - LAND - GLIDE);
++    const u = ease.inOut(clamp((tt - g0) / Math.max(1, to.t - LAND - g0)));
++    x = lerp(from.x, to.x, u); y = lerp(from.y, to.y, u);
++  }
++  const op = clamp((tt - start) / 250) * (1 - clamp((tt - lastTap.t - 250) / 250));
++  const near = taps.reduce((m, tp) => Math.min(m, Math.abs(tt - tp.t)), Infinity);
++  const r = 19 * s * (1 - 0.18 * Math.max(0, 1 - near / 160)), px = sx + x * s, py = sy + y * s;
++  let g = `<g opacity="${fmt(op)}"><circle cx="${fmt(px)}" cy="${fmt(py)}" r="${fmt(r)}" fill="#14101C" fill-opacity="0.34" stroke="#FFFFFF" stroke-opacity="0.92" stroke-width="${fmt(2.4 * s)}"/>`;
++  if (role?.label) {
++    const fs = 26, h = 44, w = role.label.length * fs * 0.62 + 32, rx = px + r * 0.75, ry = py + r * 0.75;
++    g += `<rect x="${fmt(rx)}" y="${fmt(ry)}" width="${fmt(w)}" height="${h}" rx="${h / 2}" fill="${role.fill ?? "#C8FF3C"}" stroke="#FFFFFF" stroke-width="2"/>`
++      + `<text x="${fmt(rx + w / 2)}" y="${fmt(ry + h / 2 + fs * 0.36)}" text-anchor="middle" font-family="Inter, Helvetica, sans-serif" font-weight="700" font-size="${fs}" fill="${role.ink ?? "#14101C"}">${role.label.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</text>`;
++  }
++  return g + "</g>";
++}

@@ -11,6 +11,8 @@ export type { SceneCtx, Layer, Rect } from "./presets/types.ts";
 export { mediaSize } from "./presets/broll-still.ts";
 export type { Ctx, EffectItem, Pt } from "./effects/types.ts";
 export type { Feel } from "./feels.ts";
+/** Flex (patch 22): a phone take painted in Flex's iPhone, and where a found phrase sits on it */
+export { phoneLayers, phoneFind, darkColour, type PhoneOpts } from "./phone.ts";
 
 /** baselines that centre a block of text lines optically on cy (cap height ≈ 0.72 em; line pitch lh).
  *  centreBlock(H / 2, 3, 120, 126) → the 3 baselines, so the visible block sits centred, not high. */
