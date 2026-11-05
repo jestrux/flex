@@ -18,6 +18,14 @@ Decided with the author (2026-10-16):
   told the playhead. The timeline is drawn in SwiftUI.
 - The sample lives in `samples/circles-overview`, out of git.
 
+## Next (2026-11-06): the narration booth, a real voice for a film
+
+Send a film's narration out to a voice artist and bring their voice back in, as `flex new --music` brings music in.
+`flex booth <dir>` packages a booth from the film (lines, scenes, word timings, the picture under music only), serves it
+on localhost in Chrome, takes come back per line, and the film uses them in place of TTS and re-fits its timing.
+Publishing it as a link (Fuchi's backend or a Kazzi artifact with audio) comes after. Plan, phases and verifiables:
+[plans/narration-booth.md](plans/narration-booth.md).
+
 ## Current (2026-10-28): what the Circles films taught
 
 Every tool the KinPay Circles films had to build by hand, made Flex's own: footage that never stutters (and
