@@ -134,28 +134,45 @@ Each phase ends on its verifiables.
 
   Built on the existing checks (`check.ts`'s line overlap) and the music grid (scene changes stay on beats).
 - **Cleaned and checked on the way in** (`flex takes <dir> --process`, run by the agent after "done"):
-  - **Clean, gently:**
+  - **Measure first, fix only as much as needed.** Each take is measured for noise floor, room echo (reverb time),
+    loudness range, peaks and clipping. Only what's out of range is processed, and only by as much as it needs.
+    Never processing a listener would notice.
+  - **Clean:**
     - a high-pass for rumble;
-    - de-click and de-pop;
+    - de-click and de-pop, including plosives;
     - light broadband noise reduction from the take's own silence;
     - de-ess only if needed.
-
-    Never processing a listener would notice.
+  - **Echo:** a light de-reverb where the room is audible. Local and open source, for example WPE (`nara_wpe`) or
+    DeepFilterNet; the tool is picked in P3 by listening tests. A take with too much echo to clean without artefacts
+    is **flagged, not forced**, with a suggestion: re-record somewhere softer (a closet of clothes, under a duvet, a
+    room with curtains and a sofa). The booth shows that tip before the first take.
+  - **Audibility:** quiet words and trailing endings are evened up with gentle levelling (upward compression),
+    without lifting the background between words.
+  - **Too loud:** loud words come down with a gentle compressor, and a true-peak limiter stops anything distorting.
+    A word that clipped in the recording itself can't be restored, so it's flagged for a re-take.
   - **Trim** the silence and breaths before and after the line, keeping a natural lead-in.
   - **Level** to the voice target (−16 LUFS). Flag any take that **clipped** when recorded (true peak at 0 dBFS).
   - **Check against the script:** Whisper on the take, compared word by word with the line's text. Misreads,
     missing words and ad-libs are flagged, never silently used.
   - **Align:** the speech's real onset sits on the line's start.
   - The raw take is kept beside the processed one, so nothing is lost.
+  - **Report per line** what was done and what's flagged, for example "line 4: lifted 3 dB, light de-reverb; line 7:
+    skips 'eight'". `flex takes <dir>` shows it.
 
 **Verifiables**
-- **Processing** (fixtures: a clean take, one with a click and hum, one clipped, one that skips a word):
+- **Processing** (fixtures: a clean take, one with a click and hum, a roomy one, a heavily echoing one, one with a
+  quiet trailing phrase, one with a shouted word, one clipped, one that skips a word):
   - the clean take passes unchanged except for its level;
   - the click and the hum are gone;
+  - the roomy take's measured reverb time drops, and the voice still passes a listening check;
+  - the heavily echoing take is flagged with the re-record tip, not processed into artefacts;
+  - the quiet phrase comes up to within 4 dB of the rest of the line;
+  - the shouted word comes down, and no sample exceeds −1 dBTP;
   - the clipped take is flagged;
   - the skipped word is flagged with the missing text.
 
-  Processed takes measure −16 ±1 LUFS, and the raw files are untouched.
+  Processed takes measure −16 ±1 LUFS, the raw files are untouched, and the per-line report names every fix
+  applied.
 - With every line taken, `flex render welcome-tour` uses no TTS file. The render log names the takes, the captions
   match her reading, and loudness passes.
 - With lines 4–6 taken, only those three change. The other lines are byte-identical in the voice stem.
