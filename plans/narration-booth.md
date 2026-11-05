@@ -7,8 +7,15 @@ out to a person and brings their voice back in, the way `flex new --music` bring
    narration line with its text and timing, the scenes, the word timings.
 2. **Record:** a voice artist records in the booth (teleprompter, count-in, the original narration to practise
    against, a chosen run of lines, level, playback).
-3. **Bring back in:** the takes come back keyed by line. A recorded line stands in for the synthetic one, the film
-   re-fits its timing to her reading, and it re-renders with the usual checks.
+3. **Bring back in:** the takes come back keyed by line. The agent cleans and checks them, a recorded line stands in
+   for the synthetic one, the film re-fits its timing to her reading, and it re-renders with the usual checks.
+
+**The person works with an agent, not with Flex's commands.** They say "I want a real voice on this film". The agent
+opens the booth, they record, and they come back and say "done". The agent then:
+1. cleans and checks every take;
+2. renders;
+3. reports, for example "12 of 13 in; line 7 skips 'eight', line 3 clipped: reopen the booth for those two?";
+4. on a yes, opens the booth with just those lines chosen.
 
 **This plan is the local booth, opened in Chrome.** Publishing it as a link for someone else (Fuchi's backend or a
 Kazzi artifact with an audio capability) comes after. It reuses the same page and the same intake, with a different
@@ -126,10 +133,29 @@ Each phase ends on its verifiables.
   - or the author is told what doesn't fit, with how much.
 
   Built on the existing checks (`check.ts`'s line overlap) and the music grid (scene changes stay on beats).
-- Takes are levelled to the voice target (−16 LUFS) and gently cleaned (a high-pass, de-click). Never heavy
-  processing.
+- **Cleaned and checked on the way in** (`flex takes <dir> --process`, run by the agent after "done"):
+  - **Clean, gently:**
+    - a high-pass for rumble;
+    - de-click and de-pop;
+    - light broadband noise reduction from the take's own silence;
+    - de-ess only if needed.
+
+    Never processing a listener would notice.
+  - **Trim** the silence and breaths before and after the line, keeping a natural lead-in.
+  - **Level** to the voice target (−16 LUFS). Flag any take that **clipped** when recorded (true peak at 0 dBFS).
+  - **Check against the script:** Whisper on the take, compared word by word with the line's text. Misreads,
+    missing words and ad-libs are flagged, never silently used.
+  - **Align:** the speech's real onset sits on the line's start.
+  - The raw take is kept beside the processed one, so nothing is lost.
 
 **Verifiables**
+- **Processing** (fixtures: a clean take, one with a click and hum, one clipped, one that skips a word):
+  - the clean take passes unchanged except for its level;
+  - the click and the hum are gone;
+  - the clipped take is flagged;
+  - the skipped word is flagged with the missing text.
+
+  Processed takes measure −16 ±1 LUFS, and the raw files are untouched.
 - With every line taken, `flex render welcome-tour` uses no TTS file. The render log names the takes, the captions
   match her reading, and loudness passes.
 - With lines 4–6 taken, only those three change. The other lines are byte-identical in the voice stem.
@@ -143,10 +169,10 @@ Each phase ends on its verifiables.
 - The Flex skill gets the loop:
   1. "a real voice for this film's narration";
   2. `flex booth`;
-  3. wait for the takes;
-  4. `flex takes`;
-  5. render;
-  6. check.
+  3. the person records and says "done";
+  4. `flex takes --process`;
+  5. report the flagged lines, and offer to reopen the booth on just those (`flex booth <dir> --lines 3,7`);
+  6. render and check.
 - A generic version of the booth tutorial film (`career-path/videos/booth-tutorial`) as Flex's own "how to record in
   the booth" film.
 
