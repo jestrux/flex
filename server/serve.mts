@@ -54,7 +54,7 @@ try {
   plan = await planSequence(DIR);
   manifest = {
     name: plan.name, dir: DIR, fps: plan.fps, size: [OUT.w, OUT.h], frames: plan.frames, duration: plan.total,
-    music: { key: plan.music?.key ?? plan.music, segments: plan.music?.segments ?? null, from: plan.music?.from ?? null, tracks: plan.music?.tracks ?? null },
+    music: !plan.music ? null : { key: plan.music?.key ?? plan.music, segments: plan.music?.segments ?? null, from: plan.music?.from ?? null, tracks: plan.music?.tracks ?? null },
     scenes: plan.scenes.map((s: any) => ({ ...s, items: plan.clips.filter((c: any) => c.scene === s.id).map((c: any) => ({
       kind: c.kind, type: c.card?.type ?? null, label: c.take ? c.take.take : c.card!.type.split("/").pop(), start: c.f0 / plan.fps, end: c.f1 / plan.fps, paintable: true,
       ...(c.take ? { take: cameraOf(c.take) } : {}) })) })),

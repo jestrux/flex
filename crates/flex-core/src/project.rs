@@ -32,6 +32,9 @@ pub enum ProjectError {
     /// a request that can't be done as asked (an unknown id, an end before its start)
     #[error("{0}")]
     Invalid(String),
+    /// the film has no music (project.ts without `music:`), so nothing that needs a track or its beat grid applies
+    #[error("no music in this film: it has no track and no beat grid (project.ts has no music:)")]
+    NoMusic,
     #[error("{0}")]
     Io(#[from] std::io::Error),
 }
@@ -70,7 +73,7 @@ pub struct Scene {
     pub file: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Music {
     pub key: String,
     /// the edit: stretches of the song (song seconds) played back to back
@@ -81,6 +84,11 @@ pub struct Music {
     /// where the film starts in the song (song seconds; without an edit)
     #[serde(default)]
     pub from: Option<f64>,
+}
+
+impl Music {
+    /// a film without music (project.ts has no `music:`; the outline and the server say null): an empty key
+    pub fn is_none(&self) -> bool { self.key.is_empty() && self.tracks.as_ref().is_none_or(|t| t.is_empty()) }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -223,11 +231,11 @@ impl Project {
         if !o.ok { return Err(ProjectError::Load(o.error.unwrap_or_default())); }
         let mut scenes = o.scenes.unwrap_or_default();
         scene_files(&dir, &mut scenes);
-        let music = o.music.unwrap_or(Music { key: String::new(), segments: None, from: None, tracks: None });
+        let music = o.music.unwrap_or_default(); // none: a film without music
         // a film across songs: each of its library songs is fetched too
         for k in music.tracks.iter().flatten().filter(|k| **k != music.key) { if music_file(&dir, &pipeline, k).is_none() { eprintln!("flex: no file for track \"{k}\""); } }
         Ok(Project {
-            music_file: music_file(&dir, &pipeline, &music.key),
+            music_file: if music.is_none() { None } else { music_file(&dir, &pipeline, &music.key) },
             name: o.name.unwrap_or_default(),
             feel: o.feel.unwrap_or_default(),
             duration: o.duration.unwrap_or(0.0),

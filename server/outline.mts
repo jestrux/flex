@@ -9,7 +9,8 @@ const dir = resolve(process.argv[2] ?? ".");
 const log = console.log; console.log = console.warn = () => {}; // keep stdout for the JSON
 try {
   const p = (await import(pathToFileURL(join(dir, "project.ts")).href)).default;
-  const music = typeof p.music === "string" ? { key: p.music } : { key: p.music.key, segments: p.music.segments ?? null, from: p.music.from ?? null, tracks: p.music.tracks ?? null };
+  // a film without music (patch 26) has none: null
+  const music = !p.music ? null : typeof p.music === "string" ? { key: p.music } : { key: p.music.key, segments: p.music.segments ?? null, from: p.music.from ?? null, tracks: p.music.tracks ?? null };
   const scenes = p.scenes.map((s: any) => ({
     id: s.id, start: s.start, end: s.end, note: s.note ?? null,
     items: s.items.map((it: any) => ({ kind: it.kind, type: it.type ?? null, take: it.take ?? null, dur: typeof it.dur === "number" ? it.dur : null })),

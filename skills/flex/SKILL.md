@@ -36,16 +36,19 @@ may be one repo or several (a frontend, a backend, an e2e suite). Work in this o
    No end-to-end suite: say so, and plan the journeys from the app's routes and what `flex walk` shows.
 2. **Report and ask, in one message:** what step 1 found, then the questions only the author can answer: the song (their
    own file, a Creative Commons track, or one they generate in Suno from a prompt you write: reference/making-a-film.md,
-   "Finding the song"; Flex's own tracks, `flex library`, as a fallback), who the film is for, which flows in what order, the length,
+   "Finding the song"; Flex's own tracks, `flex library`, as a fallback; or no music at all), who the film is for, which flows in what order, the length,
    narration or not, which branch to film, whether data may be reseeded, and where the project should live (default: a
    new folder beside the code's folders, e.g. `<parent>/videos/<film>`). Don't invent these.
 3. **Get the app running** with the commands found in step 1, on the branch the author chose, and check each URL
    answers. Don't run anything that resets or seeds data without the author's yes.
 4. **Start the project** where the author said: `flex new <dir> --music <song>` (it writes the imports for this
    machine, and copies the song's stems from beside it: `stems/`, or Suno's `<song> Stems/` or `<song> Stems.zip`), then
-   `flex music <dir>`; `flex show <dir>` opens it in the app.
-5. **Plan on the music:** `script.json`, one beat per flow step on the song's bars (`flex script`, `flex storyboard`).
-   Get the author's nod before recording.
+   `flex music <dir>`; `flex show <dir>` opens it in the app. **Music is optional:** `flex new <dir>` without `--music`
+   makes a film of picture, voice and sound effects. It has no grid, so scene `start`/`end` and script positions are
+   film seconds, items take `dur` not `bars`, nothing snaps, and the music tools (`flex music`, `grid`, `cuts`, `shift`,
+   `duck`) say "no music in this film" and stop (reference/making-a-film.md, "A film without music").
+5. **Plan on the music:** `script.json`, one beat per flow step on the song's bars (`flex script`, `flex storyboard`);
+   without music, on film seconds. Get the author's nod before recording.
 6. **Personas:** in `capture.personas`, a command printing each user's browser cookies as JSON, ported from the tests'
    login (`scripts/cookies.mjs` in the example). The command runs every time a journey seats that user (and for each
    `flex walk`), so it should log in fresh rather than replay a saved cookie: sessions expire. Cookie values are
@@ -100,7 +103,7 @@ flex show <dir> --scene chorus   # ... or to a scene's start
 ## The loop
 
 ```sh
-flex open <dir>                         # the outline: music, scenes and their times
+flex open <dir>                         # the outline: music (or "no music"), scenes and their times
 flex frame <dir> 22.5s -o /tmp/f.png    # paint one frame, then LOOK at the image before saying anything about it
 flex sheet <mp4|folder> --from 20 --to 30 [--ref other.mp4]   # a labelled contact sheet; --ref pairs and diffs
 flex cuts <dir>                         # each cut's distance from the beat and the declared hits

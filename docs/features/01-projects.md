@@ -24,6 +24,14 @@ itself.
   (`defaults read dev.waky.flex`).
 - **Limits:** A folder without `project.ts` doesn't open.
 
+## A film without music
+
+- **What:** A project may have no music (`flex new <dir>` without `--music`; `project.ts` with no `music:`). It opens,
+  plays and renders like any other: picture, voice and sound effects, its scenes in film seconds. The timeline has no
+  waveform, bar grid or hits, playback runs on a timer, and the mix has no music stem.
+- **Limits:** Nothing snaps, and the commands that need a track (`flex music`, `grid`, `cuts`, `shift`, `duck`) say
+  "no music in this film" and stop ([making-a-film.md](../making-a-film.md), "A film without music").
+
 ## Finding the pipeline
 
 - **What:** Flex reads `project.ts`'s import of `…/fancy-e2e-videos/lib/project.ts`, resolved

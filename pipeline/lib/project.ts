@@ -1,9 +1,10 @@
 // A project: one film made of scenes, in its own folder (projects/<name>/):
-//   project.ts      default-exports defineProject({ … }) — the music, the look, the scenes in order
+//   project.ts      default-exports defineProject({ … }) — the music (optional), the look, the scenes in order
 //   look.ts         the project's look (defineLook, named after the folder)
 //   scenes/*.ts     each default-exports scene({ id, start, end, items }) — a slice of the SONG:
 //                   start/end are seconds in the track, so scenes are authored against the music's
-//                   hit map (NOTES.md) and line up end to end
+//                   hit map (NOTES.md) and line up end to end. A film without music (no `music:`, Flex patch 26)
+//                   has no track and no grid: start/end are plain film seconds, and nothing snaps
 //   journeys/*.ts   the project's takes (optional; capture them as projects/<name>/journeys/<take>)
 //
 //   npm run video <project>                     the whole film
@@ -14,7 +15,8 @@ import type { MusicRef } from "./audio.ts";
 
 export type Scene = { id: string; start: number; end: number; items: SeqItem[]; note?: string };
 /** out: a subfolder of the output folder for this project's films (e.g. "kinpay-circles"); see build.ts outDirFor */
-export type Project = { name: string; out?: string; feel: string; music: Exclude<MusicRef, false | undefined>; snap?: Sequence["snap"]; canvas?: Sequence["canvas"]; scenes: Scene[] };
+/** music: optional (Flex, patch 26): without it the film is picture, voice and sound effects, its scenes in film seconds */
+export type Project = { name: string; out?: string; feel: string; music?: Exclude<MusicRef, false | undefined>; snap?: Sequence["snap"]; canvas?: Sequence["canvas"]; scenes: Scene[] };
 
 export const scene = (s: Scene) => s;
 export const defineProject = (p: Project) => p;
@@ -34,6 +36,17 @@ export function toSequence(p: Project, sceneId?: string): Sequence {
     const ms = itemsMs(s);
     if (!Number.isNaN(ms) && Math.abs(ms / 1000 - (s.end - s.start)) > 0.04) console.warn(`  ! scene "${s.id}": its items last ${(ms / 1000).toFixed(2)}s but it spans ${s.start}–${s.end}s (${(s.end - s.start).toFixed(2)}s)`);
   });
+  // Flex (patch 26): a film without music: no track and no beat grid, so nothing snaps (snap is "off") and the mix has
+  // no music stem; scenes' start/end are plain film seconds
+  if (!p.music) {
+    if (p.snap && p.snap !== "off") console.warn(`  ! project ${p.name}: snap "${p.snap}" needs music, and this film has none: nothing snaps`);
+    p.scenes.forEach((s) => s.items.forEach((it, i) => { if ("bars" in it && it.bars) console.warn(`  ! scene "${s.id}" item ${i + 1}: bars need music, and this film has none: give it dur (ms) instead`); }));
+    const bare = { feel: p.feel, canvas: p.canvas ?? "feel", snap: "off", music: false } as const;
+    if (!sceneId) return { ...bare, name: p.name, items: p.scenes.flatMap((s) => s.items) };
+    const s = p.scenes.find((x) => x.id === sceneId);
+    if (!s) throw new Error(`project ${p.name}: no scene "${sceneId}" (scenes: ${p.scenes.map((x) => x.id).join(", ")})`);
+    return { ...bare, name: `${p.name}--${s.id}`, items: s.items, after: p.scenes[p.scenes.indexOf(s) + 1]?.items[0] ?? null };
+  }
   const key = typeof p.music === "string" ? p.music : p.music.key, from0 = typeof p.music === "string" ? 0 : p.music.from ?? 0;
   const base = { feel: p.feel, canvas: p.canvas ?? "feel", snap: p.snap ?? "off" } as const;
   if (sceneId) {

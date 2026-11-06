@@ -35,6 +35,7 @@ impl FilmGrid {
     /// With `music.tracks` the film can change songs at a join: each side's bars and beats come from its own song, and
     /// `beat` / `bpm` are the first track's.
     pub fn load(dir: &Path, music: &Music, duration: f64) -> Result<FilmGrid, ProjectError> {
+        if music.is_none() { return Err(ProjectError::NoMusic); } // a film without music has no grid
         let audio: serde_json::Value = std::fs::read_to_string(dir.join("audio.json")).ok().and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
         let segments = match &music.segments {

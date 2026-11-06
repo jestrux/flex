@@ -1,7 +1,8 @@
-//! `flex new <dir> --music <file>`: start a film project that opens, plays and renders at once. It has:
+//! `flex new <dir> [--music <file>]`: start a film project that opens, plays and renders at once. It has:
 //! - project.ts on a look;
-//! - the track, copied in and registered in audio.json;
-//! - one placeholder title scene over the song's first 8 s;
+//! - the track, copied in and registered in audio.json (without --music: no track, and audio.json has no music entry;
+//!   the film is picture, voice and sound effects, its scenes in film seconds);
+//! - one placeholder title scene over the first 8 s;
 //! - package.json / tsconfig.json;
 //! - an empty journeys/ folder;
 //! - a .gitignore for takes/ and .flex/ (the activity trail).
@@ -35,13 +36,15 @@ fn slug(s: &str) -> String {
     s.split('-').filter(|x| !x.is_empty()).collect::<Vec<_>>().join("-")
 }
 
-/// `stems`: where the stems came from (a folder or a zip next to the song), if any
-pub struct Created { pub dir: PathBuf, pub name: String, pub music_key: String, pub files: Vec<String>, pub stems: Option<PathBuf> }
+/// `music_key`: None for a film without music. `stems`: where the stems came from (a folder or a zip next to the song), if any
+pub struct Created { pub dir: PathBuf, pub name: String, pub music_key: Option<String>, pub files: Vec<String>, pub stems: Option<PathBuf> }
 
-pub fn create(dir: &Path, name: Option<&str>, music: &Path, feel: Option<&str>, licence: Option<&str>) -> Result<Created, ProjectError> {
+/// `music`: a song file or a song of Flex's library by its key; None makes a film without music.
+pub fn create(dir: &Path, name: Option<&str>, music: Option<&Path>, feel: Option<&str>, licence: Option<&str>) -> Result<Created, ProjectError> {
+    if dir.join("project.ts").exists() { return Err(ProjectError::Invalid(format!("{} already has a project.ts", dir.display()))); }
+    let Some(music) = music else { return create_silent(dir, name, feel) };
     let feel_given = feel.is_some();
     let feel = feel.unwrap_or("clean");
-    if dir.join("project.ts").exists() { return Err(ProjectError::Invalid(format!("{} already has a project.ts", dir.display()))); }
     // a song from Flex's library, by its key: used where it is (downloaded if needed), its licence and stems from the library
     let lib = if music.is_file() { None } else { crate::library::song(&music.to_string_lossy()) };
     if !music.is_file() && lib.is_none() { return Err(ProjectError::Invalid(format!("no music file at {}, and no song \"{}\" in Flex's library (flex library)", music.display(), music.display()))); }
@@ -102,7 +105,7 @@ export default scene({{
     put(".gitignore", "takes/\n.flex/\n".into())?;
     std::fs::create_dir_all(dir.join("journeys"))?;
     std::fs::create_dir_all(dir.join("audio"))?;
-    if lib.is_some() { return Ok(Created { dir, name, music_key: key, files, stems: lib_stems }); } // the library's own files, linked
+    if lib.is_some() { return Ok(Created { dir, name, music_key: Some(key), files, stems: lib_stems }); } // the library's own files, linked
     std::fs::copy(music, dir.join("audio").join(&track))?;
     files.push(format!("audio/{track}"));
     // stems beside the track, copied for analysis
@@ -121,7 +124,59 @@ export default scene({{
         }
         if let Some(t) = unpacked { let _ = std::fs::remove_dir_all(t); }
     }
-    Ok(Created { dir, name, music_key: key, files, stems })
+    Ok(Created { dir, name, music_key: Some(key), files, stems })
+}
+
+/// A film without music: project.ts with no `music:` (nothing snaps; scenes in film seconds), audio.json with sound
+/// effects only, no track and no stems.
+fn create_silent(dir: &Path, name: Option<&str>, feel: Option<&str>) -> Result<Created, ProjectError> {
+    let feel_given = feel.is_some();
+    let feel = feel.unwrap_or("clean");
+    std::fs::create_dir_all(dir)?;
+    let dir = std::fs::canonicalize(dir)?;
+    let name = name.map(String::from).unwrap_or_else(|| slug(&dir.file_name().unwrap_or_default().to_string_lossy()));
+    let up = relative(&dir, &pipeline_source());
+    let up_scenes = relative(&dir.join("scenes"), &pipeline_source());
+    let mut files = vec![];
+    let mut put = |rel: &str, body: String| -> Result<(), ProjectError> {
+        let p = dir.join(rel);
+        if let Some(d) = p.parent() { std::fs::create_dir_all(d)?; }
+        std::fs::write(&p, body)?;
+        files.push(rel.to_string());
+        Ok(())
+    };
+    let feel_note = if feel == "clean" && !feel_given { "a placeholder: the look is the film's call (a built-in feel: clean, modern, professional; or a project look, look.ts)" } else { "a built-in feel (clean, modern, professional), or a project look (look.ts)" };
+    put("project.ts", format!(r#"// {name}: made with Flex (flex new). The film: scenes in order, end to end, each start/end in film seconds.
+// No music: picture, voice and sound effects only, and nothing snaps to a beat. To add a song later, put it in audio.json
+// and add `music: {{ key: "<key>" }}` here (then flex music reads it for cutting).
+import {{ defineProject }} from "{up}/lib/project.ts";
+import opening from "./scenes/01-opening.ts";
+
+export default defineProject({{
+  name: "{name}",
+  feel: "{feel}", // {feel_note}
+  scenes: [opening],
+}});
+"#))?;
+    put("scenes/01-opening.ts", format!(r#"// A placeholder so the project opens and plays at once: a title over the film's first 8 s. Replace it.
+import {{ scene }} from "{up_scenes}/lib/project.ts";
+
+export default scene({{
+  id: "opening",
+  start: 0,
+  end: 8,
+  items: [{{ kind: "title", type: "title-opening", params: {{ title: "{name}", kicker: "Draft" }}, dur: 8000 }}],
+}});
+"#))?;
+    put("audio.json", serde_json::to_string_pretty(&serde_json::json!({
+        "_doc": "This project's audio: sound effects (key → file, relative to this folder). The film has no music; a track added here (music: { key: { file, licence } }) and named in project.ts gives it one.",
+        "sfx": {}
+    })).unwrap() + "\n")?;
+    put("package.json", format!("{{\n  \"private\": true,\n  \"type\": \"module\",\n  \"description\": \"{name}: a film project (Flex)\"\n}}\n"))?;
+    put("tsconfig.json", format!("{{\n  \"extends\": \"{up}/tsconfig.json\",\n  \"compilerOptions\": {{ \"types\": [\"node\"], \"typeRoots\": [\"{up}/node_modules/@types\"] }},\n  \"include\": [\"./**/*.ts\"],\n  \"exclude\": []\n}}\n"))?;
+    put(".gitignore", "takes/\n.flex/\n".into())?;
+    std::fs::create_dir_all(dir.join("journeys"))?;
+    Ok(Created { dir, name, music_key: None, files, stems: None })
 }
 
 /// The song's stems next to it: a `stems/` folder (Flex's library), else a folder or zip named after the song, as Suno

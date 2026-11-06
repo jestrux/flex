@@ -56,7 +56,9 @@ pub fn frame_in(p: &Value, at: &str) -> Result<u32> {
 pub fn describe(p: &Value) -> String {
     let ph = &p["playhead"];
     let render = p["rendering"].as_object().map(|r| format!(" · rendering {} {}/{}", r["what"].as_str().unwrap_or(""), r["done"], r["total"])).unwrap_or_default();
-    format!("{}  ·  {}  ·  playhead {:.2}s (frame {}, {})  ·  painted {}/{}{}{}",
+    // a film without music: the app says music null (an older app doesn't say)
+    let music = if p.get("music").is_some_and(|m| m.is_null()) { "  ·  no music" } else { "" };
+    format!("{}  ·  {}{music}  ·  playhead {:.2}s (frame {}, {})  ·  painted {}/{}{}{}",
         p["name"].as_str().unwrap_or("?"), p["dir"].as_str().unwrap_or(""), ph["t"].as_f64().unwrap_or(0.), ph["frame"], ph["scene"].as_str().unwrap_or("?"),
         p["painted"], p["total"], p["variants"].as_array().filter(|v| !v.is_empty()).map(|v| format!(" · variants {}", serde_json::to_string(v).unwrap_or_default())).unwrap_or_default(), render)
 }

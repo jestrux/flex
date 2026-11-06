@@ -266,13 +266,15 @@ enum Cmd {
         #[arg(long)]
         json: bool,
     },
-    /// Start a film project: project.ts, the track (and a stems/ folder beside it) in audio/, a placeholder scene
+    /// Start a film project: project.ts, the track (and a stems/ folder beside it) in audio/, a placeholder scene.
+    /// Without --music, a film with no music: picture, voice and sound effects, scenes in film seconds, nothing snaps
     New {
         dir: PathBuf,
         /// the song the film is cut to: a file (its stems next to it are copied too: stems/, "<song> Stems/" or "<song>
-        /// Stems.zip"), or a song from Flex's library by its key (flex library), used in place with its licence and stems
+        /// Stems.zip"), or a song from Flex's library by its key (flex library), used in place with its licence and stems.
+        /// Optional: leave it out for a film without music
         #[arg(long)]
-        music: PathBuf,
+        music: Option<PathBuf>,
         /// the film's name (default: the folder's)
         #[arg(long)]
         name: Option<String>,
@@ -882,10 +884,10 @@ fn run() -> Result<()> {
                 })).collect();
                 println!("{}", serde_json::to_string_pretty(&serde_json::json!({
                     "name": p.name, "dir": p.dir, "pipeline": p.pipeline, "duration": p.duration,
-                    "music": { "key": p.music.key, "file": p.music_file, "segments": p.music.segments }, "scenes": scenes,
+                    "music": if p.music.is_none() { serde_json::Value::Null } else { serde_json::json!({ "key": p.music.key, "file": p.music_file, "segments": p.music.segments }) }, "scenes": scenes,
                 }))?);
             } else {
-                println!("{}  {:.2}s  ·  {} scenes  ·  music {}", p.name, p.duration, p.scenes.len(), p.music.key);
+                println!("{}  {:.2}s  ·  {} scenes  ·  {}", p.name, p.duration, p.scenes.len(), if p.music.is_none() { "no music".to_string() } else { format!("music {}", p.music.key) });
                 println!("  pipeline  {}", p.pipeline.display());
                 if let Some(f) = &p.music_file { println!("  track     {}", f.strip_prefix(&p.dir).unwrap_or(f).display()); }
                 if let Some(s) = &p.music.segments { println!("  edit      {} stretches", s.len()); }
@@ -1087,9 +1089,15 @@ fn run() -> Result<()> {
             if checks.iter().any(|c| c.required && !c.ok) { exit(1); }
         }
         Cmd::New { dir, music, name, feel, licence } => {
-            let c = flex_core::new::create(&dir, name.as_deref(), &music, feel.as_deref(), licence.as_deref())?;
+            anyhow::ensure!(music.is_some() || licence.is_none(), "--licence is the song's: give --music too (a film without music has no song)");
+            let c = flex_core::new::create(&dir, name.as_deref(), music.as_deref(), feel.as_deref(), licence.as_deref())?;
             println!("{} → {}", c.name, c.dir.display());
             for f in &c.files { println!("  {f}"); }
+            if c.music_key.is_none() {
+                println!("no music: picture, voice and sound effects; scenes in film seconds, nothing snaps to a beat");
+                println!("next: flex open {0}  ·  flex render {0}  ·  the app: open the folder", dir.display());
+                return Ok(());
+            }
             match &c.stems {
                 Some(s) => println!("stems: from {}", s.display()),
                 None => println!("stems: none next to the song (looked for stems/, \"<song> Stems/\" and \"<song> Stems.zip\"); add them to audio/stems/ for flex music"),
@@ -1180,6 +1188,7 @@ fn run() -> Result<()> {
             if joins {
                 let dirc = std::fs::canonicalize(&dir)?;
                 let srv = flex_core::Server::start(&dirc)?;
+                if srv.manifest.music.is_none() { no_music(json, "no music edit to check"); return Ok(()); }
                 let js = flex_core::musicjoins::check(&dirc, &srv.manifest)?;
                 if json { println!("{}", serde_json::to_string_pretty(&js)?); return Ok(()); }
                 let lv = |s: &flex_core::musicjoins::Side| s.levels.iter().filter(|(_, l)| *l >= flex_core::musicjoins::PLAYS).map(|(n, l)| format!("{n} {l}")).collect::<Vec<_>>().join(", ");
@@ -1199,6 +1208,9 @@ fn run() -> Result<()> {
                 println!("{} join{}, {n} where two bass lines meet, {k} where the bar's \"1\" moves", js.len(), if js.len() == 1 { "" } else { "s" });
                 return Ok(());
             }
+            // a film without music has no track in audio.json to read (one added there can be read before project.ts names it)
+            let tracks: serde_json::Value = std::fs::read_to_string(dir.join("audio.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+            if key.is_none() && tracks["music"].as_object().is_none_or(|m| m.is_empty()) { no_music(json, "audio.json has no track to read"); return Ok(()); }
             let mut a: Vec<String> = key.into_iter().collect();
             if sheet { a.push("--sheet".into()); }
             if map { a.push("--map".into()); }
@@ -1264,6 +1276,7 @@ fn run() -> Result<()> {
                 let Some(s) = s else { return Ok(None) };
                 if let Some(x) = s.strip_suffix('s') { return Ok(Some(x.parse::<f64>().map_err(|_| anyhow::anyhow!("{s}: not a time"))?)); }
                 let p = Project::open(&dirc)?;
+                anyhow::ensure!(!p.music.is_none(), "{s}: give film seconds (12.5s); this film has no music, so no bar.beat");
                 let g = flex_core::filmgrid::FilmGrid::load(&p.dir, &p.music, p.duration)?;
                 g.parse_at(s).map(Some).ok_or_else(|| anyhow::anyhow!("{s}: seconds (12.5s) or a film bar.beat (15.2)"))
             };
@@ -1286,6 +1299,7 @@ fn run() -> Result<()> {
         Cmd::Cuts { dir, off, suggest, json } => {
             let dirc = std::fs::canonicalize(&dir)?;
             let srv = flex_core::Server::start(&dirc)?;
+            if srv.manifest.music.is_none() { no_music(json, "no beats to measure the cuts against"); return Ok(()); }
             if suggest {
                 let hits = flex_core::cuts::song_hits(&dirc, &srv.manifest)?;
                 anyhow::ensure!(!hits.is_empty(), "no song map for this film's music yet: run flex music <dir> <key> --map");
@@ -1325,7 +1339,15 @@ fn run() -> Result<()> {
             let dirc = std::fs::canonicalize(&dir)?;
             let srv = flex_core::Server::start(&dirc)?;
             let lines = flex_core::narration::check(&dirc, &srv)?;
-            if json { println!("{}", serde_json::to_string(&lines)?); } else {
+            if json { println!("{}", serde_json::to_string(&lines)?); } else if srv.manifest.music.is_none() {
+                // a film without music: the words in film seconds, no bar.beat
+                println!("no music in this film: words in film seconds, no bar.beat");
+                for l in &lines {
+                    println!("{:>7.2}s  “{}”", l.t, l.text);
+                    println!("          {}", l.words.iter().map(|w| format!("{}[{:.2}s]", w.word, w.t)).collect::<Vec<_>>().join(" "));
+                }
+                if lines.is_empty() { println!("(no narration)"); }
+            } else {
                 for l in &lines {
                     println!("{:>7.2}s  {:<9} “{}”{}", l.t, l.at, l.text, if l.over_singing.is_empty() { String::new() } else { format!("  ← over singing: {}", l.over_singing.join(" ")) });
                     println!("          {}", l.words.iter().map(|w| format!("{}[{} {:+}ms]", w.word, w.at, w.off_beat_ms)).collect::<Vec<_>>().join(" "));
@@ -1354,6 +1376,7 @@ fn run() -> Result<()> {
             if !st.success() { exit(st.code().unwrap_or(1)); }
         }
         Cmd::Duck { dir, json } => {
+            if Project::open(&dir)?.music.is_none() { no_music(json, "nothing ducks under the narration"); return Ok(()); }
             let st = flex_core::tools::duck(&dir, &if json { vec!["--json".into()] } else { vec![] })?.status()?;
             if !st.success() { exit(st.code().unwrap_or(1)); }
         }
@@ -1361,6 +1384,7 @@ fn run() -> Result<()> {
             let dirc = std::fs::canonicalize(&dir)?;
             let srv = flex_core::Server::start(&dirc)?;
             let m = &srv.manifest;
+            if m.music.is_none() { no_music(json, "no music edit or bars to shift (move the scenes' start/end, film seconds)"); return Ok(()); }
             let music = flex_core::Music { key: m.music.key.clone(), segments: m.music.segments.clone(), from: m.music.from, tracks: m.music.tracks.clone() };
             let g = flex_core::filmgrid::FilmGrid::load(&dirc, &music, m.duration)?;
             let t0 = if let Some(x) = at.strip_suffix('s') { x.parse::<f64>()? } else { g.parse_at(&at).ok_or_else(|| anyhow::anyhow!("{at}: film seconds (52.3s) or a film bar.beat (23.1)"))? };
@@ -1395,6 +1419,7 @@ fn run() -> Result<()> {
         }
         Cmd::Grid { dir, at, json } => {
             let p = Project::open(&dir)?;
+            if p.music.is_none() { no_music(json, "no beat grid (times are plain film seconds)"); return Ok(()); }
             let g = flex_core::filmgrid::FilmGrid::load(&p.dir, &p.music, p.duration)?;
             if let Some(a) = at {
                 let (film, song): (Vec<f64>, Option<f64>) = if let Some(x) = a.strip_prefix("song:") {
@@ -1621,7 +1646,15 @@ fn run() -> Result<()> {
     Ok(())
 }
 
+/// A film without music, asked for something that needs a track or its beat grid: one line saying so (JSON with --json),
+/// and the command ends there, successfully (nothing to do is not an error).
+fn no_music(json: bool, what: &str) {
+    if json { println!("{}", serde_json::json!({ "ok": true, "music": null, "note": format!("no music in this film: {what}") })); }
+    else { println!("no music in this film: {what}"); }
+}
+
 fn print_status(s: &Session, width: u32) {
+    if s.manifest().music.is_none() { println!("  no music"); }
     for (scene, e) in &s.errors { println!("  ✗ {scene}: {}", e.lines().next().unwrap_or("")); }
     for (id, n, total) in s.status(width) {
         let sc = s.manifest().scenes.iter().find(|x| x.id == id).unwrap();
@@ -1650,6 +1683,7 @@ fn film_at(dir: &std::path::Path, s: &str) -> Result<f64> {
     let s = s.trim();
     if let Some(x) = s.strip_suffix('s') { return x.parse::<f64>().map_err(|_| anyhow::anyhow!("{s}: not a time")); }
     let p = Project::open(dir)?;
+    anyhow::ensure!(!p.music.is_none(), "{s}: give film seconds (12.5s); this film has no music, so no bar.beat");
     let g = flex_core::filmgrid::FilmGrid::load(&p.dir, &p.music, p.duration)?;
     g.parse_at(s).ok_or_else(|| anyhow::anyhow!("{s}: film seconds (12.5s) or a film bar.beat (15.2)"))
 }

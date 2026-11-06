@@ -78,6 +78,6 @@ sketch, a narration line outside its beat. The sheet defaults to `storyboard.png
 
 - Panels are pictures: an SVG or a PNG/JPG. Flex doesn't animate within a panel; a beat's camera move is drawn in its
   sketch (an arrow, a dashed frame).
-- A beat placed in `bar.beat` needs the film grid (`flex music`). Without one, use seconds (`"12.5s"`). Past the grid's
+- A beat placed in `bar.beat` needs the film grid (`flex music`). Without one (or in a film without music), use seconds (`"12.5s"`). Past the grid's
   last bar, positions carry on at the track's tempo, four beats a bar.
 - The planned stretch has no sound of its own: the track ends where the film's music edit ends.

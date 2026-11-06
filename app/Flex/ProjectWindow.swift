@@ -8,6 +8,8 @@ import UniformTypeIdentifiers
 final class ProjectStore: ObservableObject {
     enum Phase { case loading, ready(ProjectInfo), failed(String) }
     @Published var phase: Phase = .loading
+    /// a film without music (project.ts has no `music:`): no track, waveform, grid or ducking
+    var noMusic: Bool { if case .ready(let p) = phase { return p.musicKey.isEmpty } else { return false } }
     @Published var snapshot: EngineSnapshot?
     @Published var selected: String?
     /// the project's markers (sections, bars, hits, the edit's joins), once loaded
@@ -260,6 +262,7 @@ final class ProjectStore: ObservableObject {
     }
 
     private func loadDuck() {
+        if noMusic { return } // nothing ducks
         duckLoading = true
         let e = engine
         Task.detached {
@@ -552,14 +555,17 @@ struct Transport: View {
                 .menuStyle(.borderlessButton).fixedSize().font(.caption)
                 .help("Which hits the ruler shows: the project's declared hits, or the song's (flex music): entries, or one stem's onsets, sized by strength")
             }
-            Toggle(isOn: $store.showDuck) { Label(store.duckLoading ? "Ducking…" : "Ducking", systemImage: "waveform.path.ecg") }
-                .toggleStyle(.button).controlSize(.small).font(.caption)
-                .help("Show how the music dips under each narration line (flex duck: it mixes the film, a few seconds)")
+            if !store.noMusic {
+                Toggle(isOn: $store.showDuck) { Label(store.duckLoading ? "Ducking…" : "Ducking", systemImage: "waveform.path.ecg") }
+                    .toggleStyle(.button).controlSize(.small).font(.caption)
+                    .help("Show how the music dips under each narration line (flex duck: it mixes the film, a few seconds)")
+            }
             if let n = store.notice { Text(n).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle) }
             Group {
                 if store.snapshot?.mixing == true { Label("mixing the sound…", systemImage: "waveform") }
-                else if let err = store.snapshot?.mixError { Label("music only: the mix failed", systemImage: "exclamationmark.triangle").help(err) }
-                else if player.sound == "mix" { Label("narration + music", systemImage: "waveform") }
+                else if let err = store.snapshot?.mixError { Label(store.noMusic ? "no sound: the mix failed" : "music only: the mix failed", systemImage: "exclamationmark.triangle").help(err) }
+                else if player.sound == "mix" { Label(store.noMusic ? "narration + sounds (no music)" : "narration + music", systemImage: "waveform") }
+                else if store.noMusic { Text("no music") }
                 else if !player.musicReady { Text("no sound") }
                 else { Label("music only", systemImage: "music.note") }
             }

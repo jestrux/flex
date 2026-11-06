@@ -95,6 +95,7 @@ fn status_of(e: &Engine) -> Value {
     let (painted, total) = st.scenes.iter().fold((0, 0), |(a, b), (_, p, t)| (a + p, b + t));
     json!({
         "dir": e.dir, "name": m.name, "fps": m.fps, "frames": m.frames, "duration": m.duration, "size": m.size,
+        "music": if m.music.is_none() { Value::Null } else { json!(m.music.key) },
         "playhead": { "frame": f, "t": f as f64 / m.fps as f64, "scene": m.scene_at(f).map(|x| x.id.clone()) },
         "loading": st.loading, "error": st.error, "painted": painted, "total": total, "variants": st.variants,
         "rendering": e.rendering().map(|(d, n, what)| json!({ "done": d, "total": n, "what": what })),

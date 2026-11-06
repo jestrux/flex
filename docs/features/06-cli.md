@@ -13,7 +13,8 @@ takes a project folder.
 
 | Command | Does |
 |---|---|
-| `flex open <dir> [--json]` | The film's outline: scenes, their times, items and files, the music and its edit |
+| `flex new <dir> [--music <song>]` | Start a project; without `--music`, a film with no music (no track, no grid, scenes in film seconds) |
+| `flex open <dir> [--json]` | The film's outline: scenes, their times, items and files, the music and its edit (or "no music") |
 | `flex frame <dir> <frame\|12.5s> -o x.png [--width 960]` | Paint one frame |
 | `flex warm <dir> [--scene id] [--width 960]` | Paint every frame (or a scene's) into the cache, on all cores |
 | `flex status [<dir>] [--json]` | With the app running: the projects it has open, the author's playhead (time, frame, scene), what's painted, any render running. Without it: how much of each scene is painted, and scenes that didn't draw |
@@ -55,4 +56,8 @@ pipeline (Chromium, sharp).
 enough to read), `flex music --joins` (joins heard through the stems) and `--map` (the song map beside the song), `flex
 cuts --suggest` (the song's hits against the scene changes), `flex compare` (a variant's sound under one picture) and
 `flex clips` (a scene-by-scene review page). `flex frame` prints the scene code's warnings.
+
+In a film without music, the commands that need a track or its grid (`flex music`, `music --joins`, `grid`, `cuts`,
+`cuts --suggest`, `shift`, `duck`) print one line, "no music in this film: …" (with `--json`, `{"ok": true, "music":
+null, "note": …}`), and exit 0. `flex narration` prints the words in film seconds, without bar.beat.
 

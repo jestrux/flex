@@ -54,7 +54,8 @@ plan's length.
   clock, under the scenes.
 - **State:** Decoded once by `ffmpeg` (mono, 8 kHz) and cached as peaks in
   `~/Library/Application Support/Flex/waveform/`, keyed by the file, its size and date, and the edit.
-- **Limits:** The music only, not the full mix. Needs `ffmpeg` on the login PATH.
+- **Limits:** The music only, not the full mix. Needs `ffmpeg` on the login PATH. A film without music has no
+  waveform (and no bar grid or hits): the lane is empty.
 
 ## The join check
 

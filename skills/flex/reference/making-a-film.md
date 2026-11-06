@@ -57,7 +57,8 @@ which selectors find each control. A film doesn't run those tests; it records **
 them: the tests' seating (cookies, a login), selectors and data setup reused, their assertions left out, and every step
 timed to the music with the capture API (`lib/capture.ts` in Flex's pipeline copy). Put the film project beside the
 e2e folder, not inside it. Before recording, settle with the author the song, the audience, the flows and their order,
-and the length; plan them as a script on the song's bars; and check each user's view with `flex walk`. The worked
+and the length (or that the film has no music); plan them as a script on the song's bars (in film seconds without
+music); and check each user's view with `flex walk`. The worked
 example ships with Flex's agent skill: `skills/flex/examples/app-walkthrough` (a persona's login, a journey on the beat,
 the take's scene, cards).
 
@@ -66,6 +67,7 @@ the take's scene, cards).
 ```sh
 flex new <dir> --music <song.mp3> [--name <film>] [--feel clean|modern|professional]
 flex library                     # or one of Flex's own tracks and songs: tempo, length, mood, licence (music: { key } in project.ts)
+flex new <dir> [--name <film>]   # a film without music (below)
 ```
 
 This creates:
@@ -77,9 +79,25 @@ This creates:
 It opens and plays at once. Films land in `~/Downloads/flex-videos/<film>/`. To share a look with another film, import
 its pieces (see Composite films, below).
 
+**A film without music.** Music is optional: `flex new <dir>` with no `--music` writes a `project.ts` with no `music:`
+and an `audio.json` with no music entry (no track, no stems). The film is picture, voice and sound effects; its mix has
+no music stem (silence where nothing speaks or sounds), and its credits name no song. What changes:
+- **No grid.** Scene `start`/`end` are plain film seconds, and positions in the script are seconds (`"31.4s"`), not
+  bar.beat. Items take `dur` (ms), not `bars`; offsets like `"mark+2bars"` don't work.
+- **No snap.** `snap` is off (a `snap: "bar"` or `"beat"` is ignored, with a warning); joins sit where the items' lengths
+  put them.
+- **No music tools.** `flex music`, `flex grid`, `flex cuts` (and `--suggest`), `flex music --joins`, `flex shift` and
+  `flex duck` say "no music in this film: …" and stop (exit 0). `flex narration` lists each word in film seconds,
+  without bar.beat. `flex open` and `flex status` say "no music". `flex render`, `flex mix`, `flex frame`,
+  `flex accept` and `flex reading` work as for any film. Journeys still keep time with `c.beat(bpm, …)`: that tempo is
+  the take's own.
+- **Adding a song later:** register it in `audio.json` (`music: { <key>: { file, licence } }`), read it with
+  `flex music <dir> <key>`, then name it in `project.ts` (`music: { key: "<key>" }`) and move the scenes onto its
+  seconds.
+
 ## Finding the song
 
-The film is cut to its song, so the song comes first. Settle it with the author before planning; it's their choice and
+A film with music is cut to its song, so the song comes first. Settle it with the author before planning; it's their choice and
 their licence. Three ways:
 
 - **Their own file.** `flex new <dir> --music <file>`.
@@ -122,7 +140,7 @@ This gives:
 The words are what Whisper heard, sung line by sung line. Reading them (a brand word misheard, the hooks, which line
 lands where) is the film's own work. `--lyrics` downloads the Whisper model the first time (~1.6 GB). It writes
 `<track>.grid.json` (the pipeline snaps to it), `.music.json` and `.lyrics.json` beside the track. Time scenes and hits
-against this; scene `start`/`end` are song seconds. `flex music <dir> --at 15.2` (bar.beat → seconds) or `--at 33.9s`
+against this; scene `start`/`end` are song seconds (film seconds in a film without music). `flex music <dir> --at 15.2` (bar.beat → seconds) or `--at 33.9s`
 (seconds → bar.beat) converts on the grid.
 
 Any audio, any stretch, word by word: `flex transcribe <file> [--from 33 --to 43] [--json]` (local Whisper). A stem or the

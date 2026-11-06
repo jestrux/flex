@@ -67,7 +67,7 @@ pub struct SceneInfo {
     pub items: Vec<ItemInfo>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct MusicInfo {
     pub key: String,
     pub segments: Option<Vec<[f64; 2]>>,
@@ -85,6 +85,8 @@ pub struct Manifest {
     pub fps: u32,
     pub frames: u32,
     pub duration: f64,
+    /// a film without music: the server says null, read as an empty key (MusicInfo::is_none)
+    #[serde(default, deserialize_with = "music_or_none")]
     pub music: MusicInfo,
     pub scenes: Vec<SceneInfo>,
     #[serde(default)]
@@ -104,6 +106,15 @@ pub struct Manifest {
 }
 
 fn landscape() -> [u32; 2] { [1920, 1080] }
+
+fn music_or_none<'de, D: serde::Deserializer<'de>>(d: D) -> Result<MusicInfo, D::Error> {
+    Ok(Option::<MusicInfo>::deserialize(d)?.unwrap_or_default())
+}
+
+impl MusicInfo {
+    /// a film without music (project.ts has no `music:`)
+    pub fn is_none(&self) -> bool { self.key.is_empty() && self.tracks.as_ref().is_none_or(|t| t.is_empty()) }
+}
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Markers {
