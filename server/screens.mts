@@ -50,7 +50,7 @@ if (!inputs.length) fail("name a screens.json or URLs: flex screens <screens.jso
 type Status = "light" | "dark";
 type Screen = { name: string; url: string; path?: string; status?: Status | Record<string, Status>; devices?: string[] };
 type Axis = { name: string; label: string; toggle?: boolean; params?: Record<string, string>; options?: { name: string; label: string; params?: Record<string, string> }[] };
-type Entry = { name: string; label?: string; defaultLabel?: string; axes?: { name: string; label: string; toggle: boolean; options: { name: string; label: string }[] }[]; states: { name: string; label: string }[] };
+type Entry = { name: string; label?: string; defaultLabel?: string; group?: string; axes?: { name: string; label: string; toggle: boolean; options: { name: string; label: string }[] }[]; states: { name: string; label: string }[] };
 const index: Entry[] = [];
 let numberFrom = 1;
 let base = opt("--base"), devKeys: string[] | undefined, label = "web";
@@ -76,7 +76,7 @@ for (const a of inputs) {
     if (s.name.includes("@")) fail(`${a}: "${s.name}": a screen's name can't contain @ (it separates a screen from its states)`);
     if (!okStatus(s.status)) fail(`${a}: "${s.name}" status is light, dark, or { device: light|dark }`);
     screens.push({ name: s.name, status: s.status, devices: s.devices, url: url(s.path), path: s.path });
-    const entry: Entry = { name: s.name, label: s.label, defaultLabel: s.defaultLabel, states: [] };
+    const entry: Entry = { name: s.name, label: s.label, defaultLabel: s.defaultLabel, states: [], ...(s.group ? { group: s.group } : {}) };
     for (const st of s.states ?? []) {
       // a state without a path of its own opens at its screen's (its setup, storage or actions make it the state)
       if (!st.name) fail(`${a}: every state of "${s.name}" needs a name`);

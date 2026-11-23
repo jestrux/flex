@@ -102,7 +102,7 @@ const HOME = process.env.FLEX_REVIEW_CWD ?? process.cwd();
 const KNOWN = {
   project: "name project logo base devices flows port ready environments staging env order people setup proxies signinParam signoutParam clock clockTicks",
   flow: "title label base devices logo project screens person people publish setup storage actions numberFrom themes description clock clockTicks",
-  screen: "name label path url description states axes status devices defaultLabel tester signal person people setup storage actions clock clockTicks expect",
+  screen: "name label path url description states axes status devices defaultLabel tester signal person people setup storage actions clock clockTicks expect use",
   state: "name label path url description status devices tester signal person people setup storage actions params clock clockTicks expect" };
 const warned = new Set<string>();
 function unknownFields(file: string, kind: keyof typeof KNOWN, o: any, where = "") {
@@ -113,6 +113,48 @@ function unknownFields(file: string, kind: keyof typeof KNOWN, o: any, where = "
     if (!warned.has(w)) { warned.add(w); console.error(`!! ${basename(file)}: unknown field "${k}"${where ? ` in ${where}` : ""} (ignored; a typo, or a newer Flex's?)`); }
   }
 }
+/* ── "use": a flow that shows another flow's screens instead of copying them ──
+   A screen entry { "use": "account" } brings in every screen of account.json (beside this flow), with its states,
+   tagged with that flow's title as their "group": the board shows them as ONE item of this flow, a tile like a
+   screen's, that opens on those screens the way a screen opens on its states; { "use":
+   "account/nida" } brings one of its screens as it is. Either may take its own "label" (a whole flow's: its group's). They come with their states, and with what their
+   own flow set for all its screens (person, people, setup, storage, actions, clock) unless they set it themselves, so
+   they run exactly as they do at home. Uses can nest; a loop or a name used twice is an error. */
+const FROM_FLOW = ["person", "people", "setup", "storage", "actions", "clock", "clockTicks"];
+function readFlow(file: string, seen: string[] = []): any {
+  const j = JSON.parse(readFileSync(file, "utf8"));
+  if (!Array.isArray(j?.screens)) return j;
+  const here = [...seen, resolve(file)], out: any[] = [];
+  for (const s of j.screens) {
+    if (!s || typeof s.use !== "string") { out.push(s); continue; }
+    const [flow, screen] = s.use.split("/"), src = join(dirname(file), flow + ".json");
+    if (!existsSync(src)) throw new Error(`${basename(file)}: "use": "${s.use}": no flow ${flow}.json beside it`);
+    if (here.includes(resolve(src))) throw new Error(`${basename(file)}: "use": "${s.use}" loops back to ${basename(src)}`);
+    const u = readFlow(src, here);
+    const inherit = (x: any) => ({ ...Object.fromEntries(FROM_FLOW.filter((k) => k in u && !(k in x)).map((k) => [k, u[k]])), ...x });
+    if (screen) {
+      const x = (u.screens ?? []).find((y: any) => y.name === screen);
+      if (!x) throw new Error(`${basename(file)}: "use": "${s.use}": ${flow} has no screen "${screen}"`);
+      out.push({ ...inherit(x), ...(s.label ? { label: s.label } : {}) });
+    } else for (const x of u.screens ?? []) out.push({ ...inherit(x), group: s.label ?? u.title ?? flow });
+  }
+  const names = new Set<string>();
+  for (const x of out) { if (names.has(x?.name)) throw new Error(`${basename(file)}: two screens named "${x.name}" (one of them from a "use")`); names.add(x?.name); }
+  return { ...j, screens: out };
+}
+/** how many items a flow shows: its screens, a used flow's (its "group") counting once, as the board draws it */
+const items = (screens: any[]) => screens.filter((s, i) => !s?.group || screens[i - 1]?.group !== s.group).length;
+/** every flow file a flow reads through its uses, itself first (for "has it changed?") */
+function flowFiles(file: string, seen: string[] = []): string[] {
+  let j: any; try { j = JSON.parse(readFileSync(file, "utf8")); } catch { return [file]; }
+  const here = [...seen, resolve(file)], files = [file];
+  for (const s of j?.screens ?? []) if (s && typeof s.use === "string") {
+    const src = join(dirname(file), s.use.split("/")[0] + ".json");
+    if (existsSync(src) && !here.includes(resolve(src))) files.push(...flowFiles(src, here));
+  }
+  return files;
+}
+const flowStamp = (file: string) => flowFiles(file).map(mtime).join(",");
 function flowFields(file: string) {
   let j: any; try { j = JSON.parse(readFileSync(file, "utf8")); } catch { return; }
   unknownFields(file, "flow", j);
@@ -157,7 +199,7 @@ if (inputs[0] === "wait") {
   }
   const dir = dirname(file);
   let labels: Record<string, string> = {};
-  try { labels = Object.fromEntries((JSON.parse(readFileSync(flowFileOf(file), "utf8")).screens ?? []).map((s: any) => [s.name, s.label ?? s.name])); } catch { /* no flow beside it */ }
+  try { labels = Object.fromEntries((readFlow(flowFileOf(file)).screens ?? []).map((s: any) => [s.name, s.label ?? s.name])); } catch { /* no flow beside it */ }
   const notes = doc!.notes.filter((n) => round!.notes.includes(n.id)).map((n) => ({
     ...n, label: labels[n.screen] ?? n.screen, screenshot: n.screenshot ? join(dir, n.screenshot) : null, crop: n.crop ? join(dir, n.crop) : null }));
   out(JSON.stringify({ flow: doc!.flow, notesFile: file, round: round.round, sentAt: round.sentAt, notes }, null, 2));
@@ -193,7 +235,7 @@ const proj = (): Project | null => {
 };
 const asFlow = (file: string): Flow | null => {
   let j: any;
-  try { j = JSON.parse(readFileSync(file, "utf8")); } catch { return null; }
+  try { j = readFlow(file); } catch (e) { console.error(`!! ${(e as Error).message}`); return null; }
   if (!Array.isArray(j?.screens)) return null;
   const P = proj(), base = (opt("--base") ?? j.base ?? P?.base)?.replace(/\/$/, "");
   // the product's logo for the page's top bar: the flow's "logo" (beside it), else a logo.svg or logo.png beside the
@@ -227,7 +269,7 @@ const BOOT = `${process.pid}-${Date.now()}`;
 const versions = new Map<string, string>();
 function build(f: Flow): string {
   const page = join(WORK, "f", f.name, "index.html");
-  const at = [f.file, f.logo, P && join(P.dir, "project.json"), join(HERE, "review.mts"), join(HERE, "mockup.mts")].map(mtime).join("|");
+  const at = [flowStamp(f.file), ...[f.logo, P && join(P.dir, "project.json"), join(HERE, "review.mts"), join(HERE, "mockup.mts")].map(mtime)].join("|");
   if (built.get(f.name) === at && existsSync(page)) return page;
   const idx = join(WORK, "index", f.name);
   flowFields(f.file);
@@ -235,7 +277,11 @@ function build(f: Flow): string {
     const r = spawnSync(tsx, [join(HERE, script), ...args], { cwd: PIPE, env: process.env, encoding: "utf8" });
     if (r.status !== 0) throw new Error(`${script}: ${(r.stderr || r.stdout).trim()}`);
   };
-  run("screens.mts", [f.file, "-o", idx, "--index-only", "--base", f.base, ...(!f.own && f.devices ? ["--device", f.devices.join(",")] : [])]);
+  // screens.mts reads the flow with its uses expanded (a copy, named as the flow so its labels read the same)
+  const expanded = join(WORK, "flows", basename(f.file));
+  mkdirSync(dirname(expanded), { recursive: true });
+  writeFileSync(expanded, JSON.stringify(readFlow(f.file)));
+  run("screens.mts", [expanded, "-o", idx, "--index-only", "--base", f.base, ...(!f.own && f.devices ? ["--device", f.devices.join(",")] : [])]);
   const pj = proj();
   run("mockup.mts", [idx, "--canvas", "/", "-o", dirname(page), "--notes", f.name, "--title", f.label, ...(f.logo ? ["--logo", f.logo] : []), ...(pj?.name ? ["--product", pj.name] : [])]);
   indexes.set(f.name, JSON.parse(readFileSync(join(idx, "index.json"), "utf8")));
@@ -282,10 +328,10 @@ const variantOf = (qs: URLSearchParams) => `${envOf(qs.get("mode")) ? qs.get("mo
 type Person = { person: string | null; people: string[]; fixed: boolean };
 const peopleCache = new Map<string, { at: number; map: Map<string, Person> }>();
 function personInfo(f: Flow): Map<string, Person> {
-  const at = mtime(f.file), had = peopleCache.get(f.name);
+  const at = flowStamp(f.file), had = peopleCache.get(f.name);
   if (had && had.at === at && indexes.has(f.name)) return had.map;
   const map = new Map<string, Person>(), links = indexes.get(f.name)?.links ?? {};
-  let j: any; try { j = JSON.parse(readFileSync(f.file, "utf8")); } catch { return map; }
+  let j: any; try { j = readFlow(f.file); } catch { return map; }
   // a screen or state signed out of its own ("person": null) offers no one unless it lists people itself
   const pick = (o: any, up: { person: string | null; people: string[] }) => ({ person: "person" in o ? o.person ?? null : up.person,
     people: Array.isArray(o.people) ? o.people : "person" in o && o.person == null ? [] : up.people });
@@ -309,7 +355,7 @@ const personFix = (f: Flow, name: string, variant: string) => {
 const sigFix = (f: Flow, name: string, variant: string) => personFix(f, name, signalOff(f).has(name) ? variant.replace(/\.s1(\.|$)/, ".s0$1") : variant);
 /** the page's people: the project's, each frame's (default, offered, fixed) and the flow's own default and list */
 function peopleJson(f: Flow): string {
-  let j: any = {}; try { j = JSON.parse(readFileSync(f.file, "utf8")); } catch { /* broken */ }
+  let j: any = {}; try { j = readFlow(f.file); } catch { /* broken */ }
   return JSON.stringify({ all: proj()?.people ?? {}, frames: Object.fromEntries(personInfo(f)), flow: { person: j.person ?? null, people: Array.isArray(j.people) ? j.people : [] } }).replace(/</g, "\\u003c");
 }
 /** this server, for the captures that go through it (environments) */
@@ -610,7 +656,7 @@ function viewFrames(f: Flow, all: boolean): { n: string; d: string; theme: strin
 /** the flow's screens and states marked with a field (a screen's states with it): "tester": true, "signal": false */
 function marked(f: Flow, on: (x: any) => boolean): string[] {
   let j: any;
-  try { j = JSON.parse(readFileSync(f.file, "utf8")); } catch { return []; }
+  try { j = readFlow(f.file); } catch { return []; }
   const links = Object.keys(indexes.get(f.name)?.links ?? {});
   return (j.screens ?? []).flatMap((s: any) => on(s) ? links.filter((n) => n === s.name || n.startsWith(s.name + "@"))
     : (s.states ?? []).filter(on).map((st: any) => `${s.name}@${st.name}`));
@@ -619,7 +665,7 @@ const testerNames = (f: Flow) => marked(f, (x) => x.tester === true);
 const sigCache = new Map<string, { at: number; set: Set<string> }>();
 /** the "signal": false screens and states: always captured offline */
 function signalOff(f: Flow): Set<string> {
-  const at = mtime(f.file), had = sigCache.get(f.name);
+  const at = flowStamp(f.file), had = sigCache.get(f.name);
   if (had && had.at === at && indexes.has(f.name)) return had.set;
   const set = new Set(marked(f, (x) => x.signal === false));
   sigCache.set(f.name, { at, set });
@@ -629,11 +675,11 @@ const expCache = new Map<string, { at: number; map: Map<string, string> }>();
 /** a frame's "expect" (a selector, or text=…; a state's over its screen's): what must be on its page once loaded and
  *  its actions done, else its capture is flagged "data moved?" */
 function expectOf(f: Flow, name: string): string | null {
-  const at = mtime(f.file), had = expCache.get(f.name);
+  const at = flowStamp(f.file), had = expCache.get(f.name);
   let map = had && had.at === at ? had.map : null;
   if (!map) {
     map = new Map();
-    let j: any; try { j = JSON.parse(readFileSync(f.file, "utf8")); } catch { j = {}; }
+    let j: any; try { j = readFlow(f.file); } catch { j = {}; }
     const ok = (v: unknown) => typeof v === "string" && v.trim() ? v : null;
     for (const s of j.screens ?? []) {
       if (ok(s?.expect)) map.set(s.name, s.expect);
@@ -685,10 +731,10 @@ type FrameSetup = { args: Record<string, string> | null; storage: { localStorage
 const setupMaps = new Map<string, { at: number; map: Map<string, FrameSetup> }>();
 /** each frozen name's setup: its command's args and its declared storage (a name absent: the frame has neither) */
 function setupOf(f: Flow): Map<string, FrameSetup> {
-  const at = mtime(f.file), had = setupMaps.get(f.name);
+  const at = flowStamp(f.file), had = setupMaps.get(f.name);
   if (had && had.at === at && indexes.has(f.name)) return had.map;
   const map = new Map<string, FrameSetup>(), links = indexes.get(f.name)?.links ?? {};
-  let j: any; try { j = JSON.parse(readFileSync(f.file, "utf8")); } catch { return map; }
+  let j: any; try { j = readFlow(f.file); } catch { return map; }
   // a value: a string as it is, anything else as JSON; null: the key is the frame's own and empty (the app finds none)
   const strs = (o: any): Record<string, string | null> => (o && typeof o === "object" && !Array.isArray(o) ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v === null || typeof v === "string" ? v : JSON.stringify(v)])) : {});
   const isObj = (v: any) => v && typeof v === "object" && !Array.isArray(v);
@@ -986,7 +1032,7 @@ function homeData(qs: URLSearchParams) {
     const labels = Object.fromEntries((idx.screens ?? []).map((s) => [s.name, s.label ?? s.name]));
     const open = (doc?.notes ?? []).filter((n) => !n.resolved);
     const last = doc?.rounds.length ? doc.rounds[doc.rounds.length - 1] : null;
-    return { ...base, screens: idx.screens ? shown.length : null, open: open.length, lastRound: last ? { round: last.round, sentAt: last.sentAt } : null,
+    return { ...base, screens: idx.screens ? items(shown) : null, open: open.length, lastRound: last ? { round: last.round, sentAt: last.sentAt } : null,
       unsent: (doc?.notes ?? []).some((n) => n.round == null || n.replies.some((r) => r.by === "author" && r.round === null)),
       notes: open.map((n) => ({ id: n.id, n: n.n, text: n.text, label: labels[n.screen] ?? n.screen })),
       cover: first && device ? snapshot(f, first, device, theme, lang, 1, variant).url : null };
@@ -1206,7 +1252,7 @@ const server = createServer(async (rq, rs) => {
     // the canvas's list picker: every flow (it shows only for more than one)
     if (q.endsWith("/lists.json")) return json(rs, 200, flows().map((f) => {
       let screens: number | null = null, open = 0;
-      try { screens = JSON.parse(readFileSync(f.file, "utf8")).screens.length; } catch { /* mid-edit */ }
+      try { screens = items(readFlow(f.file).screens); } catch { /* mid-edit */ }
       try { open = readDoc(notesFileOf(f.file)).doc.notes.filter((n) => !n.resolved).length; } catch { /* mid-write */ }
       return { href: `${R}/f/${f.name}/`, title: f.label, screens, open };
     }));
@@ -1329,7 +1375,7 @@ async function exportSite(outArg: string) {
   const vOf = (c: Combo) => sigFix(c.f, c.n, `static.t${c.t}.s${c.s}.p-default`);
   /** a flow's publish set: --capture-set, else its "publish" ("all"), else the default */
   const setOf = (f: Flow, idx: { themes?: string[] }): Set_ => {
-    let pub: unknown; try { pub = JSON.parse(readFileSync(f.file, "utf8")).publish; } catch { /* broken */ }
+    let pub: unknown; try { pub = readFlow(f.file).publish; } catch { /* broken */ }
     const all = (opt("--capture-set") ?? (pub === "all" ? "all" : "default")) === "all";
     return all ? { themes: idx.themes ?? ["light", "dark"], langs: ["en", "sw"], signals: [1, 0] } : { themes: ["light"], langs: ["en"], signals: [1] };
   };

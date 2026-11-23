@@ -110,7 +110,8 @@ states (not a film). The app must run in a browser: a web app, or a React Native
    session the file list; it commits. Ignore `.flex/cache/` and `.flex/flows/*.notes/`.
 3. **Describe the product** in `.flex/project.json` (name, base, devices, people, ready, setup) and **write the flows**
    in `.flex/flows/<flow>.json`: screens in the person's path, states in the record's life. A different person is never
-   a state.
+   a state. A step several flows share is written once and pulled in with `{ "use": "<flow>" }` (one item, opened like a screen onto its
+   screens and their states) or `{ "use": "<flow>/<screen>" }`, never copied.
 4. **Safety:** setup runs only with `--allow-setup`, so the author approves its writes first. Seed once out of band,
    throwaway users only; links and actions read-only, never a reset or a submit. `flex review resnap` after any re-seed.
 5. **Check every frame lands** on every device, as each person listed: `flex review resnap <flow> --allow-setup`, then

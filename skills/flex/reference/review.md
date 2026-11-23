@@ -238,6 +238,7 @@ One file per flow, `.flex/flows/<flow>.json`. Thrive's `learning.json`, trimmed:
 | `tester` | screen, state | `true`: shown only with View › Tester tools |
 | `signal` | screen, state | `false`: always offline (`offline=1`) |
 | `publish` | flow | `"all"`: export every theme, language and signal |
+| `use` | screen entry | `"account"`: all of `account.json` as one item of this flow, shown and opened like a screen (its tile opens on its screens, each with its states); `"account/register"`: one of its screens as it is. Either may take its own `label` (a whole flow's: the item's title) |
 
 Rules:
 
@@ -253,6 +254,15 @@ Rules:
   `signinParam`/`signoutParam`); a link that already has one is fixed to it.
 - **Hash or modal routes:** URL-encode `#` and `?` inside a `to=` value (`to=%2Fboard%23card-12`), or the browser
   eats them.
+- **A step that belongs to several flows is written once and used** (`{ "use": "account" }`), never copied: an
+  account prompt between an invite and a form, a shared checkout. A whole flow used is one item in the host, behaving
+  exactly like a screen: one tile on the canvas ("Account prompt · 2 screens", its first screen's picture), and
+  opening it shows its screens (02.1 Sign in, 02.2 Register) the way a screen opens on its states; each of those
+  opens on its own states. Joining reads Invite link → Account prompt → Join the visit. The
+  used screens bring their own flow's `person`,
+  `people`, `setup`, `storage`, `actions` and `clock` unless they set their own, so they run exactly as at home, and
+  editing the home flow updates every flow that uses it. Uses can nest; a loop, a missing flow or screen, or two
+  screens of one name is an error. **Notes stay with the flow they were left in** (the host), not the used screen's.
 - `"publish": "all"` only on a flow the author has reviewed: it multiplies snapshots by themes × languages × signal.
 - Cross-reference in `_doc` which flow carries what this one leaves out.
 
@@ -275,6 +285,22 @@ flex review .flex/flows/learning.json --port 4877 --base http://localhost:3010
   a scratchpad), never from a folder another session works in, or you drive its browser and pages jump on both sides.
 - A static build: **swap it in whole; never empty the served folder.** A capture that hits a half-written folder snaps
   the 404 page.
+
+## On the board
+
+What the author does there, so you can tell them:
+
+- **Pickers** (flow, screen, state; list or grid) say how many each holds: a flow's screens, a screen's states. The
+  canvas says it under each screen too.
+- **Opening** a flow lands on all its screens (on its one screen when it has one); opening a screen lands on all its
+  states (on its one state when it has none). The pickers, the canvas, the keys and a rollover all open the same way.
+- **← / →** move at the level shown: all screens → between flows; one screen → through the flow's screens; one state →
+  through the screen's states. A used flow is one stop among the screens; opened, ← / → move through its screens and
+  roll on out of it. **Esc** steps back up one level (a state → its screen's states → the used flow → all screens). Past either end they roll into the next item one level up (the next screen's states,
+  the next flow's screens), and past the last flow they wrap to the first. ↑ / ↓ step a screen's states.
+- **Shift-click** a frame leaves a note at that point. **Holding ⌥** shows a "Click to copy" overlay on the screen
+  under the pointer; **⌥-click** copies its snapshot to the clipboard ("Copied <screen> · <state>", with a thumbnail).
+  The app in the frame sees neither click.
 
 ## On a deck slide
 

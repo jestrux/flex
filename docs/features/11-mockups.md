@@ -50,6 +50,12 @@ laptop sidebar. Serve it with `python3 -m http.server 8102 -d samples/screens`.
 - **What:** `review.html` beside the PNGs: a canvas of every screen, grouped by device or by screen, with zoom and pan.
   Pick one screen to see its states, one at a time or all together, on the devices you choose, light or dark.
 - **Live or render:** a single screen shows its frozen page running in the frame (Live) or the PNG (Render).
+- **Counts:** the screen picker (list or grid) and the canvas say how many states each screen has; a flow review's flow
+  picker says how many screens each flow has.
+- **Opening a screen** lands on all its states (a screen without states, on itself), whether from a picker, the canvas
+  or the keys.
+- **← / →** move at the level shown: all screens → between lists (a flow review's flows); one screen → its list's
+  screens; one state → its screen's states. Past an end they roll into the next item up, and wrap at the last list.
 - **Device selection** works as in Finder: a click picks one device, Shift-click a range, ⌘-click adds or removes one.
 
 ![One screen, its "No trails yet" state, on a phone and a laptop](../media/mockups-live.png)

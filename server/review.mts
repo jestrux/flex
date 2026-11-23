@@ -81,7 +81,7 @@ aside{width:320px;flex:none;background:var(--panel);border-right:1px solid var(-
 .plist.g .pi div{text-align:center}
 .pnone{color:var(--sub);padding:16px;text-align:center}
 .pi img{width:40px;height:66px;object-fit:cover;object-position:top;border-radius:6px;background:var(--soft);flex:none}
-.pi b{display:block;font-size:13.5px}
+.pi b{display:block;font-size:13.5px}.pi .psub{display:block;color:var(--sub);font-size:12px;font-weight:500;margin-top:1px}
 main{flex:1;position:relative;height:100vh;overflow:auto;background-color:var(--canvas);background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);background-size:18px 18px}
 .bar{position:fixed;top:14px;left:calc(320px + (100vw - 320px) / 2);transform:translateX(-50%);z-index:3;width:max-content;display:flex;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px 6px;box-shadow:0 4px 14px rgba(0,0,0,.06)}
 .bar b{padding:0 8px;font-size:13px}.bar .zv{min-width:52px;text-align:center;font-variant-numeric:tabular-nums;font-family:ui-monospace,Menlo,monospace;font-size:12px}.bar button{border:0;background:transparent;border-radius:7px;padding:5px 9px;color:var(--sub);font-weight:700}
@@ -89,7 +89,7 @@ main{flex:1;position:relative;height:100vh;overflow:auto;background-color:var(--
 .stage{min-height:100vh;display:flex;align-items:safe center;justify-content:safe center;padding:84px 40px 72px}
 .one{display:flex;flex-direction:column;align-items:center;gap:10px}
 .cap{font-size:12.5px;color:var(--ink);font-weight:700;text-align:center;line-height:1.35}.cap span{display:block;color:var(--sub);font-weight:500;font-family:ui-monospace,Menlo,monospace;font-size:11px}
-.cap .num{display:inline;margin-right:6px}
+.cap .num{display:inline;margin-right:6px}.cap .cst,h3 .cst{display:block;color:var(--sub);font-weight:500;font-size:12px;margin-top:2px}h3 .cst{display:inline;margin:0 0 0 8px}
 .one img{max-height:calc(100vh - 170px);max-width:calc(100vw - 420px);display:block}
 .one.actual img{max-height:none;max-width:none}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cell,220px),1fr));gap:28px 22px;width:100%;align-items:start}
@@ -137,7 +137,13 @@ const INDEX=${js(extra.index ?? null)}, FROM=INDEX&&typeof INDEX.numberFrom==="n
 const uniq=(a)=>[...new Set(a)];
 // screens in the run's order, their states (screen@state renders) apart
 const SCREENS=INDEX?INDEX.screens.map(s=>s.name).filter(n=>ROWS.some(r=>r.screen===n)):uniq(ROWS.map(r=>r.screen.split("@")[0])), THEMES=uniq(ROWS.map(r=>r.theme)).sort((a,b)=>(a==="light"?0:1)-(b==="light"?0:1));
-const num=(s)=>String(SCREENS.indexOf(s)+FROM).padStart(2,"0");
+/* a flow another lends this one (flex review's "use") is one item here, like a screen: its screens together, opened
+   the way a screen opens on its states. ITEMS: the host's own list, a screen or such a flow */
+const grp=(s)=>entry(s).group||"";
+const ITEMS=()=>{const out=[];for(const s of SCREENS){const g=grp(s),last=out[out.length-1];if(g&&last&&last.g===g){last.ss.push(s);continue}out.push(g?{g,ss:[s]}:{s,ss:[s]})}return out};
+const itemOf=(s)=>ITEMS().find(it=>it.ss.includes(s));
+const inum=(i)=>String(i+FROM).padStart(2,"0");
+const num=(s)=>{const its=ITEMS(),i=its.findIndex(it=>it.ss.includes(s)),it=its[i];return it&&it.g?inum(i)+"."+(it.ss.indexOf(s)+1):inum(i<0?SCREENS.indexOf(s):i)};
 const entry=(s)=>(INDEX&&INDEX.screens.find(x=>x.name===s))||{name:s,states:[]};
 const lbl=(s)=>(entry(s).label||s).replace(/</g,"&lt;");
 const states=(s)=>entry(s).states.filter(st=>ROWS.some(r=>r.screen===s+"@"+st.name));
@@ -164,7 +170,9 @@ const Q=new URLSearchParams(location.search);
 const TITLE=${js(title)};
 let Z=1; /* the canvas zoom: −/+, ⌘ −/+/0, pinch; back to 1 whenever the view changes */
 const S0V=Q.get("view");
-const S={stmode:Q.get("stmode")==="all"?"all":"one",view:CANVAS?"live":S0V==="render"||!LIVE?"render":"live",state:Q.get("state")||"",group:Q.get("group")==="screen"?"screen":"device",screens:Q.get("screens")==="one"?"one":"all",screen:SCREENS.includes(Q.get("screen"))?Q.get("screen"):SCREENS[0],
+// landing: a list of one screen opens on that screen; a screen with states opens on all of them (stmode "all" is a
+// no-op for a screen without states)
+const S={sub:Q.get("sub")||"",stmode:Q.has("stmode")&&Q.get("stmode")!=="all"?"one":"all",view:CANVAS?"live":S0V==="render"||!LIVE?"render":"live",state:Q.get("state")||"",group:Q.get("group")==="screen"?"screen":"device",screens:Q.get("screens")==="one"||(!Q.has("screens")&&SCREENS.length===1)?"one":"all",screen:SCREENS.includes(Q.get("screen"))?Q.get("screen"):SCREENS[0],
   devs:new Set((Q.has("devices")?Q.get("devices"):(CATS.some(x=>x.c==="phone")?"phone":"")).split(",").filter(c=>CATS.some(x=>x.c===c))),theme:THEMES.includes(Q.get("theme"))?Q.get("theme"):THEMES[0]};
 let ANCHOR=0; /* the device picker's last plain or ⌘ click, where a Shift-click range starts */
 const shown=()=>CATS.filter(x=>!S.devs.size||S.devs.has(x.c));
@@ -180,10 +188,10 @@ const pic=(r,extra)=>CANVAS?'<div class="live lt" data-r="'+ROWS.indexOf(r)+'" '
 // live pictures take their box's width (a grid cell, a card's thumb: data-w), once laid out
 function fitLive(root){root.querySelectorAll(".live.lt").forEach(l=>{const z=l.firstElementChild,f=z.firstElementChild;if(!f)return;const p=l.parentElement,cs=getComputedStyle(p),box=+l.dataset.w||p.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);const w=f.offsetWidth,h=f.offsetHeight,k=box/w;z.style.transform="scale("+k+")";l.style.width=w*k+"px";l.style.height=h*k+"px"})}
 const cur1=()=>S.state?S.screen+"@"+S.state:S.screen;
-function keep(){const q=new URLSearchParams({stmode:S.stmode,view:S.view,state:S.state,group:S.group,screens:S.screens,screen:S.screen,theme:S.theme,devices:[...S.devs].join(",")});history.replaceState(null,"",location.pathname+"?"+q)}
+function keep(){const q=new URLSearchParams({sub:S.sub,stmode:S.stmode,view:S.view,state:S.state,group:S.group,screens:S.screens,screen:S.screen,theme:S.theme,devices:[...S.devs].join(",")});history.replaceState(null,"",location.pathname+"?"+q)}
 function seg(el,items,isOn,on,render){el.innerHTML="";for(const it of items){const b=document.createElement("button");b.setAttribute("aria-pressed",isOn(it));b.innerHTML=render(it);b.onclick=(e)=>on(it,e);el.appendChild(b)}}
 const IC=(d)=>'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">'+d+"</svg>";
-const UI2={device:IC('<rect x="7" y="2.5" width="10" height="19" rx="2.5"/>'),screen:IC('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/>'),
+const UI2={flow:IC('<path d="M5 6h7a3 3 0 0 1 3 3v6a3 3 0 0 0 3 3h1"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/>'),device:IC('<rect x="7" y="2.5" width="10" height="19" rx="2.5"/>'),screen:IC('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/>'),
 live:IC('<path d="M5 3.5l14 8.5-14 8.5z"/>'),render:IC('<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M20.5 16l-5-5-9 8.5"/>')};
 // a screen canvas can sit among others (one per screens list): their lists.json, beside it or one folder up, gives a
 // switcher in the header
@@ -259,8 +267,9 @@ function fillPicker(){
   const l=document.getElementById("plist");l.className="plist"+(PV==="grid"?" g":"");l.innerHTML="";
   const hits=SCREENS.filter(s=>!q||s.toLowerCase().includes(q)||lbl(s).toLowerCase().includes(q)||num(s).includes(q));
   for(const s of hits){const t=pthumb(s);const b=document.createElement("button");b.className="pi";b.setAttribute("aria-current",s===S.screen);
-    b.innerHTML=(t?pic(t,PV==="grid"?"":'data-w="40"'):"")+'<div><span class="num">'+num(s)+'</span><b>'+lbl(s)+'</b></div>';
-    b.onclick=()=>{S.screen=s;closePicker();go()};l.appendChild(b)}
+    const ns=states(s).length+1;
+    b.innerHTML=(t?pic(t,PV==="grid"?"":'data-w="40"'):"")+'<div><span class="num">'+num(s)+'</span><b>'+lbl(s)+'</b><small class="psub">'+ns+" state"+(ns===1?"":"s")+"</small></div>";
+    b.onclick=()=>{closePicker();openScreen(s)};l.appendChild(b)}
   requestAnimationFrame(()=>fitLive(l));
   if(!hits.length)l.innerHTML='<div class="pnone">No screen matches “'+q.replace(/</g,"&lt;")+'”.</div>';
 }
@@ -334,7 +343,7 @@ function stage(){
   if(S.group==="screen"&&devs.length>1){
     // each screen in turn, its devices side by side at their true relative size
     st.innerHTML='<div class="rows">'+SCREENS.map(sc=>{const fs=devs.map(x=>{const r=row(sc,x.k,S.theme);return r?'<figure data-s="'+r.screen+'">'+(CANVAS?pic(r):'<img src="'+src(r)+'" data-s2="'+r.scale+'" alt="">')+'<div class="cap">'+NAME[x.c]+'</div></figure>':""}).join("");
-      return fs?'<section class="srow2"><h3><span class="num">'+num(sc)+"</span>"+lbl(sc)+'</h3><div class="devs">'+fs+"</div></section>":""}).join("")+"</div>";
+      return fs?'<section class="srow2"><h3><span class="num">'+num(sc)+"</span>"+lbl(sc)+stCount(sc)+'</h3><div class="devs">'+fs+"</div></section>":""}).join("")+"</div>";
     if(CANVAS){
       // true relative size: one scale for every frame, the tallest 300 px high
       const ls=[...st.querySelectorAll(".live.lt")],H=Math.max(...ls.map(l=>l.firstElementChild.firstElementChild.offsetHeight));
@@ -343,16 +352,47 @@ function stage(){
     const imgs=[...st.querySelectorAll("img")];
     Promise.all(imgs.map(i=>i.decode().catch(()=>{}))).then(()=>{const H=Math.max(...imgs.map(i=>i.naturalHeight/+i.dataset.s2));size(imgs,300/H)});
     }
-    st.querySelectorAll("figure[data-s]").forEach(f=>f.onclick=()=>{S.screen=f.dataset.s;S.screens="one";go()});
+    st.querySelectorAll("figure[data-s]").forEach(f=>f.onclick=()=>openScreen(f.dataset.s));st.querySelectorAll("figure[data-g]").forEach(f=>f.onclick=()=>openGroup(f.dataset.g));
     return}
   // each device in turn, its screens following one grid (cell width by the device's kind)
-  st.innerHTML='<div class="rows">'+devs.map(x=>{const fs=SCREENS.map(s=>row(s,x.k,S.theme)).filter(Boolean)
-    .map(r=>'<figure data-s="'+r.screen+'">'+pic(r)+'<div class="cap"><span class="num">'+num(r.screen)+"</span>"+lbl(r.screen)+"</div></figure>").join("");
+  st.innerHTML='<div class="rows">'+devs.map(x=>{
+    const figOf=(sc)=>{const r=row(sc,x.k,S.theme);return r?'<figure data-s="'+r.screen+'">'+pic(r)+'<div class="cap"><span class="num">'+num(r.screen)+"</span>"+lbl(r.screen)+stCount(r.screen)+"</div></figure>":""};
+    // an opened used flow: its screens; else the host's items, a used flow as one tile (its first screen's picture)
+    const fs=S.sub?SCREENS.filter(sc=>grp(sc)===S.sub).map(figOf).join(""):ITEMS().map((it,i)=>{if(!it.g)return figOf(it.s);
+      const r=row(it.ss[0],x.k,S.theme);return r?'<figure data-g="'+it.g.replace(/"/g,"&quot;")+'">'+pic(r)+'<div class="cap"><span class="num">'+inum(i)+"</span>"+it.g.replace(/</g,"&lt;")+'<small class="cst">'+it.ss.length+" screen"+(it.ss.length===1?"":"s")+"</small></div></figure>":""}).join("");
     return fs?'<section class="dsec">'+(devs.length>1?'<h3>'+ICON[x.c]+NAME[x.c]+'</h3>':'')+'<div class="grid" style="--cell:'+({phone:"200px",tablet:"260px",land:"340px",laptop:"380px"}[x.c]||"300px")+'">'+fs+"</div></section>":""}).join("")+"</div>";
   fitLive(st);
-  st.querySelectorAll("figure[data-s]").forEach(f=>f.onclick=()=>{S.screen=f.dataset.s;S.screens="one";go()});
+  st.querySelectorAll("figure[data-s]").forEach(f=>f.onclick=()=>openScreen(f.dataset.s));st.querySelectorAll("figure[data-g]").forEach(f=>f.onclick=()=>openGroup(f.dataset.g));
 }
-function step(d){const i=SCREENS.indexOf(S.screen);S.screen=SCREENS[(i+d+SCREENS.length)%SCREENS.length];go()}
+/* open a screen the way every way in does (the pickers, the grid, ←/→ rolling over): all its states when it has some */
+function openScreen(s){S.screen=s;S.sub=grp(s);S.state="";S.screens="one";S.stmode="all";go()}
+/* Esc: one rung up the ladder — a state → its screen's states → (inside a used flow) the used flow → all screens */
+function up(){
+  if(S.screens==="one"&&S.stmode==="one"&&states(S.screen).length){S.stmode="all";S.state="";go();return}
+  if(S.screens==="one"){S.screens="all";go();return}
+  if(S.sub){S.sub="";go()}}
+/* a used flow opened: its screens, the way a screen opened shows its states */
+function openGroup(g){S.sub=g;S.screens="all";S.state="";go()}
+function openItem(it){if(it.g)openGroup(it.g);else openScreen(it.s)}
+/* the next or previous list (flow) among its siblings, opened the way the flow picker opens one; flex review sets it */
+let LISTSTEP=null;
+/* ←/→ move among what's showing, rolling over into the level above at either end (and wrapping at the last list):
+   all screens → lists · one screen (or all its states) → the list's screens, then the next list · one state → the
+   screen's states, then the next screen (all its states) */
+/* a screen's caption, under its name: how many states it has, as the flow cards say how many screens */
+const stCount=(sc)=>{const n=states(sc).length+1;return '<small class="cst">'+n+" state"+(n===1?"":"s")+"</small>"};
+function step(d){
+  if(S.screens!=="one"&&S.sub){const its=ITEMS(),i=its.findIndex(it=>it.g===S.sub)+d;
+    if(i>=0&&i<its.length){openItem(its[i]);return}if(LISTSTEP){LISTSTEP(d);return}openItem(its[(i+its.length)%its.length]);return}
+  if(S.screens!=="one"){if(LISTSTEP)LISTSTEP(d);return}
+  const sts=states(S.screen);
+  if(sts.length&&S.stmode==="one"){const all=["",...sts.map(x=>x.name)],i=all.indexOf(S.state)+d;if(i>=0&&i<all.length){S.state=all[i];go();return}}
+  // within an opened used flow, its screens; leaving it (or meeting one from outside), the next item opens as an item
+  const to=(n)=>{if(S.sub&&grp(n)===S.sub)openScreen(n);else openItem(itemOf(n))};
+  const j=SCREENS.indexOf(S.screen)+d;
+  if(j>=0&&j<SCREENS.length){to(SCREENS[j]);return}
+  if(LISTSTEP){LISTSTEP(d);return}
+  to(SCREENS[(j+SCREENS.length)%SCREENS.length])}
 /* after the canvas is drawn (the notes' pins, flex review) */
 let AFTER=()=>{};
 /* where stage() draws (HOST) and what the zoom scales (CUR): the stage and its content, unless flex review keeps
@@ -361,14 +401,14 @@ let HOST=(s)=>s,CUR=()=>document.getElementById("stage").firstElementChild;
 function go(){Z=1;if(!states(S.screen).some(x=>x.name===S.state))S.state="";keep();panel();bar();stage();AFTER()}
 function stepState(d){const all=["",...states(S.screen).map(x=>x.name)];S.state=all[(all.indexOf(S.state)+d+all.length)%all.length];go()}
 addEventListener("keydown",e=>{
-  if(e.key==="Escape"){if(pickerOpen())closePicker();else if(S.screens==="one"){S.screens="all";go()}return}
+  if(e.key==="Escape"){if(pickerOpen())closePicker();else up();return}
   if(pickerOpen())return;
   if(S.screens==="one"&&(e.key==="ArrowDown"||e.key==="ArrowUp")&&states(S.screen).length&&S.stmode==="one"){e.preventDefault();stepState(e.key==="ArrowDown"?1:-1)}
-  if(S.screens==="one"&&e.key==="ArrowRight")step(1);if(S.screens==="one"&&e.key==="ArrowLeft")step(-1)});
+  if((S.screens==="one"||LISTSTEP)&&(e.key==="ArrowRight"||e.key==="ArrowLeft")){e.preventDefault();step(e.key==="ArrowRight"?1:-1)}});
 // on a Deck page slide: the keys the board doesn't use go back to the deck (its ←/→, F, P), so slides still move
 addEventListener("keydown",e=>{if(parent===window||e.defaultPrevented||e.metaKey||e.ctrlKey||e.altKey||pickerOpen())return;
   const t=e.target,typing=t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));if(typing)return;
-  const arrow=e.key==="ArrowLeft"||e.key==="ArrowRight";if(arrow&&S.screens==="one")return;
+  const arrow=e.key==="ArrowLeft"||e.key==="ArrowRight";if(arrow&&(S.screens==="one"||LISTSTEP))return;
   if(arrow||e.key==="PageUp"||e.key==="PageDown"||e.key===" "||/^[fFpP]$/.test(e.key)){e.preventDefault();try{parent.postMessage({deck:"key",key:e.key},"*")}catch(_){}}});
 addEventListener("resize",()=>{stage();Z=1;zoomLabel();AFTER()});
 document.getElementById("main").addEventListener("wheel",(e)=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();zoom(Z*Math.exp(-e.deltaY*0.01),e.clientX,e.clientY)},{passive:false});
@@ -448,7 +488,7 @@ aside.open{display:flex}aside:has(.picker.on){height:min(680px,calc(100vh - 72px
 aside.nside{width:380px}
 .nfoot{padding:12px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}.nfoot .nsend{width:100%}.nfoot small{color:var(--sub);font-size:11.5px;text-align:center}
 .nzp .bar{position:static;transform:none;box-shadow:none;border:1px solid var(--line);border-radius:9px;padding:2px 4px;background:var(--panel);width:auto}
-.ntoast{position:fixed;z-index:40;top:64px;left:50%;transform:translateX(-50%);background:var(--on);color:var(--onInk);border-radius:20px;padding:6px 14px;font-size:12.5px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none}.ntoast.on{opacity:1}
+.ntoast{position:fixed;z-index:40;top:64px;left:50%;transform:translateX(-50%);background:var(--on);color:var(--onInk);border-radius:10px;padding:12px 20px;font-size:14px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;transition:opacity .25s;pointer-events:none}.ntoast.on{opacity:1}
 .nsend{border:0;background:var(--pin);color:#fff;border-radius:9px;padding:9px 14px;font-weight:700;white-space:nowrap}.nsend:disabled{background:var(--soft);color:var(--sub);cursor:default}
 .ntools{padding:8px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub)}
 .ntools label{display:flex;gap:6px;align-items:center}.ntools span.err{color:#d33}
@@ -493,6 +533,9 @@ aside.nside{width:380px}
 .nact button,.nthread footer button,.ncb button{border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:5px 10px;font-weight:700;font-size:12px}
 .nlay{position:absolute;z-index:20;pointer-events:none}
 .shifting .nlay{pointer-events:auto;cursor:crosshair}
+.alting .nlay{pointer-events:auto;cursor:default}.alting .nlay.ahov{background:rgba(22,21,26,.5)}
+.alting .nlay.ahov::after{content:"Click to copy";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(var(--ik,1));padding-top:44px;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z'/><circle cx='12' cy='13' r='3.5'/></svg>") center top/34px 34px no-repeat;color:#fff;font:600 14px/1.2 system-ui,sans-serif;white-space:nowrap;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.ntoast.pic{display:flex;align-items:center;gap:14px;padding:10px 20px 10px 12px}.ntoast img{height:44px;width:auto;border-radius:5px;transform:rotate(-5deg);box-shadow:0 2px 6px rgba(0,0,0,.35);border:1.5px solid rgba(255,255,255,.85)}
 .npin{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;transform:scale(var(--ik,1));border-radius:50% 50% 50% 4px;border:2px solid #fff;background:var(--pin);color:var(--pinInk);
   font:700 12px/1 -apple-system,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:0;pointer-events:auto;box-shadow:0 2px 6px rgba(0,0,0,.35)}
 .npin.draft{background:#fff;color:var(--pin);border-color:var(--pin)}.npin.done{background:#8a8794}.npin.sel{outline:3px solid color-mix(in srgb,var(--pin) 45%,transparent)}
@@ -652,9 +695,22 @@ function take(doc){const s=JSON.stringify(doc);if(s===NSTR)return;NSTR=s;NOTES=d
 /* the app rebuilt: the agent sets the notes file's "build" (a timestamp) after a round's changes, and every frame
    loads its link again (an open note box and typed replies stay as they are) */
 let TOAST=0;
+/* a short word at the top centre: "Frames updated", "Copied to clipboard" */
+function flash(text,pic){const t=document.getElementById("ntoast");
+  t.innerHTML=(pic?'<img src="'+pic+'" alt="">':"")+"<span></span>";t.lastChild.textContent=text;t.classList.toggle("pic",!!pic);t.classList.add("on");clearTimeout(TOAST);TOAST=setTimeout(()=>t.classList.remove("on"),2200)}
 function rebuilt(b){const was=BUILD;BUILD=b||null;if(was===undefined||was===BUILD)return;
-  document.querySelectorAll("iframe").forEach(f=>{f.src=f.src});snaps();
-  const t=document.getElementById("ntoast");t.classList.add("on");clearTimeout(TOAST);TOAST=setTimeout(()=>t.classList.remove("on"),2200)}
+  document.querySelectorAll("iframe").forEach(f=>{f.src=f.src});snaps();flash("Frames updated")}
+/* ⌥-click a screen: its picture (the frame's snapshot) onto the clipboard. The blob is handed over as a promise so the
+   write happens inside the click, which Safari requires */
+/* "Confirm it's you · Round 2": a frame's screen and, when it shows one, its state, as the pickers name them */
+function shotName(r){const i=r.screen.indexOf("@"),sc=i<0?r.screen:r.screen.slice(0,i),st=i<0?"":r.screen.slice(i+1);
+  const name=lbl(sc).replace(/&lt;/g,"<").replace(/&amp;/g,"&"),z=st&&states(sc).find(x=>x.name===st);return z?name+" · "+z.label:name}
+function copyShot(r){const s=r&&SNAPS[snapKey(r)];if(!s||!s.url){flash("No picture of this screen yet");return}
+  const png=fetch(s.url).then(x=>x.blob()).then(b=>b.type==="image/png"?b:new Blob([b],{type:"image/png"}));
+  navigator.clipboard.write([new ClipboardItem({"image/png":png})]).then(()=>flash("Copied "+shotName(r),s.url),(e)=>flash("Couldn't copy: "+e.message))}
+// ⌥-click on a screen outside its frame (a snapshot, the frame's edge): the same copy
+addEventListener("click",(e)=>{if(!e.altKey||STATIC)return;const l=e.target.closest&&e.target.closest(".live[data-r]");if(!l)return;
+  e.preventDefault();e.stopPropagation();copyShot(ROWS[+l.dataset.r])},true);
 async function poll(){if(STATIC){if(PLACE0)restorePlace();return}try{take(await api());sync("");if(PLACE0)restorePlace();if(NOTE0){const id=NOTE0;NOTE0=null;select(id)}}catch(e){sync("Can't read the notes: "+e.message)}snaps();checkVersion()}
 /* the page reloads itself when the server has a new one (a new Flex, the flow or project edited, the server restarted),
    and comes back where the author was: the view (in the address), zoom and scroll, the open thread, what was being
@@ -731,7 +787,7 @@ function pins(){
     let o=l.querySelector(".nlay");
     if(!o){o=document.createElement("div");o.className="nlay";f.offsetParent.appendChild(o);
       // Shift held: the overlay takes the click (also a frame that isn't on this origin)
-      o.addEventListener("click",(e)=>{e.stopPropagation();if(!e.shiftKey||e.target!==o)return;const b=o.getBoundingClientRect();compose(r,o,(e.clientX-b.left)/b.width,(e.clientY-b.top)/b.height,e.clientX,e.clientY,(f.dataset.hyd==="wait"?null:frameAt(f))||liveSrc(r))})}
+      o.addEventListener("click",(e)=>{e.stopPropagation();if(e.altKey&&!e.shiftKey){copyShot(r);return}if(!e.shiftKey||e.target!==o)return;const b=o.getBoundingClientRect();compose(r,o,(e.clientX-b.left)/b.width,(e.clientY-b.top)/b.height,e.clientX,e.clientY,(f.dataset.hyd==="wait"?null:frameAt(f))||liveSrc(r))})}
     if(f.tagName==="IFRAME")hookFrame(f,r,o);
     o.style.cssText="left:"+f.offsetLeft+"px;top:"+f.offsetTop+"px;width:"+f.offsetWidth+"px;height:"+f.offsetHeight+"px";
     const id=nid(r);
@@ -846,6 +902,17 @@ const hide=document.getElementById("nhide");hide.checked=HIDE;hide.onchange=()=>
 function setShift(on){if(STATIC||SHIFT===on)return;SHIFT=on;document.body.classList.toggle("shifting",on);
   document.querySelectorAll("#stage iframe").forEach(f=>{try{f.contentDocument.documentElement.classList.toggle("flex-shift",on)}catch{}})}
 addEventListener("keydown",(e)=>{if(e.key==="Shift")setShift(true)});addEventListener("keyup",(e)=>{if(e.key==="Shift")setShift(false)});addEventListener("blur",()=>setShift(false));
+/* ⌥ held: the screens offer themselves to be copied (an overlay on the one under the pointer, the plain cursor), so a
+   ⌥-click reads as "picture this", not a click in the app */
+let ALT=false,PT=null;
+/* the screen under the pointer gets the overlay at once (not :hover, which waits for the mouse to move): the pointer's
+   last place is kept from the page and from inside the frames */
+function altMark(){document.querySelectorAll("#stage .nlay.ahov").forEach(o=>o.classList.remove("ahov"));if(!ALT||!PT)return;
+  for(const o of document.querySelectorAll("#stage .nlay")){const b=o.getBoundingClientRect();if(PT.x>=b.left&&PT.x<=b.right&&PT.y>=b.top&&PT.y<=b.bottom){o.classList.add("ahov");break}}}
+addEventListener("mousemove",(e)=>{PT={x:e.clientX,y:e.clientY};if(ALT)altMark()},true);
+function setAlt(on){if(STATIC||ALT===on)return;ALT=on;document.body.classList.toggle("alting",on);altMark();
+  document.querySelectorAll("#stage iframe").forEach(f=>{try{f.contentDocument.documentElement.classList.toggle("flex-alt",on)}catch{}})}
+addEventListener("keydown",(e)=>{if(e.key==="Alt")setAlt(true)});addEventListener("keyup",(e)=>{if(e.key==="Alt")setAlt(false)});addEventListener("blur",()=>setAlt(false));
 /** where a frame has got to (its path and query), when it is on this origin */
 function frameAt(f){let at;try{const l=f.contentWindow.location;at=l.pathname+l.search}catch{at=f.flexAt}return at?at.replace(/([?&])token=[^&]*&?/,"$1").replace(/[?&]$/,""):null}
 /* a frame on its own host (a setup's, see ISO) tells where it is and what Shift does in it (the proxy's frame script) */
@@ -856,12 +923,14 @@ addEventListener("message",(e)=>{const m=e.data&&e.data.flexFrame;if(!m||typeof 
     compose(r,o,x,y,b.left+x*b.width,b.top+y*b.height,frameAt(f))}});
 function hookFrame(f,r,o){if(STATIC)return;
   const hook=()=>{let d;try{d=f.contentDocument}catch{return}if(!d||!d.documentElement||d.flexHooked)return;d.flexHooked=1;
-    const st=d.createElement("style");st.textContent="html.flex-shift,html.flex-shift *{cursor:crosshair!important}";d.documentElement.appendChild(st);
-    d.documentElement.classList.toggle("flex-shift",SHIFT);
-    d.addEventListener("keydown",(e)=>{if(e.key==="Shift")setShift(true)},true);d.addEventListener("keyup",(e)=>{if(e.key==="Shift")setShift(false)},true);
-    const eat=(e)=>{if(!e.shiftKey)return;e.preventDefault();e.stopImmediatePropagation()};
+    const st=d.createElement("style");st.textContent="html.flex-shift,html.flex-shift *{cursor:crosshair!important}html.flex-alt,html.flex-alt *{cursor:default!important}";d.documentElement.appendChild(st);
+    d.documentElement.classList.toggle("flex-shift",SHIFT);d.documentElement.classList.toggle("flex-alt",ALT);
+    d.addEventListener("mousemove",(e)=>{const b=f.getBoundingClientRect(),w=d.defaultView;PT={x:b.left+e.clientX/w.innerWidth*b.width,y:b.top+e.clientY/w.innerHeight*b.height}},true);
+    d.addEventListener("keydown",(e)=>{if(e.key==="Shift")setShift(true);if(e.key==="Alt")setAlt(true)},true);d.addEventListener("keyup",(e)=>{if(e.key==="Shift")setShift(false);if(e.key==="Alt")setAlt(false)},true);
+    // Shift-click leaves a note, ⌥-click copies the screen: either way the app never sees the click
+    const eat=(e)=>{if(!e.shiftKey&&!e.altKey)return;e.preventDefault();e.stopImmediatePropagation()};
     for(const t of ["pointerup","mousedown","mouseup","click"])d.addEventListener(t,eat,true);
-    d.addEventListener("pointerdown",(e)=>{if(!e.shiftKey)return;eat(e);const w=d.defaultView,b=f.getBoundingClientRect(),x=e.clientX/w.innerWidth,y=e.clientY/w.innerHeight;
+    d.addEventListener("pointerdown",(e)=>{if(e.altKey&&!e.shiftKey){eat(e);copyShot(r);return}if(!e.shiftKey)return;eat(e);const w=d.defaultView,b=f.getBoundingClientRect(),x=e.clientX/w.innerWidth,y=e.clientY/w.innerHeight;
       compose(r,o,x,y,b.left+x*b.width,b.top+y*b.height,frameAt(f))},true)};
   if(!f.flexLoad){f.flexLoad=1;f.addEventListener("load",hook)}
   hook();
@@ -905,23 +974,30 @@ function pickMenu(bid,items,pick,searchAt,ic){
       el.style.width=g?"460px":"360px";l.className="nsl"+(g?" g":"");l.style.setProperty("--min",({phone:120,tablet:150,land:190,laptop:190}[kind(thumbKey())]||150)+"px");
       const its=items().filter(x=>x.all||!t||x.label.toLowerCase().includes(t)||(x.num||"").includes(t));
       l.innerHTML=its.map(x=>'<button class="'+(x.cur?"cur":"")+'" data-v="'+esc(x.value)+'">'+(g?tileArt(x):'<span class="num nic">'+(x.all?UI.all:(ic||""))+"</span>")
-        +'<span class="nlab">'+'<span class="nlw"><span class="nlt" title="'+esc(x.label).replace(/"/g,"&quot;")+'">'+esc(x.label)+"</span>"+(x.sub&&!g?"<small>"+esc(x.sub)+"</small>":"")+"</span></span>"+(x.open?'<em title="Open notes">'+x.open+"</em>":"")+"</button>").join("");
+        +'<span class="nlab">'+'<span class="nlw"><span class="nlt" title="'+esc(x.label).replace(/"/g,"&quot;")+'">'+esc(x.label)+"</span>"+(x.sub?"<small>"+esc(x.sub)+"</small>":"")+"</span></span>"+(x.open?'<em title="Open notes">'+x.open+"</em>":"")+"</button>").join("");
       l.querySelectorAll("button").forEach(b=>b.onclick=()=>{closeMenu();pick(b.dataset.v)});
       const c=l.querySelector(".cur");if(c&&!t)c.scrollIntoView({block:"center"});
       // under its button, kept inside the window whatever its width
       const b=document.getElementById(bid).getBoundingClientRect();el.style.left=Math.max(12,Math.min(b.left,innerWidth-el.offsetWidth-12))+"px"};
     {q.oninput=fill;q.addEventListener("keydown",(e)=>{if(e.key==="Enter"){const f=l.querySelectorAll("button")[1]||l.querySelector("button");if(f)f.click()}});setTimeout(()=>q.focus(),0)}
     MENUREF=fill;fill();snaps(true)})}
+/* open a flow the way every way in does (the flow picker, ←/→ rolling over): its page lands on all its screens, or on
+   its one screen (all its states) — the page decides, from its own screen count */
+function openFlow(href){location.href=href+"?devices="+[...S.devs].join(",")+"&theme="+S.theme}
+LISTSTEP=(d)=>{loadFlows().then(()=>{const i=FLOWS.findIndex(l=>l.href===location.pathname);
+  if(i<0||FLOWS.length<2){S.screens=SCREENS.length===1?"one":"all";S.stmode="all";go();return}
+  openFlow(FLOWS[(i+d+FLOWS.length)%FLOWS.length].href)})};
 document.getElementById("nflowb").onclick=()=>{pickMenu("nflowb",()=>[{all:true,value:"*",label:"All flows",cur:false},
   ...FLOWS.map(l=>{const c=HOMED&&HOMED.flows.find(f=>f.href===l.href);
     return {value:l.href,label:l.title,sub:l.screens!=null?l.screens+" screen"+(l.screens===1?"":"s"):"",cur:l.href===location.pathname,open:l.open,thumb:c?c.cover:(l.covers?(l.covers[thumbKey()]||Object.values(l.covers)[0]||null):null)}})],
   (v)=>{if(v==="*"){location.href=NR+"/";return}
-    if(v===location.pathname){S.screens="all";go();return}
-    location.href=v+"?devices="+[...S.devs].join(",")+"&theme="+S.theme},10,PIC.flow);
+    if(v===location.pathname){S.screens=SCREENS.length===1?"one":"all";S.stmode="all";go();return}
+    openFlow(v)},10,PIC.flow);
   Promise.all([loadFlows(),loadHome()]).then(()=>{if(MENU==="nflowb"&&MENUREF)MENUREF()})};
-document.getElementById("nscr").onclick=()=>pickMenu("nscr",()=>[{all:true,value:"*",label:"All screens",cur:S.screens!=="one"},
-  ...SCREENS.map(s=>({name:s,value:s,label:lbl(s).replace(/&lt;/g,"<"),cur:S.screens==="one"&&s===S.screen,open:openOn(s)}))],
-  (v)=>{if(v==="*"){S.screens="all";go();return}S.screen=v;S.state="";S.screens="one";S.stmode="one";go()},10,PIC.screen);
+document.getElementById("nscr").onclick=()=>pickMenu("nscr",()=>[{all:true,value:"*",label:"All screens",cur:S.screens!=="one"&&!S.sub},
+  ...ITEMS().flatMap(it=>it.g?[{name:it.ss[0],value:"g:"+it.g,label:it.g,sub:it.ss.length+" screens",cur:S.sub===it.g&&S.screens!=="one"}]:[]),
+  ...SCREENS.map(s=>{const ns=states(s).length+1,g=entry(s).group;return {name:s,value:s,label:lbl(s).replace(/&lt;/g,"<"),sub:(g?g+" · ":"")+ns+" state"+(ns===1?"":"s"),cur:S.screens==="one"&&s===S.screen,open:openOn(s)}})],
+  (v)=>{if(v==="*"){S.screens="all";S.sub="";go();return}if(v.startsWith("g:")){openGroup(v.slice(2));return}openScreen(v)},10,PIC.screen);
 document.getElementById("nst").onclick=()=>pickMenu("nst",()=>[{all:true,value:"*",label:"All states",cur:S.stmode==="all"},
   ...[{name:"",label:entry(S.screen).defaultLabel||"Default"},...states(S.screen)].map(x=>({name:x.name?S.screen+"@"+x.name:S.screen,value:x.name,label:x.label,cur:S.stmode!=="all"&&S.state===x.name,open:openOn(S.screen,x.name)}))],
   (v)=>{if(v==="*"){S.stmode="all";go();return}S.state=v;S.stmode="one";go()},10,PIC.state);
@@ -929,7 +1005,7 @@ document.getElementById("nst").onclick=()=>pickMenu("nst",()=>[{all:true,value:"
 head=function(){
   const one=S.screens==="one",sts=one?states(S.screen):[],st=one&&S.state?sts.find(x=>x.name===S.state):null;
   document.getElementById("nflowt").textContent=TITLE;document.getElementById("nflowic").innerHTML=PIC.flow;
-  document.getElementById("nscr").innerHTML='<span class="pic">'+PIC.screen+"</span>"+(one?"<b>"+lbl(S.screen)+"</b>":"<b>All screens</b><i>"+SCREENS.length+"</i>")+CHEV;
+  document.getElementById("nscr").innerHTML='<span class="pic">'+PIC.screen+"</span>"+(one?"<b>"+(S.sub?esc(S.sub)+" › ":"")+lbl(S.screen)+"</b>":S.sub?"<b>"+esc(S.sub)+"</b><i>"+SCREENS.filter(x=>grp(x)===S.sub).length+"</i>":"<b>All screens</b><i>"+ITEMS().length+"</i>")+CHEV;
   document.getElementById("nst").hidden=document.getElementById("nstdiv").hidden=!sts.length;
   if(sts.length)document.getElementById("nst").innerHTML='<span class="pic">'+PIC.state+"</span><b>"+(S.stmode==="all"?"All states":esc(st?st.label:(entry(S.screen).defaultLabel||"Default")))+"</b>"+CHEV};
 // the View panel keeps devices, theme and language: screens and states are picked from the top bar
@@ -991,7 +1067,8 @@ document.getElementById("nperson").onclick=()=>menu("nperson",(el)=>{
     l.querySelectorAll("button").forEach(x=>x.onclick=()=>{closeMenu();PERSON=x.dataset.p;mem("person:"+NFLOW,PERSON);relink();go()})};
   if(q){q.oninput=fill;setTimeout(()=>q.focus(),0)}fill()});
 AFTER=()=>{staticControls();personBar();
-  document.querySelectorAll('#stage .nhost[data-sig="grid"] figure[data-s]').forEach(f=>f.onclick=()=>{S.screen=f.dataset.s;S.state="";S.screens="one";S.stmode="one";go()});
+  document.querySelectorAll('#stage .nhost[data-sig="grid"] figure[data-s]').forEach(f=>f.onclick=()=>openScreen(f.dataset.s));
+  document.querySelectorAll('#stage .nhost[data-sig="grid"] figure[data-g]').forEach(f=>f.onclick=()=>openGroup(f.dataset.g));
   pins();snaps();remember();hydrateAll()};
 /* a live frame shows its snapshot first (the grid's: placeholder if none yet) while the app loads under it, hidden and
    not clickable (a click meanwhile goes nowhere; Shift+Click still notes, on the seed link); once the app is ready it
@@ -1082,7 +1159,7 @@ main{padding:28px 28px 48px}main h1{margin:0 0 18px;font-size:20px}
 <button class="tb" id="notes" aria-expanded="false" title="Notes" aria-label="Notes">${ic('<path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>')}<span id="ncount">0</span></button></div>
 <div class="panel" id="pview"><div class="sec"><div class="lab">Devices</div><div class="seg" id="devs"></div></div><div class="sec"><div class="lab">Theme</div><div class="seg" id="themes"></div></div><div class="sec"><div class="lab">Signal</div><div class="seg" id="signals"></div></div><div class="sec"><div class="lab">Language</div><div class="seg" id="langs"></div></div><div class="sec"><div class="lab">Data</div><div class="seg" id="modes"></div></div><div class="sec"><div class="lab">Tester tools</div><div class="seg" id="testers"></div></div></div>
 <div class="panel" id="pnotes"></div>
-<main><h1>Flows</h1><div class="cards" id="cards"></div></main>
+<main><div class="cards" id="cards"></div></main>
 <script>
 const R=${js(o.root)},DEVS=${js(o.devices)},ENVS=${js(o.envs ?? [])},STATICD=${js(o.flows ?? null)},PKEY="flex-review:"+R+":";
 const mem=(k,v)=>{try{if(v===undefined)return localStorage.getItem(PKEY+k);localStorage.setItem(PKEY+k,v)}catch{return null}};
