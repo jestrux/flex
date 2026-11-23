@@ -1,0 +1,17 @@
+diff --git a/lib/audio.ts b/lib/audio.ts
+index 37c66af..f5bd8c2 100644
+--- a/lib/audio.ts
++++ b/lib/audio.ts
+@@ -218,7 +218,11 @@ export function mixAudio(dir: string, o: { total: number; voice: VoiceLine[]; sf
+       dips.push(`pow(10,(${expr})/20)`);
+     }
+     // (volume re-evaluates once per audio frame, ~85 ms here: 5 ms frames keep a duck's edges where they were asked for)
+-    const dip = dips.length ? `,asetnsamples=n=240:p=0,volume='${dips.join("*")}':eval=frame` : "";
++    // one volume filter per 24 dips: ffmpeg's expression evaluator gives up on one product of hundreds of terms (a
++    // long narrated film: "Cannot allocate memory"), and chained filters multiply just the same
++    const chunks: string[] = [];
++    for (let i = 0; i < dips.length; i += 24) chunks.push(`volume='${dips.slice(i, i + 24).join("*")}':eval=frame`);
++    const dip = dips.length ? `,asetnsamples=n=240:p=0,${chunks.join(",")}` : "";
+     ff(["-i", raw, "-i", P.voice, "-filter_complex",
+       `[0:a]volume=${g2.toFixed(2)}dB${dip}[bed];[1:a]aformat=channel_layouts=${CL}[key];[bed][key]sidechaincompress=threshold=${thr}:ratio=${ratio}:attack=40:release=500:makeup=1[out]`, "-map", "[out]", "-t", T, P.music]);
+     void g;

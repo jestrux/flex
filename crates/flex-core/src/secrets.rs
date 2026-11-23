@@ -69,6 +69,9 @@ pub fn voice_engine(dir: Option<&Path>) -> String {
 /// Give a tool the project's voice: the OpenAI key from the Keychain when the environment has none, or no key at all
 /// when the project pins Kokoro.
 pub fn apply(cmd: &mut Command, dir: &Path) {
+    // how to say words the voice would misread (`"say": { "NCAA": "N C A A" }` in voice.json): spoken, never shown, so
+    // the subtitles keep the written word. Either engine.
+    if let Some(say) = voice_json(dir).map(|v| v["say"].clone()).filter(|s| s.is_object()) { cmd.env("VOICE_SAY", say.to_string()); }
     if pins_kokoro(dir) { cmd.env_remove("OPENAI_API_KEY"); return; }
     if let Some(v) = voice_json(dir) {
         if let Some(n) = v["voice"].as_str() { cmd.env("VOICE", n); }

@@ -1,0 +1,20 @@
+diff --git a/lib/voice.ts b/lib/voice.ts
+index d1fb2b3..dc558ba 100644
+--- a/lib/voice.ts
++++ b/lib/voice.ts
+@@ -75,7 +75,14 @@ for line in sys.stdin:
+   return new Promise((r) => { waiting.set(out, r); kokoro!.stdin.write(JSON.stringify({ text, out }) + "\n"); });
+ }
+ 
+-export async function voiceFor(text: string): Promise<{ file: string; dur: number }> {
++// Flex: words the voice would misread, as the project says them (voice.json "say", passed as VOICE_SAY): whole words,
++// spoken only; the line's own text (the subtitles) keeps the written word.
++const SAY: Record<string, string> = (() => { try { return JSON.parse(process.env.VOICE_SAY ?? "{}"); } catch { return {}; } })();
++const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
++const spoken = (text: string) => Object.entries(SAY).reduce((t, [w, s]) => t.replace(new RegExp(`(?<![\\w-])${esc(w)}(?![\\w-])`, "g"), s), text);
++
++export async function voiceFor(written: string): Promise<{ file: string; dur: number }> {
++  const text = spoken(written);
+   const file = join(CACHE, `${key(text)}.wav`);
+   if (!existsSync(file) || statSync(file).size < 100) await (OPENAI_KEY ? openai(text, file) : kokoroSay(text, file));
+   return { file, dur: wavDur(file) };
