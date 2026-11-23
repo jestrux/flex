@@ -57,8 +57,9 @@ the usual answer.
 
 - The setup script lives beside the e2e helpers it imports (`thriveboundlessly/e2e/helpers/flex-setup.ts` imports
   `./config`).
-- Git-ignore `.flex/cache/` and `.flex/flows/*.notes/` (note screenshots). Commit `<flow>.notes.json`: it is the
-  review conversation.
+- `flex review` writes `.flex/.gitignore` (`cache/`, `flows/*.notes/`) on first start when there is none: the snapshots
+  run to hundreds of MB (NCAA's cache is ~1 GB). Commit it with the board. Commit `<flow>.notes.json`: it is the review
+  conversation; its screenshots are re-taken.
 - No worktrees. Nothing untracked left in an app repo.
 
 ## Working with the project's owner session

@@ -180,6 +180,11 @@ if (!existsSync(target)) fail(`no such file or folder: ${inputs[0] ?? target}`);
  *  stay as the server started) */
 const mtime = (f?: string | null) => { try { return f ? statSync(f).mtimeMs : 0; } catch { return 0; } };
 let Pat = mtime(P && join(P.dir, "project.json"));
+// the board's own ignore rules, beside it (it travels with the folder), before anything is written to cache/: the
+// snapshots run to hundreds of MB. The notes travel; their screenshots are re-taken. An existing .gitignore is left alone
+if (P && !existsSync(join(P.dir, ".gitignore"))) {
+  try { writeFileSync(join(P.dir, ".gitignore"), "# flex review: the snapshots and the notes' screenshots are re-taken; <flow>.notes.json is kept\ncache/\nflows/*.notes/\n"); } catch { /* read-only */ }
+}
 const proj = (): Project | null => {
   if (!P) return null;
   const at = mtime(join(P.dir, "project.json"));
