@@ -184,9 +184,10 @@ impl Server {
             .env("FLEX_PIPELINE", &pipeline)
             .env("FLEX_VOICE_CACHE", voice_cache())
             .env("FLEX_PROJECTS", crate::tools::projects_link(&dir)?.0);
-        // the phone's parts for phone takes (patch 22's phoneLayers); a project without phones never reads them
-        // (drawn, once, only for a project with phone takes: a few seconds of Chromium no other server start should pay)
-        let frames = if crate::mockup::has_phone_takes(&dir) { crate::mockup::device_overlays().unwrap_or_else(|_| crate::mockup::device_overlays_dir()) } else { crate::mockup::device_overlays_dir() };
+        // the devices' parts for phone takes and screen recordings (patches 22 and 27); a project without devices never
+        // reads them (drawn, once, only for a project that paints a device: a few seconds of Chromium no other server
+        // start should pay)
+        let frames = if crate::mockup::uses_devices(&dir) { crate::mockup::device_overlays().unwrap_or_else(|_| crate::mockup::device_overlays_dir()) } else { crate::mockup::device_overlays_dir() };
         cmd.env("FLEX_DEVICE_FRAMES", frames);
         // a variant (END=dark …): the project's declared flags, passed as the pipeline reads them, from the environment
         for (k, v) in variants { cmd.env(k, v); }

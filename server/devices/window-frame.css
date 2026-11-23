@@ -1,0 +1,54 @@
+/* window-frame.css: app windows (any size, W × H set inline on the figure), no image assets.
+ *
+ * Chrome:  .macwin (traffic lights; --light; --shadow; optional .macwin__title)
+ *          .win (Windows: min/max/close; .win__titlebar with .win__icon; --menu + .win__menubar; --dark; --shadow)
+ *          .plainwin (no chrome: a rounded, clipped card; --shadow)
+ * Content: .macwin__screen | .win__content | .plainwin__screen
+ *
+ * From KinPay Frame Studio (kinpay feat/frame-studio, frame-studio-simple/src/frames.css); geometry and colours kept exactly. 1 CSS px = 1 point; set --device-scale to resize. */
+.macwin{position:relative;display:block;margin:0;box-sizing:border-box;
+  border-radius:14px;overflow:hidden;background:#1d1d22;padding-top:34px;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.macwin--light{background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.12)}
+.macwin--shadow{box-shadow:0 0 0 1px rgba(0,0,0,.4),0 40px 90px rgba(0,0,0,.42)}
+.macwin--light.macwin--shadow{box-shadow:0 0 0 1px rgba(0,0,0,.12),0 40px 90px rgba(40,20,40,.22)}
+.macwin::before{content:"";position:absolute;left:0;right:0;top:0;height:34px;background:#2b2b30;border-bottom:1px solid rgba(0,0,0,.5);z-index:2}
+.macwin::after{content:"";position:absolute;left:14px;top:11px;width:62px;height:13px;z-index:3;
+  background:
+    radial-gradient(circle at 6.5px 6.5px,#ff5f57 6.5px,transparent 7px),
+    radial-gradient(circle at 31px 6.5px,#febc2e 6.5px,transparent 7px),
+    radial-gradient(circle at 55.5px 6.5px,#28c840 6.5px,transparent 7px)}
+.macwin--light::before{background:#ececef;border-bottom-color:rgba(0,0,0,.1)}
+/* app title — truly centred across the whole bar (traffic lights overlap on the left) */
+.macwin__title{position:absolute;left:0;right:0;top:0;height:34px;z-index:4;display:flex;align-items:center;justify-content:center;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;font-size:13px;font-weight:600;letter-spacing:-.01em;
+  color:#e6e6ea;pointer-events:none;white-space:nowrap}
+.macwin--light .macwin__title{color:#2a2a2e}
+.macwin__screen{width:100%;height:100%;overflow:hidden;background:#fff;position:relative}
+.macwin__screen iframe{width:100%;height:100%;border:0;display:block}
+
+/* Windows window chrome (min/maximize/close) — vendored from windows-frame.css (.win) */
+.win{--pt:1px;--title-bg:#f3f3f3;--content-bg:#fff;--ink:#1a1a1a;--hairline:rgba(0,0,0,.18);
+  position:relative;display:block;box-sizing:border-box;padding-top:calc(32*var(--pt));
+  border-radius:calc(8*var(--pt));overflow:hidden;background:var(--content-bg);box-shadow:0 0 0 1px var(--hairline);color:var(--ink)}
+.win__titlebar{position:absolute;top:0;left:0;right:0;height:calc(32*var(--pt));display:flex;align-items:center;
+  gap:calc(8*var(--pt));padding-left:calc(16*var(--pt));box-sizing:border-box;background:var(--title-bg);
+  font-family:"Segoe UI","Segoe UI Variable",system-ui,sans-serif;font-size:calc(12*var(--pt));line-height:calc(16*var(--pt));white-space:nowrap}
+.win__icon{flex:none;width:calc(16*var(--pt));height:calc(16*var(--pt));border-radius:calc(3*var(--pt));background:linear-gradient(135deg,#8a8a8f,#4a4a4f)}
+.win__titlebar::after{content:"";margin-left:auto;width:calc(138*var(--pt));height:calc(32*var(--pt));background-color:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 138 32' fill='none' stroke='black' stroke-width='1'%3E%3Cpath d='M18 16.5H28'/%3E%3Crect x='64.5' y='11.5' width='9' height='9' rx='1'/%3E%3Cpath d='M110 11L120 21M120 11L110 21'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 138 32' fill='none' stroke='black' stroke-width='1'%3E%3Cpath d='M18 16.5H28'/%3E%3Crect x='64.5' y='11.5' width='9' height='9' rx='1'/%3E%3Cpath d='M110 11L120 21M120 11L110 21'/%3E%3C/svg%3E") center / contain no-repeat}
+.win__content{position:relative;width:100%;height:100%;overflow:hidden;background:var(--content-bg)}
+.win__content iframe{display:block;width:100%;height:100%;border:0}
+.win--menu{padding-top:calc(56*var(--pt))}
+.win__menubar{position:absolute;top:calc(32*var(--pt));left:0;right:0;height:calc(24*var(--pt));display:flex;align-items:center;
+  padding:0 calc(8*var(--pt));box-sizing:border-box;background:var(--title-bg);
+  font-family:"Segoe UI","Segoe UI Variable",system-ui,sans-serif;font-size:calc(12*var(--pt));line-height:calc(16*var(--pt));white-space:nowrap}
+.win__menubar>span{padding:0 calc(8*var(--pt))}
+.win--dark{--title-bg:#202020;--content-bg:#272727;--ink:#fff;--hairline:rgba(0,0,0,.6)}
+.win--shadow{filter:drop-shadow(0 30px 60px rgba(28,24,18,.3))}
+
+/* No chrome — just the screenshot in a clipped, rounded card */
+.plainwin{position:relative;display:block;box-sizing:border-box;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.1)}
+.plainwin--shadow{box-shadow:0 0 0 1px rgba(0,0,0,.1),0 30px 60px rgba(0,0,0,.28)}
+.plainwin__screen{width:100%;height:100%;overflow:hidden;position:relative;background:#fff}
+.plainwin__screen iframe{display:block;width:100%;height:100%;border:0}

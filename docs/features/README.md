@@ -33,6 +33,7 @@ Run `scripts/docs.sh` to browse these pages (http://localhost:5197). The Markdow
 | [Assets](08-assets.md) | Everything the film is made from in a grid, each playable alone in the source viewer; `flex assets` |
 | [Activity trail](09-activity.md) | Every flex command, file change and agent step on one clock, a lane per agent and subagent; `flex activity` |
 | [Storyboard](10-storyboard.md) | The film's script (`script.json`) as a lane of panels, the viewer as an animatic where the film isn't built, the plan past the film's end; `flex script`, `flex storyboard` |
+| [Screens and mockups](11-mockups.md) | A web app's screens frozen per device and theme, framed as PNGs, the review canvas, devices placed in decks and films by reference, a live screen canvas; `flex screens`, `flex mockup` |
 
 ## Not built yet
 

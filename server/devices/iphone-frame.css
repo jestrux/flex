@@ -225,3 +225,11 @@
 .iphone--shadow {
   filter: drop-shadow(0 calc(40 * var(--pt)) calc(36 * var(--pt)) rgba(28, 24, 18, 0.3));
 }
+
+/* ───────── from KinPay Frame Studio (kinpay feat/frame-studio, frame-studio-simple/src/frames.css): KinPay finish, no-notch, bare ───────── */
+.iphone--kinpay{--rail-bg:linear-gradient(135deg,#b89bff,#5b21b6 30%,#6d28d9 70%,#b89bff);--rail-edge:rgba(255,255,255,.28);--rail-outline:rgba(40,10,70,.5);--button-bg:#6d28d9;--button-highlight:rgba(255,255,255,.32);}
+.iphone--no-notch::after{display:none}
+.iphone--bare{--side:0;--screen-r:0;background:none;box-shadow:none}
+.iphone--bare::before,.iphone--bare::after{display:none}
+.iphone--bare .iphone__buttons{display:none}
+.iphone--bare .iphone__screen{border-radius:0;background:#fff}

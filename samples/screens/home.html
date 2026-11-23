@@ -1,0 +1,9 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Trail log</title><link rel="stylesheet" href="style.css"><script src="frame.js"></script></head>
+<body><div class="app"><nav><a class="on" href="home.html">Today</a><a href="list.html">Trails</a><a href="#">Me</a></nav><main>
+<p class="sub" style="margin:0">Saturday</p><h1>Good morning, Ana</h1><p class="sub">Three trails logged this week</p>
+<div class="card"><div class="row"><b>This week</b><span class="pill">On track</span></div><div class="big">18.4 km</div><p class="sub" style="margin:0">of a 25 km goal</p></div>
+<div class="card"><div class="row"><b>Ridge loop</b><span class="sub">Thu · 6.2 km</span></div></div>
+<div class="card"><div class="row"><b>River path</b><span class="sub">Tue · 7.9 km</span></div></div>
+<a class="btn" href="detail.html">Start a trail</a>
+<script>if(new URLSearchParams(location.search).has("empty")){document.querySelector("main").innerHTML='<p class="sub" style="margin:0">Saturday</p><h1>Good morning, Ana</h1><div class="empty">No trails yet this week.<br>Start one and it shows here.</div><a class="btn" href="detail.html">Start a trail</a>'}</script>
+</main></div><div class="tabs"><a class="on" href="home.html">Today</a><a href="list.html">Trails</a><a href="#">Me</a></div></body></html>

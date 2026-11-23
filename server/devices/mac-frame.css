@@ -236,3 +236,10 @@
 .mac--shadow {
   filter: drop-shadow(0 calc(40 * var(--pt)) calc(48 * var(--pt)) rgba(28, 24, 18, 0.3));
 }
+
+/* ───────── from KinPay Frame Studio (kinpay feat/frame-studio, frame-studio-simple/src/frames.css): no-notch, bare ───────── */
+.mac--no-notch::after{display:none}
+.mac--bare{--side:0;--screen-r:0;--base-h:0;background:none;box-shadow:none;margin:0}
+.mac--bare::before,.mac--bare::after{display:none}
+.mac--bare .mac__base{display:none}
+.mac--bare .mac__screen{border-radius:0;background:#fff}

@@ -55,6 +55,104 @@ enum LibraryCmd {
 }
 
 #[derive(Subcommand)]
+enum ReviewCmd {
+    /// Take the project's snapshots again (after its data was seeded again or reset, which Flex can't see): every
+    /// flow's, or a flow's, a screen's (--screen) or a state's (--state; "" the screen's default). Static ones are taken
+    /// now; an environment's are marked stale and taken when the review next shows them. Those never taken are taken
+    /// too: every frame of each flow's default view (every device, light, English, tester tools off, signal on), or
+    /// with --all every theme, language and signal, so a fresh cache fills without opening the page. Snapshots of
+    /// screens and states no longer in their flow are removed. A running `flex review` picks the new ones up
+    Resnap {
+        /// a flow's name (default: every flow of the project here)
+        flow: Option<String>,
+        /// only this screen's snapshots (and its states')
+        #[arg(long)]
+        screen: Option<String>,
+        /// only this state's ("" the screen's default)
+        #[arg(long)]
+        state: Option<String>,
+        /// captures at once (default 4)
+        #[arg(long)]
+        jobs: Option<u32>,
+        /// run the project's setup command for frames with a "setup" (without it they stay stale)
+        #[arg(long)]
+        allow_setup: bool,
+        /// take the missing snapshots of every theme, language and signal too (as "publish": "all" exports them),
+        /// not only the default view's
+        #[arg(long)]
+        all: bool,
+    },
+    /// Check flows before the author sees them: a resnap that answers yes or no. Every frame of each flow's default
+    /// view (--all: every theme, language and signal) is taken again, setup and actions and all; each frame that failed
+    /// (an error page, a failed setup or action, a missing selector) is listed, and it exits 1 if any did or a flow
+    /// doesn't build. Its snapshots replace the old ones, as resnap's do
+    Check {
+        /// a flow's name (default: every flow of the project here)
+        flow: Option<String>,
+        /// captures at once (default 4)
+        #[arg(long)]
+        jobs: Option<u32>,
+        /// run the project's setup command for frames with a "setup" (without it they are listed as not taken)
+        #[arg(long)]
+        allow_setup: bool,
+        /// every theme, language and signal, not only the default view
+        #[arg(long)]
+        all: bool,
+    },
+    /// Publish the project's review as a static site, to serve beside the app's static build (the site's root serves
+    /// the app, so a screen opened on its own loads it live from there): the home and every flow page with their
+    /// pickers, View controls and canvas, the snapshots (static data, both tester settings) copied in as WebP. No notes,
+    /// Shift+Click, Data switch or server. Writes <out>/index.html, <out>/f/<flow>/index.html and <out>/snap/, to be
+    /// served at --prefix. Each flow publishes its "publish" set ("all": every theme, language and signal; else the
+    /// default view), --capture-set overriding it. --capture takes the snapshots not taken yet; a page that is not
+    /// the app (an HTTP error, a server's 404/502/503 page, a blank page, an app that failed to mount) is tried again
+    /// a few times, then left un-taken and listed ("N not taken (error pages): ..."). Frames with a "setup", "storage", "clock" or "actions"
+    /// can't run it there (no server): they show their snapshots only, opened on their own too
+    Export {
+        /// the folder to write (emptied first)
+        out: PathBuf,
+        /// where the site is served (default /screen-canvas)
+        #[arg(long)]
+        prefix: Option<String>,
+        /// first take the snapshots still missing or stale (needs the app at the project's base)
+        #[arg(long)]
+        capture: bool,
+        /// the views with snapshots (taken with --capture, and published), for every flow, over each flow's own
+        /// "publish": default (every device, light, English, tester tools off, signal on) or all (every theme,
+        /// language and signal); the others show the live app once it's ready
+        #[arg(long, value_name = "default|all")]
+        capture_set: Option<String>,
+        /// captures at once with --capture (default 6)
+        #[arg(long)]
+        jobs: Option<u32>,
+        /// the snapshots' size, × the device's points (default 1.25: sharp on a 2x screen at grid size)
+        #[arg(long)]
+        scale: Option<f64>,
+        /// the snapshots' WebP quality (default 60)
+        #[arg(long)]
+        quality: Option<u32>,
+        /// with --capture: run the project's setup command for frames with a "setup" (without it they are skipped, and
+        /// listed)
+        #[arg(long)]
+        allow_setup: bool,
+    },
+    /// Wait for the author's next round of notes: blocks until a round newer than --since is in the notes file, then
+    /// prints its notes as JSON (screen, state, device, text, the replies, the screenshots' paths and the frame's link)
+    /// and exits 0. At --timeout it prints nothing and exits 3
+    Wait {
+        /// the flow's notes file (<flow>.notes.json; the flow's own .json names it too), or inside a project the flow's
+        /// name alone (auth: .flex/flows/auth.notes.json)
+        notes: PathBuf,
+        /// the last round already seen (default: the latest in the file when this starts)
+        #[arg(long)]
+        since: Option<u32>,
+        /// give up after this many seconds (default: wait for ever)
+        #[arg(long)]
+        timeout: Option<u64>,
+    },
+}
+
+#[derive(Subcommand)]
 enum Cmd {
     /// The project's assets: the song and stems, takes, freezes and stills, cards, looks, labs, renders
     Assets(assets::Args),
@@ -506,7 +604,37 @@ enum Cmd {
         #[arg(long)]
         json: bool,
     },
-    /// Screens in Apple device frames (iPhone, iPad, Mac), as PNGs: a page (.html or a URL) captured at the device's size
+    /// A web app's screens frozen to self-contained HTML (styles, fonts, images and canvases inlined, no scripts) at each
+    /// device's size and safe areas, light and dark, for `flex mockup` to frame: <dir>/<device>/<screen>.<theme>.html.
+    /// Into ~/Downloads/flex-screens/<name>/ unless -o
+    Screens {
+        /// a screens.json ({ base, devices, screens: [{ name, path }] }) or URLs
+        #[arg(required = true)]
+        inputs: Vec<String>,
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+        /// the devices to freeze at (as flex mockup's); default: the json's devices, else iphone
+        #[arg(long)]
+        device: Option<String>,
+        /// light, dark or both
+        #[arg(long, default_value = "both")]
+        theme: String,
+        /// the web app's address, for screens given as paths
+        #[arg(long)]
+        base: Option<String>,
+        /// only these screens (names, comma-separated)
+        #[arg(long)]
+        only: Option<String>,
+        /// ms to wait after loading before freezing (a seed link's navigation, first fetches); default 2500
+        #[arg(long)]
+        wait: Option<u64>,
+        /// write the index (screens, states, their links) and stop: nothing frozen (flex mockup --canvas reads it)
+        #[arg(long)]
+        index_only: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Screens in device frames (iPhone, iPad, Mac, Android, Windows, app windows), as PNGs: a page (.html or a URL) captured at the device's size
     /// with its safe areas and status bar, light and/or dark; a screenshot placed as it is; or a folder of either. No film
     /// project needed. Into ~/Downloads/flex-mockups/<folder>/ unless -o
     Mockup {
@@ -519,18 +647,36 @@ enum Cmd {
         overlays: bool,
         #[arg(short, long)]
         out: Option<PathBuf>,
-        /// iphone, iphone-max, ipad, ipad-11, ipad-mini, mac, mac-16, display; several with commas
-        #[arg(long, default_value = "iphone")]
-        device: String,
-        /// a page's colour scheme: light, dark or both
-        #[arg(long, default_value = "light")]
-        theme: String,
-        /// iphone: black, silver, natural, blue, orange · ipad: gray, silver · mac: black, silver
+        /// iphone (default), iphone-max, ipad, ipad-11, ipad-mini, android, android-tablet, mac, mac-16, display, pc,
+        /// pc-16, windows, mac-window, window; several with commas, or all. A flex screens folder (one subfolder per
+        /// device) frames each subfolder in its own device unless this names some
+        #[arg(long)]
+        device: Option<String>,
+        /// a page's colour scheme: light (default), dark or both. A frozen screen (<screen>.<theme>.html, flex screens)
+        /// is framed in its own theme unless this names one
+        #[arg(long)]
+        theme: Option<String>,
+        /// iphone: black, silver, natural, blue, orange, kinpay · ipad: gray, silver · mac: black, silver · android:
+        /// graphite, porcelain, sage · pc: graphite, silver · windows, mac-window: auto (the theme), light, dark; several
+        /// with commas, or all (a device skips finishes it doesn't come in)
         #[arg(long)]
         finish: Option<String>,
-        /// iPad on its side
+        /// frame (default), bare (just the screen) or outline (iPhone); several with commas, or all
+        #[arg(long)]
+        style: Option<String>,
+        /// an app window's title (default: the input's name)
+        #[arg(long)]
+        title: Option<String>,
+        /// the band under a phone or tablet's status bar: a CSS colour, or none; by default the page's
+        /// <meta name="theme-color"> for the scheme, as a phone's browser paints it
+        #[arg(long)]
+        bar_color: Option<String>,
+        /// iPad or Android tablet on its side
         #[arg(long)]
         landscape: bool,
+        /// no Dynamic Island (iPhone), camera notch (Mac) or punch-hole camera (Android)
+        #[arg(long)]
+        no_notch: bool,
         /// the status bar (menu bar on a Mac): auto picks glyphs from the screen under it; none for screenshots that have one
         #[arg(long, default_value = "auto")]
         status: String,
@@ -544,10 +690,105 @@ enum Cmd {
         #[arg(long)]
         scale: Option<f64>,
         /// also a contact sheet of them all (sheet.png)
+        /// a page beside the PNGs to check them: filter by screen, device, finish and theme, open one full size, compare up
+        /// to four side by side (review.html; every image is this run's own file)
+        #[arg(long)]
+        review: bool,
         #[arg(long)]
         sheet: bool,
+        /// a live screen canvas instead of PNGs: from a flex screens folder's index (screens --index-only), the review
+        /// page whose device frames run the app itself at each screen's link on <base> (a path on the same site, e.g. /,
+        /// or a URL), written as index.html into -o; nothing is captured
+        #[arg(long)]
+        canvas: Option<String>,
         #[arg(long)]
         json: bool,
+    },
+    /// Review an app's flow with the author: its live screen canvas (as `flex mockup --canvas`: every frame the app running
+    /// at the screen's link, in the flow's order and devices), served on localhost and opened in the browser. The author
+    /// clicks a spot on a frame to leave a note there, and Send hands the drafts over as a round. The notes, and the
+    /// replies an agent writes into them, live beside the flow in <flow>.notes.json, each note's screenshots in
+    /// <flow>.notes/. Given a folder, every flow in it, picked at the top of the page. `flex review wait` blocks until
+    /// the author sends a round. A product keeps its review in .flex/project.json ({ name, project, logo, base, devices,
+    /// flows, order, port, ready, environments, env, setup, clock, proxies, signinParam, signoutParam }), found walking up from the flow or from here: its logo and name head the page, its base and devices
+    /// are every flow's defaults (a flow's own fields win), and `flex review` with no flow serves its flows folder, opening
+    /// on the project's home (a card per flow). A screen opened on its own shows its snapshot until the app in its frame
+    /// is ready (past its seed link and settled), then the app itself; "ready": { "selector": "<css>" } in project.json
+    /// says when instead. "environments": { <key>: { label, base, api: { path, target }, login: { url, token }, accounts:
+    /// { <persona>: { email, password } }, env } } (an older single "staging" block counts as one) adds a Data switch
+    /// (Static | each environment): the frames show that environment's build at base, its api.path/… calls sent on to
+    /// api.target, each seed link's signin=<persona> signed in to that persona's account there (POST login.url; token:
+    /// where the token is in the answer) and passed on as token=. An account's $VARS come from the environment, else the
+    /// env file (the environment's, else the project's "env", beside .flex/); no secret or token reaches the page or a
+    /// file. Tester tools (View; off by default) adds tester=0|1 to every frame link, and off it leaves out the flow's
+    /// screens and states marked "tester": true. Signal (View; on by default) adds offline=0|1 to every frame link; a
+    /// flow's "signal": false screens and states are always offline. Notes and snapshots are kept per data mode, tester
+    /// setting and signal. "order": [flow names] sets the flows' order (the rest follow alphabetically). Signed in as:
+    /// the project's "people" ({ <slug>: { name, ... } }); a flow's "person" (its default; null: signed out) and
+    /// "people" (who it offers), a screen's or state's own overriding them. The canvas adds signin=<person> (or
+    /// signout=1 for null) to each frame's link, a link that already says signin= keeping it; the person picked in the
+    /// page applies where a screen offers them, elsewhere its default. A flow's "publish": "all" sets what `flex review
+    /// export` publishes for it (see export, --capture-set). On start the review takes every flow's default-view
+    /// snapshots not taken yet (or stale) in the background, behind what a page asks for, one at a time (frames whose
+    /// setup isn't allowed left out). A snapshot whose page is an error page (HTTP error, server 404/502/503 page,
+    /// blank, app failed to mount, or a page error that left no content or only an error message) is retried, then
+    /// not kept (an older one still shows); a page error the app recovered from (a hydration mismatch, the page
+    /// rendered) keeps the snapshot and is logged and recorded in the manifest as a warning. A state's "path" defaults
+    /// to its screen's (it needs a name). A screen or state's "expect": "<selector, or text=…>" is checked once the
+    /// page is loaded and its actions done: missing, the snapshot is kept but flagged "data moved?" (a badge on the
+    /// grid, "moved" in the manifest), for boards on shared data another run may reset.
+    /// Setup, for a state a URL can't hold: project.json "setup": { "command": "<shell command>", "cwd": "<dir, relative
+    /// to .flex/>", "ttl": <seconds a result is reused, default 600>, "writes": true (said at start) }, and a flow's,
+    /// screen's or state's "setup": { <string args> } (merged, state over screen over flow; null: none from there down;
+    /// absent: no setup, as before). Setup commands may write data, so they run only with --allow-setup (also on
+    /// `export --capture` and `resnap`) or the page's Setup switch (View; this session, off at start); otherwise such
+    /// frames say "Setup not allowed" and captures skip them, listed. Before a frame opens, or is captured, the command
+    /// runs (sh, the user's login-shell PATH added) with FLEX_FLOW, FLEX_SCREEN, FLEX_STATE, FLEX_PERSON, FLEX_LANG,
+    /// FLEX_THEME, FLEX_DEVICE, FLEX_BASE, FLEX_MODE and FLEX_SETUP (the args as JSON) over the project's env file, and
+    /// prints JSON: { "url"?: a path or the app's address to open (default: the frame's link), "cookies"?: [{ name,
+    /// value, path?, httpOnly?, secure?, sameSite?, maxAge? }], "localStorage"?: { k: v }, "sessionStorage"?: { k: v },
+    /// "actions"?: [..] (after the flow's) }. A non-zero exit or output that isn't JSON shows in the frame with the
+    /// command's stderr (a capture says so and keeps nothing). A result is reused per (args, person, language, data mode)
+    /// for ttl, until the flow's "build" changes or Reset to defaults; the background runs a frame's setup at most once
+    /// per ttl. Each run is logged (command, frame, person; never its output) in .flex/cache/review.log. Declared, no
+    /// command: "storage": { "localStorage": {..}, "sessionStorage": {..} } (merged; a command's keys win); "clock":
+    /// "<ISO instant with offset, e.g. 2026-11-21T09:30:00+03:00>" (project, flow, screen or state; null: none), only
+    /// no-arg new Date(), Date() and Date.now() at it (new Date(x), Date.parse, Date.UTC stay real), frozen unless
+    /// "clockTicks": true; give a real instant, not a wall-clock string (time zones convert it); "actions": [{ "fill":
+    /// sel, "value": v }, { "click": sel, "nth"?: n }, { "press": key }, { "waitFor": sel }, { "scroll": sel }, { "wait":
+    /// ms }] (selectors: CSS or text=…; a lower level's list replaces the one above), run after the page loads (each
+    /// waits up to 10 s), the frame ready only once they are done; one failing marks the frame, and a capture keeps
+    /// nothing. Live, a frame with any of these opens through the review's api/setup-frame; the proxy puts Flex's script
+    /// first in the <head> of the app's pages in frames (never the review page), so clock and storage are in place
+    /// before the app's own scripts, SSR apps too. Isolation: with a setup in a flow, flex review prints its address on
+    /// <project>.localhost and gives each setup frame a host of its own under it (one per flow, screen, person, language
+    /// and data mode): cookies and storage per frame (Chromium, Firefox; a browser that can't resolve *.localhost: use
+    /// http://localhost:<port>, where setup frames share one origin, the screen in view re-running its setup when shown
+    /// again, and storage kept per frame by an overlay). Only the cookies and storage asked for reach the page; the
+    /// output is never logged or written. A snapshot is taken again when its frame's setup, storage, clock or actions
+    /// change. "proxies": { "/prefix": "http://another:port" } sends those paths to another origin (path, method,
+    /// headers and body as they are; captures too); a redirect to the app's or a proxied address is made relative, and
+    /// WebSockets (HMR) pass through. "signinParam" (default "signin") and "signoutParam" (default "signout"; null: none
+    /// added) name the link parameters a frame's person goes in. Fields Flex doesn't know are said once (not an error)
+    Review {
+        #[command(subcommand)]
+        cmd: Option<ReviewCmd>,
+        /// a flow (a screens list: { base, devices, screens: [{ name, label, path, states }] }) or a folder of them;
+        /// default: the flows of the project here (.flex/project.json)
+        flow: Option<PathBuf>,
+        /// the app's address, over the flow's base (e.g. http://localhost:8099)
+        #[arg(long)]
+        base: Option<String>,
+        /// the port to serve on (default: the project's, else 4870 or the next free one)
+        #[arg(long)]
+        port: Option<u16>,
+        /// print the address without opening the browser
+        #[arg(long)]
+        no_open: bool,
+        /// run the project's setup command for frames with a "setup" (it may write data: off unless given, or switched
+        /// on in the page's View panel)
+        #[arg(long)]
+        allow_setup: bool,
     },
     /// One card on its own, with the project's look: without a type, the cards the project can use (defaults, length);
     /// with one, a still (--at ms, or -o x.png) or the whole card as a clip (-o x.mp4)
@@ -1356,12 +1597,66 @@ fn run() -> Result<()> {
             }
         }
         Cmd::Mockup { overlays: true, .. } => println!("device overlays → {}", flex_core::mockup::device_overlays()?.display()),
-        Cmd::Mockup { inputs, out, device, theme, finish, landscape, status, bg, shadow, scale, sheet, json, .. } => {
+        Cmd::Screens { inputs, out, device, theme, base, only, wait, index_only, json } => {
             let mut a: Vec<String> = inputs.iter().map(|i| flex_core::mockup::absolute(i)).collect();
             if let Some(o) = out { a.push("-o".into()); a.push(std::path::absolute(&o)?.to_string_lossy().into_owned()); }
-            for (k, v) in [("--device", Some(device)), ("--theme", Some(theme)), ("--finish", finish), ("--status", Some(status)), ("--bg", Some(bg)), ("--scale", scale.map(|s| s.to_string()))] { if let Some(v) = v { a.push(k.into()); a.push(v); } }
-            for (k, on) in [("--landscape", landscape), ("--shadow", shadow), ("--sheet", sheet), ("--json", json)] { if on { a.push(k.into()); } }
+            for (k, v) in [("--device", device), ("--theme", Some(theme)), ("--base", base), ("--only", only), ("--wait", wait.map(|w| w.to_string()))] { if let Some(v) = v { a.push(k.into()); a.push(v); } }
+            if index_only { a.push("--index-only".into()); }
+            if json { a.push("--json".into()); }
+            let st = flex_core::mockup::screens_command(&a)?.status()?;
+            if !st.success() { exit(st.code().unwrap_or(1)); }
+        }
+        Cmd::Mockup { inputs, out, device, theme, finish, style, title, bar_color, landscape, no_notch, status, bg, shadow, scale, sheet, review, canvas, json, .. } => {
+            let mut a: Vec<String> = inputs.iter().map(|i| flex_core::mockup::absolute(i)).collect();
+            if let Some(o) = out { a.push("-o".into()); a.push(std::path::absolute(&o)?.to_string_lossy().into_owned()); }
+            for (k, v) in [("--device", device), ("--theme", theme), ("--finish", finish), ("--style", style), ("--title", title), ("--bar-color", bar_color), ("--status", Some(status)), ("--bg", Some(bg)), ("--scale", scale.map(|s| s.to_string())), ("--canvas", canvas)] { if let Some(v) = v { a.push(k.into()); a.push(v); } }
+            for (k, on) in [("--landscape", landscape), ("--no-notch", no_notch), ("--shadow", shadow), ("--sheet", sheet), ("--review", review), ("--json", json)] { if on { a.push(k.into()); } }
             let st = flex_core::mockup::command(&a)?.status()?;
+            if !st.success() { exit(st.code().unwrap_or(1)); }
+        }
+        Cmd::Review { cmd: Some(ReviewCmd::Export { out, prefix, capture, capture_set, jobs, scale, quality, allow_setup }), .. } => {
+            let mut a: Vec<String> = vec!["export".into(), std::path::absolute(&out)?.to_string_lossy().into_owned()];
+            if let Some(p) = prefix { a.push("--prefix".into()); a.push(p); }
+            if capture { a.push("--capture".into()); }
+            if allow_setup { a.push("--allow-setup".into()); }
+            if let Some(c) = capture_set { a.push("--capture-set".into()); a.push(c); }
+            if let Some(j) = jobs { a.push("--jobs".into()); a.push(j.to_string()); }
+            if let Some(k) = scale { a.push("--scale".into()); a.push(k.to_string()); }
+            if let Some(q) = quality { a.push("--quality".into()); a.push(q.to_string()); }
+            let st = flex_core::mockup::review_command(&a)?.env("FLEX_REVIEW_CWD", std::env::current_dir()?).status()?;
+            if !st.success() { exit(st.code().unwrap_or(1)); }
+        }
+        Cmd::Review { cmd: Some(ReviewCmd::Resnap { flow, screen, state, jobs, allow_setup, all }), .. } => {
+            let mut a: Vec<String> = vec!["resnap".into()];
+            if let Some(f) = flow { a.push(f); }
+            for (k, v) in [("--screen", screen), ("--state", state), ("--jobs", jobs.map(|j| j.to_string()))] { if let Some(v) = v { a.push(k.into()); a.push(v); } }
+            if allow_setup { a.push("--allow-setup".into()); }
+            if all { a.push("--all".into()); }
+            let st = flex_core::mockup::review_command(&a)?.env("FLEX_REVIEW_CWD", std::env::current_dir()?).status()?;
+            if !st.success() { exit(st.code().unwrap_or(1)); }
+        }
+        Cmd::Review { cmd: Some(ReviewCmd::Check { flow, jobs, allow_setup, all }), .. } => {
+            let mut a: Vec<String> = vec!["check".into()];
+            if let Some(f) = flow { a.push(f); }
+            if let Some(j) = jobs { a.push("--jobs".into()); a.push(j.to_string()); }
+            if allow_setup { a.push("--allow-setup".into()); }
+            if all { a.push("--all".into()); }
+            let st = flex_core::mockup::review_command(&a)?.env("FLEX_REVIEW_CWD", std::env::current_dir()?).status()?;
+            if !st.success() { exit(st.code().unwrap_or(1)); }
+        }
+        Cmd::Review { cmd: Some(ReviewCmd::Wait { notes, since, timeout }), .. } => {
+            let mut a: Vec<String> = vec!["wait".into(), std::path::absolute(&notes)?.to_string_lossy().into_owned()];
+            for (k, v) in [("--since", since.map(|s| s.to_string())), ("--timeout", timeout.map(|t| t.to_string()))] { if let Some(v) = v { a.push(k.into()); a.push(v); } }
+            let st = flex_core::mockup::review_command(&a)?.env("FLEX_REVIEW_CWD", std::env::current_dir()?).status()?;
+            if !st.success() { exit(st.code().unwrap_or(1)); }
+        }
+        Cmd::Review { cmd: None, flow, base, port, no_open, allow_setup } => {
+            // no flow: the script finds the project (.flex/project.json) from here
+            let mut a: Vec<String> = match flow { Some(f) => vec![std::path::absolute(&f)?.to_string_lossy().into_owned()], None => vec![] };
+            for (k, v) in [("--base", base), ("--port", port.map(|p| p.to_string()))] { if let Some(v) = v { a.push(k.into()); a.push(v); } }
+            if no_open { a.push("--no-open".into()); }
+            if allow_setup { a.push("--allow-setup".into()); }
+            let st = flex_core::mockup::review_command(&a)?.env("FLEX_REVIEW_CWD", std::env::current_dir()?).status()?;
             if !st.success() { exit(st.code().unwrap_or(1)); }
         }
         Cmd::Card { dir, card, params, dur, at, out, width, json } => {

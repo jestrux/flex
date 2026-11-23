@@ -1,0 +1,20 @@
+/* Trail log: a small sample app for flex screens and flex mockup (docs/features/11-mockups.md). Phone first; a rail
+   from 768 and a sidebar from 1024, as a real app's shell would. Its safe areas come from env(), as an app's do;
+   frame.js takes the screen canvas's scheme= and insets= instead, since a frame's browser reports neither. */
+:root{--bg:#f6f5f1;--card:#fff;--ink:#1c1b18;--sub:#6d6a62;--line:#e5e2da;--acc:#2f6b4f;--soft:#e6efe9;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root:not([data-scheme=light]){--bg:#141513;--card:#1d1f1c;--ink:#eeede8;--sub:#a3a199;--line:#2c2e2a;--acc:#7cc39c;--soft:#1f2c25}}
+:root[data-scheme=dark]{--bg:#141513;--card:#1d1f1c;--ink:#eeede8;--sub:#a3a199;--line:#2c2e2a;--acc:#7cc39c;--soft:#1f2c25}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:500 15px/1.4 -apple-system,system-ui,sans-serif}
+.app{min-height:100vh;display:flex}
+nav{display:none}
+main{flex:1;padding:calc(var(--safe-top,env(safe-area-inset-top)) + 16px) 16px calc(var(--safe-bottom,env(safe-area-inset-bottom)) + 84px);max-width:760px;margin:0 auto}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-around;background:var(--card);border-top:1px solid var(--line);padding:10px 0 calc(var(--safe-bottom,env(safe-area-inset-bottom)) + 10px)}
+.tabs a,nav a{color:var(--sub);text-decoration:none;font-size:12px;font-weight:700}.tabs a.on,nav a.on{color:var(--acc)}
+@media (min-width:768px){.tabs{display:none}nav{display:flex;flex-direction:column;gap:6px;width:84px;padding:calc(var(--safe-top,env(safe-area-inset-top)) + 20px) 10px;background:var(--card);border-right:1px solid var(--line)}main{padding-bottom:24px}}
+@media (min-width:1024px){nav{width:220px}nav a{font-size:14px;padding:8px 10px;border-radius:8px}nav a.on{background:var(--soft)}}
+h1{font-size:28px;margin:4px 0 2px;letter-spacing:-.5px}.sub{color:var(--sub);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+.big{font-size:40px;font-weight:800;letter-spacing:-1px}.row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.pill{background:var(--soft);color:var(--acc);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
+.btn{display:block;text-align:center;background:var(--acc);color:#fff;border-radius:12px;padding:14px;font-weight:800;text-decoration:none}
+.empty{color:var(--sub);text-align:center;padding:40px 0}

@@ -227,3 +227,9 @@
 .ipad--shadow {
   filter: drop-shadow(0 calc(48 * var(--pt)) calc(48 * var(--pt)) rgba(28, 24, 18, 0.3));
 }
+
+/* ───────── from KinPay Frame Studio (kinpay feat/frame-studio, frame-studio-simple/src/frames.css): bare ───────── */
+.ipad--bare{--side:0;--screen-r:0;background:none;box-shadow:none}
+.ipad--bare::before,.ipad--bare::after{display:none}
+.ipad--bare .ipad__buttons{display:none}
+.ipad--bare .ipad__screen{border-radius:0;background:#fff}

@@ -83,10 +83,45 @@ flex mockup shot.png --status none           # a screenshot that already has its
 - A page is captured at the device's own size with its safe areas (the status bar and home indicator don't cover it),
   in the colour scheme asked for; a screenshot is placed as it is. Output: `~/Downloads/flex-mockups/<folder>/` unless
   `-o`, one PNG per screen, device and theme (`<page>-<device>-<theme>.png`).
-- Devices: `iphone` (default), `iphone-max`, `ipad`, `ipad-11`, `ipad-mini`, `mac`, `mac-16`, `display`. Finishes
-  (`--finish`): iPhone black, silver, natural, blue, orange; iPad gray, silver; Mac black, silver. `--shadow`, `--bg`.
+- Devices: `iphone` (default), `iphone-max`, `android`, `ipad`, `ipad-11`, `ipad-11-landscape`, `ipad-mini`, `mac`,
+  `mac-16`, `display`. Finishes (`--finish`): iPhone black, silver, natural, blue, orange; Android graphite,
+  porcelain, sage, or any colour (a tint); iPad gray, silver; Mac black, silver. `--shadow`, `--bg`.
 - The status bar (menu bar on a Mac) is `auto`: dark glyphs over a light screen, light over a dark one.
 - Look at the results (open `sheet.png`) before reporting, and say where they are.
+- **A running web app's screens:** `flex screens <screens.json>` freezes each screen per device and theme (states and
+  composable `axes` too), then `flex mockup <that folder> --review` frames them and writes `review.html` (every screen
+  on a canvas; one screen's states; live or rendered), plus `embed.html` and `canvas.html` for a deck or a film to
+  place devices by reference, with a camera, views and floating controls that a host page can drive by `postMessage`.
+  `flex mockup <index-only folder> --canvas <base>` makes a live screen canvas for a site. `samples/screens` is a
+  small example; docs/features/11-mockups.md has every parameter and message.
+
+## Board reviews (an app's flows, live, with notes)
+
+`flex review` puts an app's flows on a board: each frame is the real app running in a browser at that screen's link, in
+the flow's order and devices. The author clicks a spot on a frame to leave a note and sends the notes as a round; you
+reply in the notes file and fix the app. Use it when the author wants to review, sign off or share an app's screens and
+states (not a film). The app must run in a browser: a web app, or a React Native / Flutter app's web target.
+
+1. **Use the project's own e2e setup; never build around it.** States come from the e2e seeder and test users, reached
+   through a setup command beside the e2e helpers (signs the frame's person in, prints cookies/storage/url/actions as
+   JSON), plus declared `storage`, `clock`, `actions`, `proxies`, `signinParam`. No fake data or stand-in endpoints in
+   the app. A seed route in the app only when there is no backend or e2e (NCAA's static demo).
+2. **Place `.flex/`** beside the project's `.switchboard/`, committed like it (usually the e2e repo). Send the owner
+   session the file list; it commits. Ignore `.flex/cache/` and `.flex/flows/*.notes/`.
+3. **Describe the product** in `.flex/project.json` (name, base, devices, people, ready, setup) and **write the flows**
+   in `.flex/flows/<flow>.json`: screens in the person's path, states in the record's life. A different person is never
+   a state.
+4. **Safety:** setup runs only with `--allow-setup`, so the author approves its writes first. Seed once out of band,
+   throwaway users only; links and actions read-only, never a reset or a submit. `flex review resnap` after any re-seed.
+5. **Check every frame lands** on every device, as each person listed: `flex review resnap <flow> --allow-setup`, then
+   look at `.flex/cache/snapshots/<flow>/`.
+6. `flex review --no-open [--allow-setup]` under Switchboard; give the author the address it printed;
+   `flex review wait <flow>` for the round.
+7. **Reply and fix:** replies in `<flow>.notes.json`, rebuild, stamp the notes file's `build`.
+8. **Publish:** `flex review export <site>/screen-canvas --prefix /screen-canvas --capture`.
+
+Many flows: one lane per group of flows, editing only their flow files. Everything else (setup, safety, devices,
+isolation, checking, Expo traps): [reference/review.md](reference/review.md).
 
 ## The author's view
 
@@ -154,3 +189,5 @@ flex clips <dir> [--notes n.json]       # the render scene by scene, with a chec
 - [reference/making-a-film.md](reference/making-a-film.md): the whole path, from an empty folder to a rendered film:
   the music, the script, cards, takes, checks and renders, media tools, composite films, voice.
 - [reference/capture.md](reference/capture.md): recording an app's journeys into takes.
+- [reference/review.md](reference/review.md): board reviews: a reviewable app, project.json, flows, the round loop,
+  publishing, environments.

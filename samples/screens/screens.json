@@ -1,0 +1,33 @@
+{
+  "_doc": "A sample for flex screens, flex mockup and the screen canvas (docs/features/11-mockups.md): serve this folder (python3 -m http.server 8102 -d samples/screens), then flex screens samples/screens/screens.json",
+  "base": "http://localhost:8102",
+  "devices": [
+    "iphone",
+    "ipad-11",
+    "mac"
+  ],
+  "screens": [
+    {
+      "name": "today",
+      "label": "Today",
+      "path": "/home.html",
+      "states": [
+        {
+          "name": "empty",
+          "label": "No trails yet",
+          "path": "/home.html?empty=1"
+        }
+      ]
+    },
+    {
+      "name": "trails",
+      "label": "Trails",
+      "path": "/list.html"
+    },
+    {
+      "name": "trail",
+      "label": "A trail",
+      "path": "/detail.html"
+    }
+  ]
+}
