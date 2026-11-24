@@ -61,15 +61,21 @@ laptop sidebar. Serve it with `python3 -m http.server 8102 -d samples/screens`.
   any flows, first on the board's home and marked Temporary until dismissed (×), replaced, or `--clear`ed. It lives in
   `.flex/cache/`, so it's never committed; a note made on it goes to the screen's own flow.
 - **Command bar** (⌘/ on a flow review's home and flow pages): as Raycast, one ranked list of one-line results over
-  flows, screens, states and people (⌘P filters to a kind, recent, a tag or a person), starting where you are (this screen's states, this flow's screens), a filter icon (its chip at the search's start), Pinned, a footer with Open ↵ and Actions ⌘K (states,
+  flows, screens, states and people (⌘P filters to a kind, recent, a tag or a person), Pinned, Flows and Screens before you type (ranked results, nearest first, as you type), a filter icon (its chip at the search's start), Pinned, a footer with Open ↵ and Actions ⌘K (states,
   pin, peek, peek all, copy link). Modifiers in the search (`as Sofia`, `as a visitor`, `dark`, `sw`, `on iPad`,
-  `offline`, `tester`) show as chips and ↵ opens the result with them set, as the View panel would; a role fans out one
-  row per person. Tags (`"tags"` on a flow, screen or state; the project's own beside Flex's
+  `offline`, `tester`) are read from what is typed, said after each row's name, and set on ↵ as the View panel would;
+  a role fans out one row per person, and a search ending in "as ", "in " or "on " suggests its completions first. Tags (`"tags"` on a flow, screen or state; the project's own beside Flex's
   defaults, in `project.json`) colour the filter and the canvas captions.
-- **Zoom** lives in the View panel (⌘+ ⌘− ⌘0 and pinching as before); **Compact search** there too.
+- **Zoom** lives in the View panel (⌘+ ⌘− ⌘0 and pinching as before); **Compact search** is in the Search button's hover panel, with the keys.
 - **Device frame** (a toggle in the View panel's header row): off, each screen shows as the app's window alone, without the device's body, status
   bar, notch or camera. A phone or tablet's page is cropped to its safe areas, so its snapshot and its live frame agree.
   It is kept in the address (`frame=0`) and, on a flow review, remembered per project.
+- **Controls** (a project's `"controls"` in `project.json`): its own seed switches, an icon button each in the top bar
+  beside the person, shown while live frames they apply to (their `screens`: `flow`, `flow/screen`, `flow/screen@state`,
+  `*` globs) are in view; a dot when off the default. A value off the `default` adds `<param>=<value>` to the live
+  frames' links, except where a link sets it itself; remembered per project, kept in the address, cleared by reset.
+  `"multi": true` makes it switches (an override: those on go comma-joined, none on adds nothing; an option's third item is its heading in the menu). Snapshots stay at
+  the default.
 - **System screens** (a flow review's `"system"` on a screen or state): the OS's own UI drawn over the app's frame in
   CSS, the iOS contact picker or permission alert on an iPhone or iPad, Material 3's on Android, nothing on a laptop.
   It follows the theme, language and Device frame; notes and ⌥-copy are of the app underneath (`server/system.mts`).

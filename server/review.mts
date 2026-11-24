@@ -192,11 +192,14 @@ const HASBARE=ROWS.some(r=>FRAMES[r.frame+"#bare"]);
 let THUMB=(r)=>FR(r).replace("__SRC__",liveSrc(r));
 /* a screen opened on its own: its device frame running the app (flex review's published copy: a frame with a setup is its snapshot) */
 let LIVE1=(r)=>FR(r).replace("__SRC__",liveSrc(r)).replace(' loading="lazy"',"");
-const pic=(r,extra)=>CANVAS?'<div class="live lt" data-r="'+ROWS.indexOf(r)+'" '+(extra||"")+'><div class="lz">'+THUMB(r)+"</div></div>":'<img '+(extra||"")+' loading="lazy" src="'+src(r)+'" alt="">';
+// (a grid cell is its snapshot, except where a project control is off its default: snapshots are always at the
+// defaults, so that cell is the live app, to show what the control asks for)
+const ctlOnSafe=(n)=>{try{return ctlOn(n)}catch{return false}};
+const pic=(r,extra)=>CANVAS?'<div class="live lt" data-r="'+ROWS.indexOf(r)+'" '+(extra||"")+'><div class="lz">'+(ctlOnSafe(r.screen)?LIVE1(r):THUMB(r))+"</div></div>":'<img '+(extra||"")+' loading="lazy" src="'+src(r)+'" alt="">';
 // live pictures take their box's width (a grid cell, a card's thumb: data-w), once laid out
 function fitLive(root){root.querySelectorAll(".live.lt").forEach(l=>{const z=l.firstElementChild,f=z.firstElementChild;if(!f)return;const p=l.parentElement,cs=getComputedStyle(p),box=+l.dataset.w||p.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);const w=f.offsetWidth,h=f.offsetHeight,k=box/w;z.style.transform="scale("+k+")";l.style.width=w*k+"px";l.style.height=h*k+"px"})}
 const cur1=()=>S.state?S.screen+"@"+S.state:S.screen;
-function keep(){const q=new URLSearchParams({sub:S.sub,stmode:S.stmode,view:S.view,state:S.state,group:S.group,screens:S.screens,screen:S.screen,theme:S.theme,devices:[...S.devs].join(","),frame:S.bare?"0":"1"});history.replaceState(null,"",location.pathname+"?"+q)}
+function keep(){const q=new URLSearchParams({sub:S.sub,stmode:S.stmode,view:S.view,state:S.state,group:S.group,screens:S.screens,screen:S.screen,theme:S.theme,devices:[...S.devs].join(","),frame:S.bare?"0":"1"});if(typeof CTLQ==="function")CTLQ(q);history.replaceState(null,"",location.pathname+"?"+q)}
 /* a switch (button.sw role=switch): on or off, set(on) when flipped */
 function sw(el,on,set){el.setAttribute("aria-checked",on);el.onclick=(e)=>{e.preventDefault();set(el.getAttribute("aria-checked")!=="true")}}
 function seg(el,items,isOn,on,render){el.innerHTML="";for(const it of items){const b=document.createElement("button");b.setAttribute("aria-pressed",isOn(it));b.innerHTML=render(it);b.onclick=(e)=>on(it,e);el.appendChild(b)}}
@@ -335,7 +338,7 @@ function stage(){
     const all=[{name:"",label:entry(S.screen).defaultLabel||"Default"},...states(S.screen)];
     st0.style.alignItems="flex-start";
     st.innerHTML='<div class="rows">'+devs.map(x=>{const fs=all.map(z=>({z,r:row(z.name?S.screen+"@"+z.name:S.screen,x.k,S.theme)})).filter(o=>o.r)
-      .map(o=>'<figure data-st="'+o.z.name+'">'+pic(o.r)+'<div class="cap">'+o.z.label.replace(/</g,"&lt;")+CHIPS(o.z.name?o.z.tags:entry(S.screen).tags)+"</div></figure>").join("");
+      .map(o=>'<figure data-st="'+o.z.name+'">'+pic(o.r)+'<div class="cap">'+o.z.label.replace(/</g,"&lt;")+"</div></figure>").join("");
       return fs?'<section class="dsec">'+(devs.length>1?'<h3>'+ICON[x.c]+NAME[x.c]+'</h3>':'')+'<div class="grid" style="--cell:'+({phone:"220px",tablet:"280px",land:"360px",laptop:"400px"}[x.c]||"300px")+'">'+fs+"</div></section>":""}).join("")+"</div>";
     fitLive(st);
     st.querySelectorAll("figure[data-st]").forEach(f=>f.onclick=()=>{S.state=f.dataset.st;S.stmode="one";go()});
@@ -372,7 +375,7 @@ function stage(){
     return}
   // each device in turn, its screens following one grid (cell width by the device's kind)
   st.innerHTML='<div class="rows">'+devs.map(x=>{
-    const figOf=(sc)=>{const r=row(sc,x.k,S.theme);return r?'<figure data-s="'+r.screen+'">'+pic(r)+'<div class="cap"><span class="num">'+num(r.screen)+"</span>"+lbl(r.screen)+stCount(r.screen)+CHIPS(entry(r.screen).tags)+"</div></figure>":""};
+    const figOf=(sc)=>{const r=row(sc,x.k,S.theme);return r?'<figure data-s="'+r.screen+'">'+pic(r)+'<div class="cap"><span class="num">'+num(r.screen)+"</span>"+lbl(r.screen)+stCount(r.screen)+"</div></figure>":""};
     // an opened used flow: its screens; else the host's items, a used flow as one tile (its first screen's picture)
     const fs=S.sub?SCREENS.filter(sc=>grp(sc)===S.sub).map(figOf).join(""):ITEMS().map((it,i)=>{if(!it.g)return figOf(it.s);
       const r=row(it.ss[0],x.k,S.theme);return r?'<figure data-g="'+it.g.replace(/"/g,"&quot;")+'">'+pic(r)+'<div class="cap"><span class="num">'+inum(i)+"</span>"+it.g.replace(/</g,"&lt;")+'<small class="cst">'+it.ss.length+" screen"+(it.ss.length===1?"":"s")+"</small></div></figure>":""}).join("");
@@ -386,7 +389,9 @@ function openScreen(s){S.screen=s;S.sub=grp(s);S.state="";S.screens="one";S.stmo
 function up(){
   if(S.screens==="one"&&S.stmode==="one"&&states(S.screen).length){S.stmode="all";S.state="";go();return}
   if(S.screens==="one"){S.screens="all";go();return}
-  if(S.sub){S.sub="";go()}}
+  if(S.sub){S.sub="";go();return}
+  // the top of a flow: every flow (the board's home), where the review has one
+  if(typeof NR!=="undefined"&&!(typeof STATIC!=="undefined"&&STATIC))location.href=NR+"/"}
 /* a used flow opened: its screens, the way a screen opened shows its states */
 function openGroup(g){S.sub=g;S.screens="all";S.state="";go()}
 function openItem(it){if(it.g)openGroup(it.g);else openScreen(it.s)}
@@ -470,6 +475,7 @@ const VIEW_CSS = `.vp{width:264px;padding:6px 0}
 .vp .seg button[aria-pressed=true]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .vp .vic .seg button,.vp .seg.devs button{padding:4px 6px}.vp .seg svg{width:14px;height:14px}.vp .seg.devs svg{width:15px;height:15px}
 .vp .seg svg.flag{width:18px;height:12px;border-radius:2px;box-shadow:0 0 0 .5px rgba(0,0,0,.15)}
+.vp select.nctl{height:28px;max-width:150px;border:0;border-radius:7px;background:var(--soft);padding:0 6px;font:inherit;font-size:11.5px;font-weight:600;color:var(--ink);cursor:pointer}
 .vp .sw{width:30px;height:18px;border-radius:9px;border:0;background:color-mix(in srgb,var(--sub) 45%,transparent);position:relative;padding:0;flex:none;cursor:pointer}
 .vp .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .15s}
 .vp .sw[aria-checked=true]{background:var(--on)}.vp .sw[aria-checked=true]::after{left:14px}
@@ -478,10 +484,9 @@ const VIEW_CSS = `.vp{width:264px;padding:6px 0}
 .vp .vzoom .bar b{color:var(--ink);font-variant-numeric:tabular-nums;cursor:default}.vp .vzoom .bar button:hover{background:var(--panel);color:var(--ink)}.vp .vzoom .sep{display:none}
 .vp .nreset{width:auto;border:0;background:none;padding:2px 0;color:var(--sub);font:inherit;font-size:12px;font-weight:400;text-decoration:underline;text-underline-offset:2px;cursor:pointer}.vp .nreset:hover{color:var(--ink)}`;
 /** the View panel's rows (the page puts them in its popover, class "vp"); frame and setup rows start hidden */
-const viewPanel = (o: { frame?: boolean } = {}) => `<div class="sec vtop"><div class="vic"><div class="seg" id="themes"></div><div class="seg" id="nlangs"></div><div class="seg" id="nsignal"><button></button></div>${o.frame ? `<div class="seg" id="nframe" hidden><button></button></div>` : ""}</div><button class="nreset" id="nreset" title="Devices,${o.frame ? " frame," : ""} theme, language, signal, tester tools and data back to the project’s defaults">reset</button></div>
+const viewPanel = (o: { frame?: boolean } = {}) => `<div class="sec vtop"><div class="vic"><div class="seg" id="themes"></div><div class="seg" id="nlangs"></div><div class="seg" id="nsignal"><button></button></div>${o.frame ? `<div class="seg" id="nframe" hidden><button></button></div>` : ""}</div><button class="nreset" id="nreset" title="Devices,${o.frame ? " frame," : ""} theme, language, signal, tester tools, data and the project’s controls back to their defaults">reset</button></div>
   <div class="sec"><div class="lab">Devices <span id="devname"></span></div><div class="seg devs" id="devices"></div></div>
   ${o.frame ? `<div class="sec"><div class="lab">Zoom</div><div class="vzoom" id="nvzoom"></div></div>` : ""}
-  <div class="sec"><div class="lab">Compact search</div><button class="sw" role="switch" id="ncompact" aria-label="Compact search" title="⌘/ shows only its search box until you type"></button></div>
   <div class="sec ngrp"><div class="lab">Data</div><div class="seg" id="nmodes"></div></div>
   <div class="sec"><div class="lab">Tester tools</div><button class="sw" role="switch" id="ntester" aria-label="Tester tools"></button></div>
   <div class="sec" hidden><div class="lab">Setup</div><button class="sw" role="switch" id="nsetup" aria-label="Setup" title="Runs the project’s setup command for frames with a setup (it may write data)"></button></div>`;
@@ -531,15 +536,22 @@ const CMDK_CSS = `${TAG_CSS}
 .kdd input{border:0;border-bottom:1px solid var(--line);background:none;outline:none;color:var(--ink);font:inherit;font-size:13px;padding:10px 12px}
 .kdd .kdl{flex:1 1 auto;min-height:0;overflow-y:auto;padding:4px 0}.kdd .ks{padding:8px 12px 3px}
 .kdd button{display:flex;align-items:center;gap:8px;width:calc(100% - 8px);margin:0 4px;border:0;background:none;color:var(--ink);font:inherit;font-size:13px;text-align:left;padding:6px 8px;border-radius:6px;cursor:pointer}
-.kdd.kact2{top:auto;bottom:50px;right:10px;width:290px;max-height:min(380px,70vh)}.kdd.kact2 input{border-bottom:0;border-top:1px solid var(--line)}.kdd .kon kbd{margin-left:2px}
+.kdd.kact2{top:auto;bottom:50px;right:10px;width:290px;max-height:min(380px,70vh)}.kdd.kact2 input{border-bottom:0;border-top:1px solid var(--line)}.kdd .kon kbd{margin-left:2px}.kdd .kon{display:flex;align-items:center;gap:8px}.kdd .kfn{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
 .kscope{flex:none;display:none;align-items:center;gap:6px;max-width:46%;font-size:13px;font-weight:600;color:var(--ink);background:var(--soft);border-radius:6px;padding:4px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kscope.on{display:inline-flex}.kscope svg{width:13px;height:13px;color:var(--sub)}.kscope .kdot{width:8px;height:8px;border-radius:50%;background:var(--tc)}.kscope i{font-style:normal;color:var(--sub);margin:0 2px}
 .kmods{flex:0 1 auto;min-width:0;display:none;flex-wrap:wrap;align-items:center;gap:4px;padding:8px 0}.kmods.on{display:inline-flex}
 .kmod{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--ink);background:var(--soft);border:1px solid transparent;border-radius:999px;padding:2px 8px;white-space:nowrap;cursor:pointer}
 .kmod small{font-size:11px;font-weight:500;color:var(--sub)}.kmod.live{background:none;border-color:var(--line);border-style:dashed;cursor:default}.kmod:not(.live):hover{text-decoration:line-through}
 .kfil kbd{font:600 10px/1 ui-monospace,Menlo,monospace;color:var(--sub);background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:2px 4px;margin-left:-2px}
 .kc.kcompact .kl,.kc.kcompact .kf{display:none}.kc.kcompact .ki{border-bottom:0}
-.kr .kacc svg{width:13px;height:13px;color:var(--sub)}.kr .kcnt{font-size:12.5px;color:var(--sub);font-variant-numeric:tabular-nums}
+.kr .kacc svg{width:13px;height:13px;color:var(--sub)}.kr .kmt{flex:none;max-width:40%;font-size:13.5px;font-weight:500;color:var(--ink);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ksug .kic{color:#7c3aed}
+.kr .kcnt{font-size:12.5px;color:var(--sub);font-variant-numeric:tabular-nums}
 .kdd button:hover{background:color-mix(in srgb,var(--soft) 55%,transparent)}.kdd button[aria-selected=true]{background:var(--soft)}.kdd button .kdot{width:8px;height:8px;border-radius:50%;background:var(--tc);flex:none}.kdd button svg{width:14px;height:14px;color:var(--sub);flex:none}.kdd button .kon{margin-left:auto;color:var(--sub)}
+.kbtn>svg,.kbtn>span,.kbtn>kbd{opacity:.55;transition:opacity .15s}.kbtn:hover>svg,.kbtn:hover>span,.kbtn:hover>kbd{opacity:1}
+.ksp{position:fixed;z-index:60;width:260px;display:none;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:10px 12px;font:500 13px/1.4 -apple-system,system-ui,sans-serif}.ksp.on{display:block}
+.ksph{display:flex;align-items:center;justify-content:space-between;font-weight:600}.ksp p{margin:2px 0 10px;font-size:12px;color:var(--sub)}
+.ksw{width:30px;height:18px;border-radius:9px;border:0;background:color-mix(in srgb,var(--sub) 45%,transparent);position:relative;padding:0;cursor:pointer}.ksw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .15s}.ksw[aria-checked=true]{background:var(--on,#16151a)}.ksw[aria-checked=true]::after{left:14px}
+.ksps{border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:5px}.kspk{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--sub)}.kspk kbd{font:600 10.5px/1 ui-monospace,Menlo,monospace;color:var(--sub);background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:2px 4px;margin-left:3px}
+.kspb{display:flex;gap:6px;margin-top:10px;border-top:1px solid var(--line);padding-top:10px}.kspb button{flex:1;border:1px solid var(--line);background:none;color:var(--ink);border-radius:7px;padding:5px 6px;font:inherit;font-size:12px;cursor:pointer}.kspb button:hover{background:var(--soft)}.kspb button:disabled{opacity:.45;cursor:default}
 .kbtn kbd{font:600 10.5px/1 ui-monospace,Menlo,monospace;color:var(--sub);border:1px solid var(--line);border-radius:5px;padding:2px 4px;margin-left:2px}`;
 /** the top bar's ⌘K button */
 const CMDK_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>';
@@ -560,7 +572,7 @@ const KCMDK=(function(ROOT,OFF){
   const esc=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"),low=(s)=>String(s==null?"":s).toLowerCase();
   const SV=(d)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+d+"</svg>";
   const IC={flow:SV('<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.5"/>'),screen:SV('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>'),
-    state:SV('<path d="M12 3 3 7.5l9 4.5 9-4.5z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>'),person:SV('<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>'),recent:SV('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),pin:SV('<path d="M12 17v4.5"/><path d="M8.5 3.5h7l-1 5.5 3 3.5v1.5h-11V12.5l3-3.5z"/>'),
+    state:SV('<path d="M12 3 3 7.5l9 4.5 9-4.5z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>'),person:SV('<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>'),home:SV('<path d="M3.5 11 12 4l8.5 7"/><path d="M6 9.5V20h12V9.5"/>'),spark:SV('<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z"/>'),recent:SV('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),pin:SV('<path d="M12 17v4.5"/><path d="M8.5 3.5h7l-1 5.5 3 3.5v1.5h-11V12.5l3-3.5z"/>'),
     peek:SV('<path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>'),all:SV('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>'),link:SV('<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>'),open:SV('<path d="M5 12h13M13 6l6 6-6 6"/>')};
   const box=document.createElement("div");box.className="kx";
   box.innerHTML='<div class="kb"></div><div class="kc" role="dialog" aria-modal="true" aria-label="Search the board"><div class="ki">'+SV('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>').replace("<svg ",'<svg width="19" height="19" ')
@@ -685,30 +697,34 @@ const KCMDK=(function(ROOT,OFF){
     const asWho=FILT&&FILT.k==="person"?FILT.v:null;
     // nearer things first: this screen's own, then this flow's
     const near=(it)=>!AT||!SCOPE?1:SCOPE>1&&AT.screen&&it.flow===AT.screen.flow&&it.screen===AT.screen.screen?1.35:it.flow===AT.flow||(AT.screen&&it.flow===AT.screen.flow)?1.15:1;
-    const P=parse(Q);MODNOW=P.mods;LW=P.loose;drawMods(P.live);
+    /* a trigger at the end ("as ", "in ", "on "): its completions for the best match first, as Kinpay's command bar
+       offers "How many users / transactions / corridors" for "how many" */
+    const TR=trigger(Q),P=parse(TR?TR.rest:Q);MODNOW=P.mods;LW=P.loose;drawMods([]);
     // "as …": the rows it fans out to, one per person it names that the screen offers (none offered, not listed)
     const AS=P.mods.who?P.mods.who.v:null,fan=(it,s,who)=>AS?AS.filter(p=>it.people.includes(p)).map(p=>({it,s,who:p,as:true})):[{it,s,who}];
     if(FILT&&FILT.k==="recent"){W=P.words;
       ALL=recents().map(x=>({it:byKey.get(x.k),who:x.who})).filter(x=>x.it&&(!P.any||score(x.it,P))).flatMap(x=>fan(x.it,0,x.who));if(ALL.length)secs.push([null,ALL])}
+    else if(!P.any&&TR&&AT&&AT.screen){W=[];const sug=completions(TR.k,AT.screen.item);if(sug.length)secs.push([esc(AT.screen.label)+" "+TR.k+"…",sug])}
     else if(!P.any){W=[];
-      // nothing typed: outward from where the search starts (this screen and its states, this flow's other screens),
-      // then Pinned and the flows; filtered, all of a kind, a tag's or a person's
+      // nothing typed: Pinned, the flows, then the screens; filtered, all of a kind, a tag's or a person's (this flow's
+      // first)
       const pins=FILT?[]:pinned().map(k=>byKey.get(k)).filter(Boolean).map(it=>({it,pin:true}));
-      const sc=!FILT&&AT&&SCOPE>1?AT.screen:null;
-      if(sc){const here=[sc.item,...D.items.filter(x=>x.kind==="state"&&x.flow===sc.flow&&x.screen===sc.screen&&!x.via&&!x.temp)].map(it=>({it,ctx:true}));secs.push([sc.label,here])}
-      if(!FILT&&AT&&SCOPE>0){const sib=D.items.filter(x=>x.kind==="screen"&&x.flow===AT.flow&&!(sc&&x===sc.item)).map(it=>({it,ctx:true}));if(sib.length)secs.push([AT.label,sib])}
-      ALL=D.items.filter(FILT?ok:(it)=>it.kind==="flow"&&!it.temp).map(it=>({it,who:asWho}));
-      if(FILT)ALL.sort((a,b)=>near(b.it)-near(a.it)||a.it.i-b.it.i);
       if(pins.length)secs.push(["Pinned",pins]);
-      if(ALL.length)secs.push([FILT?null:"Flows",ALL.slice(0,300)])}
+      if(FILT){ALL=D.items.filter(ok).map(it=>({it,who:asWho}));ALL.sort((a,b)=>near(b.it)-near(a.it)||a.it.i-b.it.i);if(ALL.length)secs.push([null,ALL.slice(0,400)])}
+      // unfiltered: the flows, then every screen (each once, at home), in the board's order
+      else{const fl=D.items.filter(it=>it.kind==="flow"&&!it.temp).map(it=>({it})),sc=D.items.filter(it=>it.kind==="screen"&&!it.via&&!it.temp).map(it=>({it}));
+        ALL=[...fl,...sc];if(fl.length)secs.push(["Flows",(onFlow()?[{it:HOME}]:[]).concat(fl)]);if(sc.length)secs.push(["Screens",sc])}}
     else{
       W=P.words;
       const hits=[];for(const it of D.items){if(!ok(it))continue;const r=score(it,P);if(r)hits.push(...fan(it,r.s*near(it),r.who||asWho))}
+      if(TR){const top=(P.words.length?[...hits].sort((a,b)=>b.s-a.s).find(h=>h.it&&h.it.kind!=="flow"):null)?.it||(AT&&AT.screen?AT.screen.item:null);
+        if(top){const sug=completions(TR.k,top);if(sug.length)secs.push([esc(top.label)+" "+TR.k+"…",sug])}}
       // people whose name the words are: ↵ keeps what is seen as them
       if(!FILT&&P.words.length&&!P.who.length&&!AS)for(const p of Object.keys(D.people||{})){if(!P.words.every(w=>fit(w,pname(p))>=.75||low(p).startsWith(w)))continue;
         const n=D.items.filter(it=>it.kind!=="flow"&&!it.via&&it.people.includes(p)).length;if(n)hits.push({person:p,n,s:400})}
-      hits.sort((a,b)=>b.s-a.s||((a.it&&a.it.i)||0)-((b.it&&b.it.i)||0));ALL=hits.filter(h=>h.it);
-      if(hits.length)secs.push([null,hits.slice(0,60)])}
+      if(!FILT&&P.words.length&&P.words.every(w=>fit(w,"all flows home board")>=.75))hits.push({it:HOME,s:onFlow()?260:120});
+      hits.sort((a,b)=>b.s-a.s||((a.it&&a.it.i)||0)-((b.it&&b.it.i)||0));ALL=hits.filter(h=>h.it&&h.it!==HOME);
+      if(hits.length)secs.push([TR&&secs.length?"Results":null,hits.slice(0,60)])}
     let html="";
     secs.forEach(([t,rows,x],si)=>{if(t)html+='<div class="ks"><span>'+t+"</span>"+(x||"")+"</div>";for(const r of rows){r.sec=si;r.i=ROWS.length;ROWS.push(r);html+=row(r)}});
     if(!ROWS.length)html='<div class="kn0">'+(AS?(P.words.length?"Nothing matches “"+esc(P.words.join(" "))+"”":"Nothing")+" "+esc(modLabel(P.mods.who)):Q.trim()?"Nothing matches “"+esc(Q.trim())+"”":FILT&&FILT.k==="recent"?"Nothing opened yet":"Nothing here")+(FILT?" in "+esc(filName(FILT)):"")+"</div>";
@@ -717,7 +733,20 @@ const KCMDK=(function(ROOT,OFF){
     if(Q.trim()&&!SEL0)SEL=0;
     list.innerHTML=html;if(SEL>=ROWS.length)SEL=0;mark(true);
   }
-  const KIND={flow:"Flow",screen:"Screen",state:"State",person:"Person"};
+  /* the trigger the search ends on (typed with its space): "as" (a person), "in" (a language), "on" (a device) */
+  function trigger(q){const m=/(^|\s)(as(?: an?| the)?|in|on(?: an?| the)?)\s+$/i.exec(q);if(!m)return null;return {k:low(m[2]).split(" ")[0],rest:q.slice(0,m.index)}}
+  /* a trigger's completions for an item: each person it offers, each language, each device */
+  function completions(k,it){
+    if(k==="as")return it.people.map(p=>({it,who:p,sug:true,mod:"as "+pname(p)}));
+    if(k==="in")return [["sw","Swahili"],["en","English"]].map(([v,l])=>({it,sug:true,view:{lang:v},mod:"in "+l}));
+    return [["phone","Phone"],["tablet","Tablet"],["laptop","Laptop"]].map(([v,l])=>({it,sug:true,view:{dev:v},mod:"on "+l.toLowerCase()}))}
+  /* how a row says the modifiers it opens with, after its name: "as Sofia · dark · in Swahili" */
+  function modsOf(r){if(r.sug)return r.mod;const t=[];if(r.who&&r.as)t.push("as "+pname(r.who).split(/\s+/)[0]);
+    for(const k of MODK.slice(1))if(MODNOW[k])t.push(MODNOW[k].k==="lang"?"in "+MODNOW[k].label:MODNOW[k].k==="dev"?"on "+low(MODNOW[k].label):low(MODNOW[k].label));return t.join(" · ")}
+  const KIND={flow:"Flow",screen:"Screen",state:"State",person:"Person",home:"Home"};
+  /* the board's home, every flow: a result of its own (kind "home") */
+  const HOME={kind:"home",label:"All flows",flow:"",crumbs:[],people:[],tags:[],keywords:[],description:"",href:ROOT+"/"};
+  const onFlow=()=>location.pathname.indexOf("/f/")>=0;
   let LW=new Set();
   /* the chips at the search's start: those lifted (click: removed) and, dashed, those still being typed */
   function drawMods(live){const lv=new Set(live.map(m=>m.k)),ms=[...MODK.filter(k=>MODS[k]&&!lv.has(k)).map(k=>MODS[k]),...live];
@@ -735,20 +764,22 @@ const KCMDK=(function(ROOT,OFF){
   const modTail=()=>MODK.slice(1).filter(k=>MODNOW[k]).map(k=>MODNOW[k].label);
   /* where a result is: its flow (a screen), its screen (a state), its screen count (a flow); in full for the footer */
   function whereOf(r,full){const it=r.it;
-    if(it.kind==="flow")return full?esc(it.label):"";
+    if(it.kind==="flow"||it.kind==="home")return full?esc(it.label):"";
     const at=it.crumbs[it.crumbs.length-1]||"";return full?[...it.crumbs,it.label].map(esc).join("<i>›</i>"):low(at)===low(it.label)?"":esc(at)}
   /* how many it holds, on the right: a flow's screens, a screen's states, a person's screens and states */
   function countOf(r){if(r.person)return r.n;const it=r.it;
-    if(it.kind==="flow")return D.items.filter(x=>x.kind==="screen"&&x.flow===it.flow).length+" screens";
+    if(it.kind==="home"){const n=D.items.filter(x=>x.kind==="flow"&&!x.temp).length;return n+" flows"}
+    if(it.kind==="flow"){const n=D.items.filter(x=>x.kind==="screen"&&x.flow===it.flow).length;return n+(n===1?" screen":" screens")}
     if(it.kind==="screen"){const n=D.items.filter(x=>x.kind==="state"&&x.flow===it.flow&&x.screen===it.screen&&!!x.via===!!it.via).length;return n?n+(n===1?" state":" states"):""}
     return ""}
   /* a result on one line (as Raycast): its icon, its name, where it is (not under a heading that already says so); on
      the right a pin when pinned and its count */
   function row(r){
-    const cnt=countOf(r),tail=(r.it&&isPinned(r.it)?IC.pin:"")+(r.as?'<span class="kas">'+esc(pname(r.who))+"</span>":cnt!==""?'<span class="kcnt">'+cnt+"</span>":"");
+    const cnt=r.sug?"":countOf(r),tail=(r.it&&isPinned(r.it)?IC.pin:"")+(cnt!==""?'<span class="kcnt">'+cnt+"</span>":"");
     if(r.person){const p=D.people[r.person]||{};return '<button class="kr" role="option" data-i="'+r.i+'"><span class="kic">'+IC.person+"</span><b>"+hl(pname(r.person),W)+'</b><span class="kp">'+esc(p.role||"")+'</span><span class="kacc">'+tail+"</span></button>"}
     const it=r.it;
-    return '<button class="kr" role="option" data-i="'+r.i+'"><span class="kic">'+IC[it.kind]+"</span><b>"+hl(it.label,W,LW)+'</b><span class="kp">'+(r.ctx?"":whereOf(r))+"</span>"
+    const md=r.it&&r.it.kind!=="flow"&&r.it.kind!=="home"?modsOf(r):"";
+    return '<button class="kr'+(r.sug?" ksug":"")+'" role="option" data-i="'+r.i+'"><span class="kic">'+(r.sug?IC.spark:IC[it.kind])+"</span><b>"+hl(it.label,W,LW)+"</b>"+(md?'<span class="kmt">'+esc(md)+"</span>":"")+'<span class="kp">'+(r.ctx?"":whereOf(r))+"</span>"
       +(tail?'<span class="kacc">'+tail+"</span>":"")+"</button>"}
   const tagColor=(t)=>{const d=(D.tags||{})[t];return d&&/^(#[0-9a-f]{3,8}|[a-z]+)$/i.test(d.color||"")?d.color:"#8a8794"};
   /* the footer (as Raycast's action bar): where the selected row is, then what ↵ does to it and its Actions (⌘K) */
@@ -757,7 +788,7 @@ const KCMDK=(function(ROOT,OFF){
     return '<span class="kwhere">'+left+"</span>"+(r?'<button class="kact" data-act="open"><span class="kat">'+esc(primary(r))+"</span><kbd>↵</kbd></button>"
       +(r.person?"":'<button class="kact k2" data-act="actions">Actions <kbd>⌘</kbd><kbd>K</kbd></button>'):"")}
   // "Open Screen as Sofia · Dark · Swahili"
-  const primary=(r)=>{if(r.person)return "Show what they see";const t=modTail();return "Open "+KIND[r.it.kind]+(r.who?" as "+pname(r.who).split(/\s+/)[0]:"")+(t.length?" · "+t.join(" · "):"")};
+  const primary=(r)=>{if(r.person)return "Show what they see";if(r.it.kind==="home")return "Open All flows";const m=r.it.kind!=="flow"?modsOf(r):"";return "Open "+KIND[r.it.kind]+(r.who&&!r.as&&!r.sug?" as "+pname(r.who).split(/\s+/)[0]:"")+(m?" "+m:"")};
   foot.addEventListener("click",(e)=>{const b=e.target.closest("[data-act]");if(!b)return;if(b.dataset.act==="open")pick(ROWS[SEL]);else openActions()});
   function mark(scroll){if(!MSG)foot.innerHTML=footer();list.querySelectorAll(".kr").forEach(b=>{const on=+b.dataset.i===SEL;b.setAttribute("aria-selected",on);
     if(on&&scroll){const r=ROWS[SEL],first=r&&(SEL===0||ROWS[SEL-1].sec!==r.sec);(first&&b.previousElementSibling||b).scrollIntoView({block:"nearest"});if(first)b.scrollIntoView({block:"nearest"})}})}
@@ -769,7 +800,8 @@ const KCMDK=(function(ROOT,OFF){
      setters, else as what the next page remembers (the keys the View panel keeps) */
   function pick(r){if(!r)return;
     if(r.person){inp.value="";Q="";setFilter({k:"person",v:r.person});return}
-    const it=r.it,who=r.who||null,o=viewOf(MODNOW);remember(it,who);
+    if(r.it.kind==="home"){location.href=r.it.href;return}
+    const it=r.it,who=r.who||null,o=Object.assign(viewOf(MODNOW),r.view||{});remember(it,who);
     if(who)kmem("person:"+it.flow,who);
     if(it.tester)kmem("tester","1");
     if(typeof cmdkHere==="function"&&cmdkHere(it,who,o)){close();return}
@@ -785,7 +817,7 @@ const KCMDK=(function(ROOT,OFF){
   async function peek(refs,what){say("Making a peek of "+refs.length+"…");
     try{const r=await fetch(ROOT+"/api/peek",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({refs,title:"⌘/: "+what})}),j=await r.json();
       if(!r.ok)throw new Error(j.error||"HTTP "+r.status);location.href=j.href}catch(e){say("No peek: "+e.message)}}
-  inp.addEventListener("input",()=>{lift();clearTimeout(T);T=setTimeout(()=>{Q=inp.value;SEL=0;SEL0=false;say("");run()},80)});
+  inp.addEventListener("input",()=>{clearTimeout(T);T=setTimeout(()=>{Q=inp.value;SEL=0;SEL0=false;say("");run()},80)});
   inp.addEventListener("keydown",(e)=>{
     if((e.metaKey||e.ctrlKey)&&low(e.key)==="p"){e.preventDefault();openFilter();return}
     if((e.metaKey||e.ctrlKey)&&low(e.key)==="k"){e.preventDefault();openActions();return}
@@ -802,12 +834,14 @@ const KCMDK=(function(ROOT,OFF){
   const filName=(f)=>f.k==="kind"?KIND[f.v]+"s":f.k==="recent"?"Recent":f.k==="tag"?tagLabel(f.v):pname(f.v);
   function filOpts(){const used=[...new Set(D.items.flatMap(it=>it.tags))].sort((a,b)=>tagLabel(a).localeCompare(tagLabel(b)));
     const ppl=Object.keys(D.people||{}).filter(p=>D.items.some(it=>it.people.includes(p)));
-    return [["Show",[{k:null,label:"All",icon:"all"},{k:"recent",label:"Recent",icon:"recent"},{k:"kind",v:"screen",label:"Screens",icon:"screen"},{k:"kind",v:"state",label:"States",icon:"state"},{k:"kind",v:"flow",label:"Flows",icon:"flow"}]],
-      ["Tags",used.map(v=>({k:"tag",v,label:tagLabel(v)}))],["People",ppl.map(v=>({k:"person",v,label:pname(v)}))]]}
+    // how many each keeps (each screen and state once, at home), on the right
+    const base=D.items.filter(it=>!it.via&&!it.temp),nk=(k)=>base.filter(it=>it.kind===k).length,sub=base.filter(it=>it.kind!=="flow");
+    return [["Show",[{k:null,label:"All",icon:"all",n:base.length},{k:"recent",label:"Recent",icon:"recent",n:recents().length},{k:"kind",v:"screen",label:"Screens",icon:"screen",n:nk("screen")},{k:"kind",v:"state",label:"States",icon:"state",n:nk("state")},{k:"kind",v:"flow",label:"Flows",icon:"flow",n:nk("flow")}]],
+      ["Tags",used.map(v=>({k:"tag",v,label:tagLabel(v),n:sub.filter(it=>it.tags.includes(v)).length}))],["People",ppl.map(v=>({k:"person",v,label:pname(v),n:sub.filter(it=>it.people.includes(v)).length}))]]}
   let DSEL=0,DROWS=[];
   function drawFil(){const q=low(ddi.value.trim());let h="";DROWS=[];
     for(const [t,os] of filOpts()){const m=os.filter(o=>!q||low(o.label).includes(q));if(!m.length)continue;if(t)h+='<div class="ks"><span>'+t+"</span></div>";
-      for(const o of m){const on=FILT?o.k===FILT.k&&(o.v||null)===(FILT.v||null):!o.k;h+='<button role="option" data-d="'+DROWS.length+'">'+(o.k==="tag"?'<span class="kdot" style="--tc:'+tagColor(o.v)+'"></span>':o.icon?IC[o.icon]:o.k==="person"?IC.person:"")+"<span>"+esc(o.label)+"</span>"+(on?'<span class="kon">✓</span>':"")+"</button>";DROWS.push(o)}}
+      for(const o of m){const on=FILT?o.k===FILT.k&&(o.v||null)===(FILT.v||null):!o.k;h+='<button role="option" data-d="'+DROWS.length+'">'+(o.k==="tag"?'<span class="kdot" style="--tc:'+tagColor(o.v)+'"></span>':o.icon?IC[o.icon]:o.k==="person"?IC.person:"")+"<span>"+esc(o.label)+"</span>"+'<span class="kon">'+(o.n!=null?'<span class="kfn">'+o.n+"</span>":"")+(on?"✓":"")+"</span></button>";DROWS.push(o)}}
     ddl.innerHTML=h||'<div class="kn0">No such filter</div>';if(DSEL>=DROWS.length)DSEL=0;ddl.querySelectorAll("button").forEach(b=>b.setAttribute("aria-selected",+b.dataset.d===DSEL));
     const s=ddl.querySelector('[aria-selected="true"]');if(s)s.scrollIntoView({block:"nearest"})}
   function drawFilBtn(){fil.innerHTML=SV('<path d="M3.5 6h17M7 12h10M10 18h4"/>')+(FILT?'<span class="kfdot"></span>':"");fil.classList.toggle("on",!!FILT);
@@ -833,9 +867,19 @@ const KCMDK=(function(ROOT,OFF){
   box.querySelector(".kc").addEventListener("mousedown",(e)=>{if(dd.classList.contains("on")&&!dd.contains(e.target)&&!fil.contains(e.target))closeFilter();
     if(ad.classList.contains("on")&&!ad.contains(e.target)&&!e.target.closest("[data-act]"))closeActions()});
   drawFilBtn();
-  // the View panel's Compact search: only the search box until something is typed (as Raycast's compact mode)
-  const cps=document.getElementById("ncompact");
-  if(cps){const draw=()=>cps.setAttribute("aria-checked",kmem("cmdk-compact")==="1");draw();cps.onclick=(e)=>{e.preventDefault();kmem("cmdk-compact",kmem("cmdk-compact")==="1"?"0":"1");draw()}}
+  /* the Search button's panel, on hover (its settings and keys): Compact search (only the search box until something is
+     typed, as Raycast's compact mode), the keys, clearing pins and recents. A click on the button opens the search */
+  const sp=document.createElement("div");sp.className="ksp";sp.setAttribute("role","dialog");sp.setAttribute("aria-label","Search settings");document.body.appendChild(sp);
+  const keyRow=(k,t)=>'<div class="kspk"><span>'+t+"</span><span>"+k.split(" ").map(x=>"<kbd>"+x+"</kbd>").join("")+"</span></div>";
+  function drawSp(){const np=pinned().length,nr=recents().length;
+    sp.innerHTML='<div class="ksph"><span>Compact search</span><button class="ksw" role="switch" aria-checked="'+(kmem("cmdk-compact")==="1")+'" aria-label="Compact search"></button></div><p>Only the search box until you type.</p>'
+      +'<div class="ksps">'+keyRow("⌘ /","Search")+keyRow("⌘ P","Filter")+keyRow("⌘ K","Actions")+keyRow("⇧ ↵","Peek all found")+keyRow("esc","Clear, then close")+"</div>"
+      +'<div class="kspb"><button data-sp="pins"'+(np?"":" disabled")+">Clear pins"+(np?" ("+np+")":"")+'</button><button data-sp="recent"'+(nr?"":" disabled")+">Clear recent</button></div>";
+    sp.querySelector(".ksw").onclick=()=>{kmem("cmdk-compact",kmem("cmdk-compact")==="1"?"0":"1");drawSp()};
+    sp.querySelectorAll("[data-sp]").forEach(b=>b.onclick=()=>{kmem(b.dataset.sp==="pins"?"cmdk-pins":"cmdk-recent","[]");drawSp()})}
+  let SPT=0;const spShow=()=>{clearTimeout(SPT);SPT=setTimeout(()=>{if(isOpen())return;drawSp();const r=btn.getBoundingClientRect();sp.style.top=r.bottom+6+"px";sp.style.right=Math.max(12,innerWidth-r.right)+"px";sp.classList.add("on")},160)};
+  const spHide=()=>{clearTimeout(SPT);SPT=setTimeout(()=>sp.classList.remove("on"),220)};
+  if(btn){btn.addEventListener("mouseenter",spShow);btn.addEventListener("mouseleave",spHide);sp.addEventListener("mouseenter",()=>clearTimeout(SPT));sp.addEventListener("mouseleave",spHide)}
   /* ⌘K: the selected row's actions (as Raycast): open it (as whom), its states or its screen, pin, peek it, peek all
      that was found, copy its link. Typing narrows them, ↵ runs one, Esc or ⌘K goes back to the search */
   let ASEL=0,AROWS=[];
@@ -849,7 +893,7 @@ const KCMDK=(function(ROOT,OFF){
     return a}
   function drawActions(){const q=low(adi.value.trim()),r=ROWS[SEL];AROWS=r?actionsFor(r).filter(a=>!q||low(a.label).includes(q)):[];if(ASEL>=AROWS.length)ASEL=0;
     adl.innerHTML=AROWS.map((a,i)=>'<button role="option" data-a="'+i+'" aria-selected="'+(i===ASEL)+'">'+a.icon+"<span>"+esc(a.label)+"</span>"+(a.key?'<span class="kon">'+a.key.split("").map(k=>"<kbd>"+k+"</kbd>").join("")+"</span>":"")+"</button>").join("")||'<div class="kn0">No such action</div>'}
-  function openActions(){if(!ROWS[SEL]||ROWS[SEL].person)return;closeFilter(true);ad.classList.add("on");adi.value="";ASEL=0;drawActions();cap(ad);adi.focus()}
+  function openActions(){if(!ROWS[SEL]||ROWS[SEL].person||ROWS[SEL].it.kind==="home")return;closeFilter(true);ad.classList.add("on");adi.value="";ASEL=0;drawActions();cap(ad);adi.focus()}
   function closeActions(){ad.classList.remove("on");uncap();inp.focus()}
   adi.addEventListener("input",()=>{ASEL=0;drawActions()});
   adi.addEventListener("keydown",(e)=>{
@@ -869,7 +913,7 @@ const KCMDK=(function(ROOT,OFF){
   function close(){box.classList.remove("on");ad.classList.remove("on");uncap();dd.classList.remove("on");fil.setAttribute("aria-expanded","false");clearTimeout(T);inp.blur()}
   const toggle=()=>isOpen()?close():open();
   addEventListener("keydown",(e)=>{if((e.metaKey||e.ctrlKey)&&!e.altKey&&!e.shiftKey&&e.key==="/"){e.preventDefault();e.stopImmediatePropagation();toggle()}},true);
-  if(btn)btn.onclick=()=>open();
+  if(btn)btn.onclick=()=>{clearTimeout(SPT);sp.classList.remove("on");open()};
   return {open,close,toggle,isOpen}
 })(${root},${off});
 `;
@@ -883,7 +927,7 @@ const NOTES_CSS = `
 body{display:block}main{width:100vw}.stage{padding-top:76px}
 .ntop{position:fixed;z-index:30;top:0;left:0;right:0;height:52px;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--line)}
 .ngone{display:none!important}
-.nperson{display:flex;align-items:center;justify-content:center}.ntb.nperson{padding:2px;border-color:transparent;background:none}.ntb.nperson:hover,.ntb.nperson[aria-expanded=true]{background:var(--soft)}.nperson b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nctlbar{display:contents}.ntb.nctl{position:relative}.ntb.nctl[data-on]::after{content:"";position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--pin)}.nctlclr{margin-left:auto;font-size:12.5px;font-weight:400;color:var(--sub);text-decoration:underline;cursor:pointer}.nctlsub{padding:0 10px 4px;font-size:12px;color:var(--sub)}.nctlh{padding:8px 10px 2px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sub)}.nsw{flex:none;margin-left:auto;align-self:center;width:28px;height:16px;border-radius:9px;background:var(--line,#d4d4d8);position:relative;transition:background .15s}.nsw::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .15s}.nsw.on{background:var(--ink)}.nsw.on::after{left:14px}.nperson{display:flex;align-items:center;justify-content:center}.ntb.nperson{padding:2px;border-color:transparent;background:none}.ntb.nperson:hover,.ntb.nperson[aria-expanded=true]{background:var(--soft)}.nperson b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nperson small{color:var(--sub);font-size:12px;white-space:nowrap}.nav{flex:0 0 auto!important;width:26px!important;height:26px!important;min-width:26px;max-width:26px;border-radius:50%!important;padding:0!important}button[data-p]{align-items:center!important}[data-p] .nav{width:36px!important;height:36px!important;min-width:36px;max-width:36px;font-size:12.5px}.nav{flex:none;width:24px;height:24px;border-radius:50%;background:var(--pin);color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
 .npl button{display:flex;align-items:center;gap:10px;border:0;background:none;border-radius:8px;padding:7px 9px;text-align:left;width:100%}.npl button:hover{background:var(--soft)}
 .npl button span{flex:1;min-width:0}.npl button span b{display:block;font-size:13.5px}.npl button span small{color:var(--sub);font-size:12px}.npl .tick{flex:none;color:var(--pin);font-weight:800}
@@ -1005,6 +1049,7 @@ const notesHtml = (logo?: string | null, name?: string) => `<div class="ntop" id
   <span class="ndiv"></span><button class="nscr" id="nflowb" aria-expanded="false" title="Choose a flow"><span class="pic" id="nflowic"></span><b id="nflowt"></b><svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
   <span class="ndiv" id="nscrdiv"></span><button class="nscr" id="nscr" aria-expanded="false" title="Choose a screen"></button>
   <span class="ndiv" id="nstdiv" hidden></span><button class="nscr" id="nst" aria-expanded="false" title="Choose a state" hidden></button></div>
+  <span id="nctlbar" class="nctlbar"></span>
   <button class="ntb nperson" id="nperson" aria-expanded="false" title="Signed in as" aria-label="Signed in as" hidden></button>
   <span class="nstgtag" id="nstg" title="Frames show this environment's build, signed in to its gateway" hidden></span>
   ${cmdkButton("ntb ic")}
@@ -1061,6 +1106,41 @@ const pkey=(name)=>{const i=pinfo(name);return !i||i.fixed?"link":personOf(name)
 const PARAMS=typeof FLEXPARAMS!=="undefined"?FLEXPARAMS:{signin:"signin",signout:"signout"};
 function withPerson(u,name){const i=pinfo(name);if(!i||i.fixed||new RegExp("[?&]"+PARAMS.signin+"=").test(u))return u;const p=personOf(name);if(!p&&!PARAMS.signout)return u;const add=p?PARAMS.signin+"="+encodeURIComponent(p):PARAMS.signout+"=1";
   return /[?&]to=/.test(u)?u.replace(/([?&])to=/,"$1"+add+"&to="):u+(u.includes("?")?"&":"?")+add}
+/* the project's "controls" (FLEXCONTROLS: each one's param, default, options and the frames it applies to): a value
+   other than the default adds <param>=<value> to those frames' links, where the link doesn't set it itself (a state
+   named for a value keeps it). Remembered per project; the address (?<key>=…) goes first */
+const CTLS=typeof FLEXCONTROLS!=="undefined"?FLEXCONTROLS:[],CV={};
+// (a "multi" one's value: the options switched on, joined with commas in the options' order; "" none)
+const ctlOk=(c,v)=>typeof v==="string"&&(c.multi?v===""||v===c.none||v.split(",").every(x=>c.options.some(o=>o[0]===x)):c.options.some(o=>o[0]===v));
+CTLS.forEach(c=>{const a=Q.get(c.key),m=mem("ctl:"+c.key);CV[c.key]=ctlOk(c,a)?a:ctlOk(c,m)?m:c.def});
+function withControls(u,name){for(const c of CTLS){const v=CV[c.key];if(v===c.def||!c.names.includes(name)||new RegExp("[?&]"+c.param+"=").test(u))continue;const add=c.param+"="+encodeURIComponent(v);
+  u=/[?&]to=/.test(u)?u.replace(/([?&])to=/,"$1"+add+"&to="):u+(u.includes("?")?"&":"?")+add}return u}
+// (keep: only those off their default go in the address)
+const ctlOn=(name)=>CTLS.some(c=>CV[c.key]!==c.def&&c.names.includes(name));
+const CTLQ=(q)=>CTLS.forEach(c=>{if(CV[c.key]!==c.def)q.set(c.key,CV[c.key])});
+function setCtl(k,v){CV[k]=v;mem("ctl:"+k,v);relink();go()}
+// in the top bar beside the person (both say what the frames in view are seeded with): an icon button per control,
+// while live frames it applies to are in view (rendered snapshots are always at the defaults); a dot when off its
+// default. Its menu: a plain control's choices; a "multi" one's switches, an override like a theme's (those on show,
+// for anyone; none on, the frames as published), under the headings its options name (their third item)
+const CTLIC='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>';
+function ctlRows(){const el=document.getElementById("nctlbar");if(!el)return;const names=oneView()||S.view==="live"?inView():[];
+  const at=(x)=>esc(x).replace(/"/g,"&quot;"),ons=(c)=>CV[c.key]?CV[c.key].split(","):[];
+  const lab=(c)=>c.label+": "+(c.multi?(ons(c).length?ons(c).map(v=>(c.options.find(o=>o[0]===v)||[v,v])[1]).join(", "):"as published"):(c.options.find(o=>o[0]===CV[c.key])||["",""])[1]);
+  el.innerHTML=CTLS.filter(c=>names.some(n=>c.names.includes(n))).map(c=>'<button class="ntb ic nctl" id="nctl-'+at(c.key)+'" data-k="'+at(c.key)+'" aria-expanded="false"'+(CV[c.key]!==c.def?" data-on":"")+' title="'+at(lab(c))+'" aria-label="'+at(lab(c))+'">'+CTLIC+"</button>").join("");
+  el.querySelectorAll("button").forEach(b=>b.onclick=()=>menu(b.id,(m)=>{const c=CTLS.find(x=>x.key===b.dataset.k);
+    const draw=()=>{
+      if(!c.multi){m.innerHTML='<div class="nmh"><b>'+esc(c.label)+'</b></div><div class="nsl npl">'+c.options.map(o=>'<button data-v="'+at(o[0])+'"'+(o[0]===CV[c.key]?' class="cur"':"")+"><span><b>"+esc(o[1])+"</b></span>"+(o[0]===CV[c.key]?'<i class="tick">✓</i>':"")+"</button>").join("")+"</div>";
+        m.querySelectorAll("button[data-v]").forEach(x=>x.onclick=()=>{closeMenu();setCtl(c.key,x.dataset.v)});return}
+      // (the menu stays open while switching; the frames redraw under it)
+      const on=ons(c);let g=null,rows="";
+      for(const o of c.options){if((o[2]||null)!==g){g=o[2]||null;if(g)rows+='</div><div class="nctlh">'+esc(g)+'</div><div class="nsl npl">'}
+        const v=on.includes(o[0]);rows+='<button data-v="'+at(o[0])+'" role="switch" aria-checked="'+v+'"><span><b>'+esc(o[1])+'</b></span><i class="nsw'+(v?" on":"")+'"></i></button>'}
+      m.innerHTML='<div class="nmh"><b>'+esc(c.label)+'</b><a class="nctlclr"'+(on.length?"":" hidden")+'>clear</a></div><div class="nctlsub">'+(on.length?"Only these, for anyone":"As published, by audience")+'</div><div class="nsl npl">'+rows+"</div>";
+      m.querySelectorAll("button[data-v]").forEach(x=>x.onclick=()=>{const s=new Set(ons(c));s.has(x.dataset.v)?s.delete(x.dataset.v):s.add(x.dataset.v);
+        setCtl(c.key,c.options.map(o=>o[0]).filter(v=>s.has(v)).join(","));draw()});
+      const clr=m.querySelector(".nctlclr");if(clr)clr.onclick=()=>{setCtl(c.key,"");draw()}};
+    draw()}))}
 /* a published copy (flex review export): no server behind the page, its snapshots in FLEXSTATIC; no notes, no
    Shift+Click, no Data switch, no polling */
 const STATIC=typeof FLEXSTATIC!=="undefined"?FLEXSTATIC:null;
@@ -1082,7 +1162,7 @@ const ISO=/\.localhost$/.test(location.hostname);
 const fhash=(s)=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)};
 const frameOrigin=(r)=>ISO?location.protocol+"//f"+fhash([NFLOW,r.screen,personOf(r.screen)||"",LANG,MODE].join("|"))+"."+location.host:"";
 function relink(){ROWS.forEach(r=>{if(!r.href)return;if(r.href0===undefined)r.href0=r.href;const u=withParam(withTester(withLang(r.href0,LANG)),"offline",offOf(r.screen));
-  const w=withPerson(u,r.screen);
+  const w=withControls(withPerson(u,r.screen),r.screen);
   r.href=SETUPN.has(r.screen)&&!STATIC?frameOrigin(r)+NRS+"/api/setup-frame?flow="+encodeURIComponent(NFLOW)+"&name="+encodeURIComponent(r.screen)+"&device="+encodeURIComponent(r.key)+"&env="+(MODE!=="static"?encodeURIComponent(MODE):"")+"&link="+encodeURIComponent(w)
     :MODE!=="static"?NRS+"/api/stage?env="+encodeURIComponent(MODE)+"&link="+encodeURIComponent(w):w})}
 /* tester tools off: the flow's "tester": true screens and states are left out (FLEXTESTER, their names) */
@@ -1208,12 +1288,12 @@ async function snaps(force){
     if(i&&i.getAttribute("src")===s.url){if(!!w.querySelector(".nmoved")!==!!s.moved)mb();return}
     const img=new Image();img.alt="";img.onload=()=>{w.replaceChildren(img);mb();w.classList.remove("nwait")};img.src=s.url})}
 /* the views the stage keeps: the grid, and the last few live screens (hidden, not destroyed), so going back to one
-   is instant and nothing reloads a live frame but a change of its screen, state, devices, theme or language */
+   is instant and nothing reloads a live frame but a change of its screen, state, devices, theme, language or device frame */
 const KEEP=4;let LASTSETUP=null;
 const oneView=()=>S.screens==="one"&&!(S.stmode==="all"&&states(S.screen).length);
 HOST=(st0)=>{
   [...st0.children].forEach(c=>{if(!c.classList.contains("nhost"))c.remove()});
-  const one=oneView(),sig=one?JSON.stringify([cur1(),shown().map(x=>x.k),S.theme,LANG,MODE,TESTER,SIGNAL,PERSON]):"grid";
+  const one=oneView(),sig=one?JSON.stringify([cur1(),shown().map(x=>x.k),S.theme,LANG,MODE,TESTER,SIGNAL,PERSON,S.bare,CTLS.map(c=>CV[c.key])]):"grid";
   let h=[...st0.children].find(e=>e.dataset.sig===sig);
   [...st0.children].forEach(e=>{e.hidden=e!==h});
   if(h)h.dataset.used=Date.now();
@@ -1522,7 +1602,7 @@ document.getElementById("nperson").onclick=()=>menu("nperson",(el)=>{
       return '<button data-p="'+esc(p)+'"'+(p===cur?' class="cur"':"")+(no?' disabled title="No '+esc(env.label)+' account"':"")+'><span class="nav">'+esc(initials(pname(p)))+"</span><span><b>"+esc(pname(p))+"</b>"+(prole(p)?"<small>"+esc(prole(p))+"</small>":"")+"</span>"+(p===cur?'<i class="tick">✓</i>':"")+"</button>"}).join("");
     l.querySelectorAll("button").forEach(x=>x.onclick=()=>{closeMenu();PERSON=x.dataset.p;mem("person:"+NFLOW,PERSON);relink();go()})};
   if(q){q.oninput=fill;setTimeout(()=>q.focus(),0)}fill()});
-AFTER=()=>{staticControls();personBar();
+AFTER=()=>{staticControls();personBar();ctlRows();
   document.querySelectorAll('#stage .nhost[data-sig="grid"] figure[data-s]').forEach(f=>f.onclick=()=>openScreen(f.dataset.s));
   document.querySelectorAll('#stage .nhost[data-sig="grid"] figure[data-g]').forEach(f=>f.onclick=()=>openGroup(f.dataset.g));
   pins();snaps();remember();hydrateAll()};

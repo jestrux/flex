@@ -98,11 +98,12 @@ type Project = { dir: string; flows: string; name?: string; project?: string; lo
   environments?: Record<string, Env>; staging?: Env; env?: string; order?: string[]; people?: Record<string, { name: string; role?: string }>;
   setup?: { command: string; cwd?: string; ttl?: number; writes?: boolean }; proxies?: Record<string, string>; signinParam?: string; signoutParam?: string | null;
   system?: { appName?: string; contacts?: { name: string; phones?: string[]; photo?: string | null }[]; permissions?: Record<string, string | Record<string, string>> };
-  tags?: Record<string, { label?: string; color?: string } | null> };
+  tags?: Record<string, { label?: string; color?: string } | null>;
+  controls?: Record<string, { label?: string; param?: string; default?: string; multi?: boolean; none?: string; options: [string, string][]; screens: string[] }> };
 const HOME = process.env.FLEX_REVIEW_CWD ?? process.cwd();
 /* fields Flex doesn't know are said once (a typo, or a field of a newer Flex), never an error; "_" fields are notes */
 const KNOWN = {
-  project: "name project logo base devices flows port ready environments staging env order people setup proxies signinParam signoutParam clock clockTicks system tags",
+  project: "name project logo base devices flows port ready environments staging env order people setup proxies signinParam signoutParam clock clockTicks system tags controls",
   flow: "title label base devices logo project screens person people publish setup storage actions numberFrom themes description clock clockTicks peek keywords tags",
   screen: "name label path url description states axes status devices defaultLabel tester signal person people setup storage actions clock clockTicks expect use as only system keywords tags",
   state: "name label path url description status devices tester signal person people setup storage actions params clock clockTicks expect system keywords tags" };
@@ -409,7 +410,7 @@ function build(f: Flow): string {
   run("mockup.mts", [idx, "--canvas", "/", "-o", dirname(page), "--notes", f.name, "--title", f.label, ...(f.logo ? ["--logo", f.logo] : []), ...(pj?.name ? ["--product", pj.name] : [])]);
   indexes.set(f.name, JSON.parse(readFileSync(join(idx, "index.json"), "utf8")));
   built.set(f.name, at);
-  versions.set(f.name, createHash("sha1").update(BOOT).update(readFileSync(page)).update(JSON.stringify([proj()?.ready ?? null, envList(), testerNames(f), [...signalOff(f)], proj()?.people ?? null, [...personInfo(f)], [...setupOf(f).keys()], paramsJson(), systemJson(), tagsJson()])).digest("hex").slice(0, 16));
+  versions.set(f.name, createHash("sha1").update(BOOT).update(readFileSync(page)).update(JSON.stringify([proj()?.ready ?? null, envList(), testerNames(f), [...signalOff(f)], proj()?.people ?? null, [...personInfo(f)], [...setupOf(f).keys()], paramsJson(), systemJson(), tagsJson(), controlsJson(f)])).digest("hex").slice(0, 16));
   return page;
 }
 const version = (f: Flow) => { build(f); return versions.get(f.name)!; };
@@ -444,6 +445,43 @@ const SIGNIN = () => { const v = proj()?.signinParam; return typeof v === "strin
 const SIGNOUT = (): string | null => { const pj = proj(); if (pj && "signoutParam" in pj && pj.signoutParam === null) return null; const v = pj?.signoutParam; return typeof v === "string" && /^[\w-]+$/.test(v) ? v : "signout"; };
 const hasParam = (u: string, k: string) => new RegExp(`[?&]${k}=`).test(u);
 const paramsJson = () => JSON.stringify({ signin: SIGNIN(), signout: SIGNOUT() });
+/* "controls": the project's own seed switches, a View panel row each on the frames they apply to ({ "banners": { "label",
+   "param" (default its key), "default", "options": [[value, label]…] or [value…], "screens": ["tabs/home", "tabs/*",
+   "tabs", "tabs/home@every"…] } }). A value other than the default adds <param>=<value> to those frames' links (a link
+   that sets it itself keeps its own); the default adds nothing, so snapshots and their names are as without it. Live
+   frames only: snapshots are always the default. "multi": true makes it an override like a theme's: a switch per
+   option (under its heading, an option's third item); those on go as <param>=<a>,<b>, none on (the default) adds
+   nothing */
+const globRe = (g: string) => new RegExp("^" + g.split("*").map((x) => x.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$");
+function controlsOf(f: Flow): { key: string; label: string; param: string; def: string; multi: boolean; none: string; options: [string, string][]; names: string[] }[] {
+  const pc = proj()?.controls, file = join(proj()?.dir ?? "", "project.json"), out: ReturnType<typeof controlsOf> = [];
+  if (!pc || typeof pc !== "object" || Array.isArray(pc)) return out;
+  const names = Object.keys(indexes.get(f.name)?.links ?? {});
+  const say = (k: string, m: string) => { const w = `${file}|control|${k}|${m}`; if (!warned.has(w)) { warned.add(w); console.error(`!! project.json: "controls"."${k}" ${m} (ignored)`); } };
+  for (const [key, c] of Object.entries(pc)) {
+    if (key.startsWith("_") || !c || typeof c !== "object") continue;
+    // (its key is its name in the page's address, beside the board's own)
+    if (["sub", "stmode", "view", "state", "group", "screens", "screen", "theme", "devices", "frame", "lang"].includes(key)) { say(key, "is a name the board's address uses: call it something else"); continue; }
+    const param = typeof c.param === "string" ? c.param : key;
+    if (!/^[\w-]+$/.test(param)) { say(key, `has a "param" that isn't a word`); continue; }
+    // (an option: value, [value, label] or [value, label, heading]: a multi one's switches sit under their headings)
+    const options = (Array.isArray(c.options) ? c.options : []).map((o: any) => typeof o === "string" ? [o, o] : Array.isArray(o) && typeof o[0] === "string" ? [o[0], typeof o[1] === "string" ? o[1] : o[0], ...(typeof o[2] === "string" ? [o[2]] : [])] : null).filter(Boolean) as [string, string][];
+    const multi = c.multi === true;
+    if (options.length < (multi ? 1 : 2)) { say(key, multi ? `needs an "option"` : `needs two "options" or more`); continue; }
+    if (multi && options.some((o) => o[0].includes(","))) { say(key, `has an option with a comma (its values are joined with commas)`); continue; }
+    const def = multi ? "" : typeof c.default === "string" && options.some((o) => o[0] === c.default) ? c.default : options[0][0];
+    if (!multi && c.default !== undefined && c.default !== def) say(key, `"default" isn't one of its options: the first is`);
+    // a ref: <flow> (all of it), <flow>/<screen> (with its states) or <flow>/<screen>@<state>, * anywhere
+    const hit = (n: string) => strList(c.screens).some((r) => { const i = r.indexOf("/"), fl = i < 0 ? r : r.slice(0, i), sc = i < 0 ? "*" : r.slice(i + 1);
+      return globRe(fl).test(f.name) && (sc.includes("@") ? globRe(sc).test(n) : globRe(sc).test(n.split("@")[0])); });
+    const on = names.filter(hit);
+    // (a multi one switched on with every option off: its "none", the value the app reads as "show nothing")
+    const none = multi && typeof c.none === "string" ? c.none : "none";
+    if (on.length) out.push({ key, label: typeof c.label === "string" ? c.label : key, param, def, multi, none, options, names: on });
+  }
+  return out;
+}
+const controlsJson = (f: Flow) => JSON.stringify(controlsOf(f)).replace(/</g, "\\u003c");
 /** a view's variant from a request (mode=<environment>, tester=1, signal=0, person=<slug>): "<mode>.t<0|1>.s<0|1>.p-<who>",
  *  mode "static" unless a known one, who "default" unless a person was picked */
 const variantOf = (qs: URLSearchParams) => `${envOf(qs.get("mode")) ? qs.get("mode") : "static"}.t${qs.get("tester") === "1" ? 1 : 0}.s${qs.get("signal") === "0" ? 0 : 1}.p-${/^[a-z0-9_-]+$/i.test(qs.get("person") ?? "") ? qs.get("person") : "default"}`;
@@ -1459,7 +1497,7 @@ const server = createServer(async (rq, rs) => {
     }));
     const page = q.match(/^\/f\/([^/]+)\/(index\.html)?$/);
     // the page, with its version, which it polls to reload itself when that changes
-    if (page) { const f = flowNamed(page[1]); return f ? send(rs, 200, "text/html; charset=utf-8", readFileSync(build(f), "utf8").replace("<head>", `<head><script>var FLEXV=${JSON.stringify(version(f))},FLEXREADY=${JSON.stringify(proj()?.ready ?? null).replace(/</g, "\\u003c")},FLEXENVS=${JSON.stringify(envList()).replace(/</g, "\\u003c")},FLEXTESTER=${JSON.stringify(testerNames(f)).replace(/</g, "\\u003c")},FLEXSIGOFF=${JSON.stringify([...signalOff(f)]).replace(/</g, "\\u003c")},FLEXPEOPLE=${peopleJson(f)},FLEXSETUP=${JSON.stringify([...setupOf(f).keys()]).replace(/</g, "\\u003c")},FLEXPARAMS=${paramsJson()},FLEXSYSTEM=${systemJson()},FLEXTAGS=${tagsJson()}</script>`)) : send(rs, 404, "text/plain", "no such flow"); }
+    if (page) { const f = flowNamed(page[1]); return f ? send(rs, 200, "text/html; charset=utf-8", readFileSync(build(f), "utf8").replace("<head>", `<head><script>var FLEXV=${JSON.stringify(version(f))},FLEXREADY=${JSON.stringify(proj()?.ready ?? null).replace(/</g, "\\u003c")},FLEXENVS=${JSON.stringify(envList()).replace(/</g, "\\u003c")},FLEXTESTER=${JSON.stringify(testerNames(f)).replace(/</g, "\\u003c")},FLEXSIGOFF=${JSON.stringify([...signalOff(f)]).replace(/</g, "\\u003c")},FLEXPEOPLE=${peopleJson(f)},FLEXSETUP=${JSON.stringify([...setupOf(f).keys()]).replace(/</g, "\\u003c")},FLEXPARAMS=${paramsJson()},FLEXSYSTEM=${systemJson()},FLEXTAGS=${tagsJson()},FLEXCONTROLS=${controlsJson(f)}</script>`)) : send(rs, 404, "text/plain", "no such flow"); }
     if (q === "/api/version") {
       const f = flowNamed(u.searchParams.get("flow"));
       if (!f) return json(rs, 404, { error: "no such flow" });

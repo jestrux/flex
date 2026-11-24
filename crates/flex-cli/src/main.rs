@@ -723,7 +723,7 @@ enum Cmd {
     /// replies an agent writes into them, live beside the flow in <flow>.notes.json, each note's screenshots in
     /// <flow>.notes/. Given a folder, every flow in it, picked at the top of the page. `flex review wait` blocks until
     /// the author sends a round. A product keeps its review in .flex/project.json ({ name, project, logo, base, devices,
-    /// flows, order, port, ready, environments, env, setup, clock, proxies, signinParam, signoutParam }), found walking up from the flow or from here: its logo and name head the page, its base and devices
+    /// flows, order, port, ready, environments, env, setup, clock, proxies, signinParam, signoutParam, controls }), found walking up from the flow or from here: its logo and name head the page, its base and devices
     /// are every flow's defaults (a flow's own fields win), and `flex review` with no flow serves its flows folder, opening
     /// on the project's home (a card per flow). A screen opened on its own shows its snapshot until the app in its frame
     /// is ready (past its seed link and settled), then the app itself; "ready": { "selector": "<css>" } in project.json
@@ -782,7 +782,9 @@ enum Cmd {
     /// change. "proxies": { "/prefix": "http://another:port" } sends those paths to another origin (path, method,
     /// headers and body as they are; captures too); a redirect to the app's or a proxied address is made relative, and
     /// WebSockets (HMR) pass through. "signinParam" (default "signin") and "signoutParam" (default "signout"; null: none
-    /// added) name the link parameters a frame's person goes in. Fields Flex doesn't know are said once (not an error)
+    /// added) name the link parameters a frame's person goes in. "controls": { <key>: { label, param, default, options:
+    /// [[value, label]…], screens: ["flow/screen"…] } } are the app's own seed switches, a View panel row on the live
+    /// frames they apply to (a value off the default adds <param>=<value> to their links; snapshots stay at it). Fields Flex doesn't know are said once (not an error)
     Review {
         #[command(subcommand)]
         cmd: Option<ReviewCmd>,

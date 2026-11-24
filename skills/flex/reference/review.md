@@ -117,6 +117,15 @@ A flow's own `base`, `devices`, `logo` win over the project's. Fields Flex doesn
   `detail`, `dashboard`, `map`, `prompt`, `sheet`, `share`, `success`, `error`, `empty`, `offline`, `system`,
   `public`, `payment`); the project's map adds its own custom tags (`{ "label", "color" }`), relabels or recolours a
   default, or turns one off (`null`). A tag in neither shows neutral and is reported once.
+- **`controls`**: the app's own seed switches, an icon button each in the top bar beside the person (a menu of its
+  choices; a dot when off its default), on the live frames they apply to, e.g.
+  `"controls": { "banners": { "label": "Announcements", "default": "all", "options": [["all", "All"], ["none",
+  "None"], ["trip", "Trip notice"]], "screens": ["tabs/home"] } }` (`param`, default the key; `options` as `[value,
+  label]` or plain values; `screens` as `flow`, `flow/screen`, `flow/screen@state`, `*` anywhere). A value other than
+  `default` adds `<param>=<value>` to those live frames' links (a state's link that sets it keeps its own); it is
+  remembered per project and kept in the address (`?banners=trip`). Snapshots and `resnap` are always at the default:
+  the fixed cases belong in states. `"multi": true` makes it a set of switches, an override like a theme's: those on
+  go as `<param>=<a>,<b>` (the app shows them to anyone, whatever their audience), none on adds nothing; an option's third item is the heading it sits under.
 - **Secrets** are `$VARS` from the process environment, else the `env` file beside `.flex/` (git-ignored). Never a
   password or token in a flow, the page, or a bundled `EXPO_PUBLIC_*` / `NEXT_PUBLIC_*` variable.
 
@@ -358,26 +367,28 @@ What the author does there, so you can tell them:
   States, Flows), Recent, or what has a tag or is seen as a person (↵ on a person sets that filter). Each result is one
   line: its icon, its name, where it is (its flow; a state's screen), and on the right a pin when pinned and its count
   (a flow's screens, a screen's states, a person's screens and states). Before anything is typed:
-  Pinned, then the flows. **It starts where you are:** on a screen, nothing typed, the list goes outward: that screen
-  and its states, the flow's other screens, then Pinned and the flows; typed (or filtered), this screen's matches rank
-  above this flow's, above the rest. The filter is a filter icon (three lines) beside the search (a dot when one is on); the filter
+  Pinned, then **Flows**, then **Screens** (each once, at home); typed, just the results, ranked: this screen's matches
+  above this flow's, above the rest (filtered lists put this flow's first too). The filter is a filter icon (three lines) beside the search (a dot when one is on); the filter
   in use shows as a chip at the search's start, and Backspace in an empty search removes it. Words narrow together, label first, then `keywords`, tags, people, description,
   forgiving a missing letter. The footer shows where the selected row is, then **Open ↵** ("Open Screen as Rehema" when
   found through a person) and **Actions ⌘K**: its states (or its screen), Pin, Peek this screen, Peek all found (⇧↵),
-  Copy link. ↑↓ move, Esc clears the search, then the chips, then the filter, then closes. `#form` and `@rehema` in the search work as filters too.
+  Copy link. ↑↓ move, Esc clears the search, then the filter, then closes. `#form` and `@rehema` in the search work as filters too.
   **Modifiers** (a lexicon, no AI), taken out of the search words: `as <person | role>` (a name or slug's start, else
   the people whose `role` says it: "as a visitor", "as tour operator"), `dark`, `light`, `sw`/`swahili`/`kiswahili`/`in
   swahili`, `en`/`english`/`in english`, `on ipad`/`on tablet`, `on phone`/`on iphone`/`on android`, `on laptop`/`on
   mac`/`on desktop`, `landscape`, `offline`/`no signal`, `online`, `tester`. "as" counts only when someone follows it;
-  a lone word some label starts ("light" with a Lighting screen) stays a search word. Each shows as a chip at the
-  search's start (dashed while being typed; lifted out of the text once a word follows it); Backspace in an empty
-  search removes the last. A role, or an unfinished "as reh", **fans out**: one row per person per screen that offers
-  them (`people`), the person on the right; a screen offering none of them isn't listed. ↵ opens the result with the
+  a lone word some label starts ("light" with a Lighting screen) stays a search word. They stay as typed; each row
+  says them after its name ("Home as Sofia · dark · in Swahili"). A role, or an unfinished "as reh", **fans out**: one
+  row per person per screen that offers them (`people`); a screen offering none of them isn't listed. **Triggers**, as
+  Kinpay's "how many" suggests "How many users / transactions / corridors": a search ending in "as ", "in " or "on "
+  lists that word's completions for the best match first, under "Home as…": each person the screen offers, each
+  language, each device (a sparkle marks them), then the results. ↵ opens the result with the
   person, theme, language, device, signal and tester tools set as the View panel would (in place on this flow, else
   remembered for the next page), and the footer says so: "Open Screen as Sofia · Dark · Swahili ↵". Letters in order
-  ("rjctd") only count for a word that fits nothing properly. **Compact
-  search** (View panel) shows only the search box until something is typed. Off on a published copy (no server).
-- **On the board:** ⌘K, search, ⇧↵ makes the same peek of what it found (`POST /<project>/api/peek`).
+  ("rjctd") only count for a word that fits nothing properly. Hovering the
+  top bar's Search button opens its panel: **Compact search** (only the search box until something is typed), the keys,
+  and clearing pins and recents; the button itself is dimmed until hovered. Off on a published copy (no server).
+- **On the board:** ⌘/, search, ⇧↵ makes the same peek of what it found (`POST /<project>/api/peek`).
 - **When:** whenever the conversation is about some screens across flows (what a change touches, the screens a
   question is about, a before and after). Make the peek and give the author its link, rather than listing files.
 - **What it takes:** `flow` (the whole flow, one tile; a glob works), `flow/screen` (with all its states), or
