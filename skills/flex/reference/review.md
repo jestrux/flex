@@ -301,6 +301,11 @@ What the author does there, so you can tell them:
 - **Shift-click** a frame leaves a note at that point. **Holding ⌥** shows a "Click to copy" overlay on the screen
   under the pointer; **⌥-click** copies its snapshot to the clipboard ("Copied <screen> · <state>", with a thumbnail).
   The app in the frame sees neither click.
+- **View** (the sliders button; the same panel on the home page) is compact: a header row of icon toggles (theme,
+  language as its flag, signal as wifi, and on a flow's page the **device frame**: off, each screen is the app's
+  window alone, no body, status bar, notch or camera, cropped to the safe areas so snapshots and live frames agree)
+  with **reset** at its right; then Devices; then Data, Tester tools, Setup. Each viewer's choices are remembered per
+  project (the address's `frame=0` too).
 
 ## On a deck slide
 

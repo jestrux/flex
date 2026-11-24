@@ -40,7 +40,8 @@ aside{width:320px;flex:none;background:var(--panel);border-right:1px solid var(-
 .head .hb{width:34px;height:34px;flex:none;border:1px solid var(--line);background:var(--panel);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px}
 .head .hb:hover{background:var(--soft)}.head .ht{flex:1;min-width:0}.head .ht b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .head .hn{display:flex;gap:4px}.head .hn button{width:28px;height:28px;border:0;border-radius:7px;background:var(--soft);font-size:16px;font-weight:700;color:var(--sub)}.head .hn button:hover{color:var(--ink)}
-.subsec{margin-top:12px}.subsec[hidden]{display:none}.sublab{font-size:11.5px;color:var(--sub);margin-bottom:6px}
+.subsec{margin-top:12px}.subsec[hidden]{display:none}
+.subrow{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--sub)}.subrow[hidden]{display:none}.sublab{font-size:11.5px;color:var(--sub);margin-bottom:6px}
 .sec{padding:14px 16px;border-bottom:1px solid var(--line)}
 .lab{font-size:12.5px;font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between}.lab span{color:var(--sub);font-weight:500;font-family:ui-monospace,Menlo,monospace;font-size:11px}
 .card{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px}
@@ -117,14 +118,14 @@ main{flex:1;position:relative;height:100vh;overflow:auto;background-color:var(--
 ${extra.css ?? ""}
 ${extra.notes ? NOTES_CSS : ""}
 </style></head><body>
-<aside>
+<aside class="vp">
   <div class="head" id="head"></div>
   <div class="sec"><div class="lab">Screens <span id="scount"></span></div><div class="seg" id="smode"></div><div class="card" id="card" style="margin-top:10px"></div>
     <div class="subsec" id="groupsec" hidden><div class="sublab">Group by</div><div class="seg" id="group"></div></div>
     <div class="subsec" id="viewsec" hidden><div class="sublab">View</div><div class="seg" id="view"></div></div></div>
   <div class="sec" id="statesec" hidden><div class="lab">States <span id="stcount"></span></div><div class="seg" id="stmode"></div><div class="states" id="states" style="margin-top:8px"></div></div>
-  <div class="sec"><div class="lab">Devices <span id="devname"></span></div><div class="seg devs" id="devices"></div><div class="picked" id="devpicked"></div></div>
-  <div class="sec"><div class="lab">Theme</div><div class="seg" id="themes"></div></div>
+${extra.notes ? viewPanel({ frame: true }) : `  <div class="sec"><div class="lab">Devices <span id="devname"></span></div><div class="seg devs" id="devices"></div><div class="picked" id="devpicked"></div><div class="subrow" id="framerow" hidden><span>Device frame</span><button class="sw" role="switch" id="frame" aria-label="Device frame"></button></div></div>
+  <div class="sec"><div class="lab">Theme</div><div class="seg" id="themes"></div></div>`}
   <div class="grow"></div>
   <div class="foot"><a id="open" target="_blank">Open PNG</a><small id="fmeta"></small></div>
   <div class="picker" id="picker" role="dialog" aria-label="Screens"><div class="ptop"><div class="ph"><button class="hb" id="pclose" title="Back (Esc)" aria-label="Back">←</button><div class="ht"><small id="pcount"></small><b>Choose a screen</b></div></div><div class="ps"><div class="seg pv" id="pview"></div><input id="psearch" type="search" placeholder="Search screens" autocomplete="off"></div></div><div class="plist" id="plist"></div></div>
@@ -173,7 +174,7 @@ const S0V=Q.get("view");
 // landing: a list of one screen opens on that screen; a screen with states opens on all of them (stmode "all" is a
 // no-op for a screen without states)
 const S={sub:Q.get("sub")||"",stmode:Q.has("stmode")&&Q.get("stmode")!=="all"?"one":"all",view:CANVAS?"live":S0V==="render"||!LIVE?"render":"live",state:Q.get("state")||"",group:Q.get("group")==="screen"?"screen":"device",screens:Q.get("screens")==="one"||(!Q.has("screens")&&SCREENS.length===1)?"one":"all",screen:SCREENS.includes(Q.get("screen"))?Q.get("screen"):SCREENS[0],
-  devs:new Set((Q.has("devices")?Q.get("devices"):(CATS.some(x=>x.c==="phone")?"phone":"")).split(",").filter(c=>CATS.some(x=>x.c===c))),theme:THEMES.includes(Q.get("theme"))?Q.get("theme"):THEMES[0]};
+  bare:Q.get("frame")==="0",devs:new Set((Q.has("devices")?Q.get("devices"):(CATS.some(x=>x.c==="phone")?"phone":"")).split(",").filter(c=>CATS.some(x=>x.c===c))),theme:THEMES.includes(Q.get("theme"))?Q.get("theme"):THEMES[0]};
 let ANCHOR=0; /* the device picker's last plain or ⌘ click, where a Shift-click range starts */
 const shown=()=>CATS.filter(x=>!S.devs.size||S.devs.has(x.c));
 const row=(screen,key,theme)=>ROWS.find(r=>r.screen===screen&&r.key===key&&r.theme===theme);
@@ -181,14 +182,19 @@ const thumb=(s)=>row(s,(shown()[0]||CATS[0]).k,S.theme)||ROWS.find(r=>r.screen==
 const src=(r)=>encodeURI(r.file);
 // a screen as a picture: its PNG, or on a canvas the device frame running the app (lazy: a frame loads when it shows)
 /* a canvas's small picture of a screen: its device frame running the app (flex review: a snapshot instead) */
-let THUMB=(r)=>FRAMES[r.frame].replace("__SRC__",liveSrc(r));
+/* a row's frame: the device around the app, or (Frame off, where the run has one) the app's window alone */
+const FR=(r)=>(S.bare&&FRAMES[r.frame+"#bare"])||FRAMES[r.frame];
+const HASBARE=ROWS.some(r=>FRAMES[r.frame+"#bare"]);
+let THUMB=(r)=>FR(r).replace("__SRC__",liveSrc(r));
 /* a screen opened on its own: its device frame running the app (flex review's published copy: a frame with a setup is its snapshot) */
-let LIVE1=(r)=>FRAMES[r.frame].replace("__SRC__",liveSrc(r)).replace(' loading="lazy"',"");
+let LIVE1=(r)=>FR(r).replace("__SRC__",liveSrc(r)).replace(' loading="lazy"',"");
 const pic=(r,extra)=>CANVAS?'<div class="live lt" data-r="'+ROWS.indexOf(r)+'" '+(extra||"")+'><div class="lz">'+THUMB(r)+"</div></div>":'<img '+(extra||"")+' loading="lazy" src="'+src(r)+'" alt="">';
 // live pictures take their box's width (a grid cell, a card's thumb: data-w), once laid out
 function fitLive(root){root.querySelectorAll(".live.lt").forEach(l=>{const z=l.firstElementChild,f=z.firstElementChild;if(!f)return;const p=l.parentElement,cs=getComputedStyle(p),box=+l.dataset.w||p.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);const w=f.offsetWidth,h=f.offsetHeight,k=box/w;z.style.transform="scale("+k+")";l.style.width=w*k+"px";l.style.height=h*k+"px"})}
 const cur1=()=>S.state?S.screen+"@"+S.state:S.screen;
-function keep(){const q=new URLSearchParams({sub:S.sub,stmode:S.stmode,view:S.view,state:S.state,group:S.group,screens:S.screens,screen:S.screen,theme:S.theme,devices:[...S.devs].join(",")});history.replaceState(null,"",location.pathname+"?"+q)}
+function keep(){const q=new URLSearchParams({sub:S.sub,stmode:S.stmode,view:S.view,state:S.state,group:S.group,screens:S.screens,screen:S.screen,theme:S.theme,devices:[...S.devs].join(","),frame:S.bare?"0":"1"});history.replaceState(null,"",location.pathname+"?"+q)}
+/* a switch (button.sw role=switch): on or off, set(on) when flipped */
+function sw(el,on,set){el.setAttribute("aria-checked",on);el.onclick=(e)=>{e.preventDefault();set(el.getAttribute("aria-checked")!=="true")}}
 function seg(el,items,isOn,on,render){el.innerHTML="";for(const it of items){const b=document.createElement("button");b.setAttribute("aria-pressed",isOn(it));b.innerHTML=render(it);b.onclick=(e)=>on(it,e);el.appendChild(b)}}
 const IC=(d)=>'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">'+d+"</svg>";
 const UI2={flow:IC('<path d="M5 6h7a3 3 0 0 1 3 3v6a3 3 0 0 0 3 3h1"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/>'),device:IC('<rect x="7" y="2.5" width="10" height="19" rx="2.5"/>'),screen:IC('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/>'),
@@ -232,9 +238,15 @@ function panel(){
     else{S.devs=new Set([x.c]);ANCHOR=i}
     go()},(x)=>ICON[x.c]);
   document.querySelectorAll("#devices button").forEach((b,i)=>{b.title=NAME[CATS[i].c]+" (Shift-click: a range, ⌘-click: add or remove)";b.setAttribute("aria-label",NAME[CATS[i].c])});
-  const picked=document.getElementById("devpicked");picked.textContent=S.devs.size>1?[...S.devs].map(c=>NAME[c]).join(" · "):"";picked.style.display=S.devs.size>1?"block":"none";
+  const picked=document.getElementById("devpicked");if(picked){picked.textContent=S.devs.size>1?[...S.devs].map(c=>NAME[c]).join(" · "):"";picked.style.display=S.devs.size>1?"block":"none";}
   document.getElementById("devname").textContent=S.devs.size===1?NAME[[...S.devs][0]]:S.devs.size?S.devs.size+" of "+CATS.length:"all";
-  seg(document.getElementById("themes"),THEMES,(t)=>t===S.theme,(t)=>{S.theme=t;go()},(t)=>'<span class="ic">'+(UI[t]||"")+t[0].toUpperCase()+t.slice(1)+"</span>");
+  const cap=(t)=>t[0].toUpperCase()+t.slice(1);
+  if(document.querySelector(".vic #themes"))vchoice(document.getElementById("themes"),THEMES,S.theme,(t)=>{S.theme=t;go()},(t)=>UI[t]||cap(t),cap);
+  else seg(document.getElementById("themes"),THEMES,(t)=>t===S.theme,(t)=>{S.theme=t;go()},(t)=>'<span class="ic">'+(UI[t]||"")+'<span class="tx">'+t[0].toUpperCase()+t.slice(1)+"</span></span>");
+  // the device frame: a header toggle on the View panel (a plain canvas: a switch under Devices)
+  const nf=document.getElementById("nframe");
+  if(nf){nf.hidden=!HASBARE;const b=nf.firstElementChild;b.setAttribute("aria-pressed",!S.bare);b.innerHTML=FRAMEIC(!S.bare);b.title=S.bare?"App only (click: in its device frame)":"Device frame on (click: app only, no body, status bar, notch or camera)";b.setAttribute("aria-label",b.title);b.onclick=()=>{S.bare=!S.bare;go()}}
+  else{document.getElementById("framerow").hidden=!HASBARE;sw(document.getElementById("frame"),!S.bare,(v)=>{S.bare=!v;go()})}
   const sts=states(S.screen),sec=document.getElementById("statesec");
   sec.hidden=S.screens!=="one"||!sts.length;
   document.getElementById("stcount").textContent=sts.length+1+"";
@@ -423,6 +435,45 @@ go();
    file, Send hands the drafts over as a round. The page reads and writes the notes through flex review's server
    (/api/notes), polls them every 3 s, and lays an overlay over each live frame's screen for the pins (and, in Comment
    mode, the clicks that make a note; off, the frames take the clicks). ── */
+/* ── the View panel, one for a flow's page and the home page: compact as a tool's inspector. A header row of settings
+   known everywhere as icons (theme, language as its flag, signal as wifi) with Reset at its right; then a row per
+   setting, its label left and its control right, a toggle where it's on or off; groups apart. Each page wires it. ── */
+/** the View's header icons: a language's flag, the signal on and off */
+const FLAGS = { en: '<svg class="flag" viewBox="0 0 60 40" preserveAspectRatio="xMidYMid slice"><clipPath id="flexuk"><path d="M30 20h30v20zv20H0zH0V0zV0h30z"/></clipPath><path d="M0 0h60v40H0z" fill="#012169"/><path d="M0 0l60 40M60 0L0 40" stroke="#fff" stroke-width="8"/><path d="M0 0l60 40M60 0L0 40" clip-path="url(#flexuk)" stroke="#C8102E" stroke-width="5"/><path d="M30 0v40M0 20h60" stroke="#fff" stroke-width="12"/><path d="M30 0v40M0 20h60" stroke="#C8102E" stroke-width="7"/></svg>',
+  sw: '<svg class="flag" viewBox="0 0 60 40"><path d="M0 0h60v40H0z" fill="#00A3DD"/><path d="M0 0h60L0 40z" fill="#1EB53A"/><path d="M0 40L60 0" stroke="#FCD116" stroke-width="16"/><path d="M0 40L60 0" stroke="#000" stroke-width="10"/></svg>' };
+const WIFI_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">';
+const WIFI_ON = WIFI_SVG + '<path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.6 15.9a5 5 0 0 1 6.8 0"/><circle cx="12" cy="19.3" r=".9" fill="currentColor"/></svg>';
+const FRAME_ON = WIFI_SVG + '<rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M10.5 5.5h3"/></svg>';
+const FRAME_OFF = WIFI_SVG + '<rect x="6" y="2.5" width="12" height="19" rx="1" stroke-dasharray="2.4 2.2"/></svg>';
+const WIFI_OFF = WIFI_SVG + '<path d="M2.5 9a14 14 0 0 1 5-2.9M12 5.5a14 14 0 0 1 9.5 3.5M5.5 12.5a9.5 9.5 0 0 1 4.3-2.4M15.6 11a9.5 9.5 0 0 1 2.9 1.5M8.6 15.9a5 5 0 0 1 5.8-.8M3 3l18 18"/><circle cx="12" cy="19.3" r=".9" fill="currentColor"/></svg>';
+/** the page script's FLAG and WIFI(on), from the above, and vchoice: a header setting's control. Of two choices, one
+ *  button showing the current one that flips to the other (as signal does); of more, a button each */
+const VIEW_ICONS_JS = `const FLAG=${JSON.stringify(FLAGS)},WIFI=(on)=>on?${JSON.stringify(WIFI_ON)}:${JSON.stringify(WIFI_OFF)},FRAMEIC=(on)=>on?${JSON.stringify(FRAME_ON)}:${JSON.stringify(FRAME_OFF)};
+function vchoice(el,vals,cur,pick,icon,name){el.innerHTML="";const two=vals.length===2;
+  for(const v of two?[vals.includes(cur)?cur:vals[0]]:vals){const b=document.createElement("button"),o=two?vals.find(x=>x!==v):v;b.innerHTML=icon(v);
+    b.title=two?name(v)+" (click: "+name(o)+")":name(v);b.setAttribute("aria-label",b.title);b.setAttribute("aria-pressed",two||v===cur);b.onclick=()=>pick(o);el.appendChild(b)}}`;
+const VIEW_CSS = `.vp{width:264px;padding:6px 0}
+.vp .sec{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;padding:4px 10px 4px 14px;min-height:34px;border-bottom:0}
+.vp .sec.vtop{border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:4px}.vp .sec.ngrp{border-top:1px solid var(--line);margin-top:6px;padding-top:10px}
+.vp .sec[hidden],.vp .subrow[hidden],.vp .seg[hidden]{display:none}.vp .vic{display:flex;gap:6px;align-items:center}
+.vp .lab,.vp .subrow span{margin:0;font-size:12px;font-weight:500;color:var(--sub)}.vp .lab span,.vp .tx{display:none}
+.vp .subrow{display:flex;align-items:center;justify-content:space-between;width:100%;margin:0;min-height:26px}
+.vp .seg{display:flex;width:auto;background:var(--soft);border-radius:7px;padding:2px;gap:1px}
+.vp .seg button{flex:none;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:4px;border:0;background:transparent;height:24px;min-width:28px;padding:4px 8px;border-radius:5px;font:inherit;font-size:11.5px;font-weight:600;color:var(--sub);cursor:pointer}
+.vp .seg button[aria-pressed=true]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.vp .vic .seg button,.vp .seg.devs button{padding:4px 6px}.vp .seg svg{width:14px;height:14px}.vp .seg.devs svg{width:15px;height:15px}
+.vp .seg svg.flag{width:18px;height:12px;border-radius:2px;box-shadow:0 0 0 .5px rgba(0,0,0,.15)}
+.vp .sw{width:30px;height:18px;border-radius:9px;border:0;background:color-mix(in srgb,var(--sub) 45%,transparent);position:relative;padding:0;flex:none;cursor:pointer}
+.vp .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .15s}
+.vp .sw[aria-checked=true]{background:var(--on)}.vp .sw[aria-checked=true]::after{left:14px}
+.vp .nreset{width:auto;border:0;background:none;padding:2px 0;color:var(--sub);font:inherit;font-size:12px;font-weight:400;text-decoration:underline;text-underline-offset:2px;cursor:pointer}.vp .nreset:hover{color:var(--ink)}`;
+/** the View panel's rows (the page puts them in its popover, class "vp"); frame and setup rows start hidden */
+const viewPanel = (o: { frame?: boolean } = {}) => `<div class="sec vtop"><div class="vic"><div class="seg" id="themes"></div><div class="seg" id="nlangs"></div><div class="seg" id="nsignal"><button></button></div>${o.frame ? `<div class="seg" id="nframe" hidden><button></button></div>` : ""}</div><button class="nreset" id="nreset" title="Devices,${o.frame ? " frame," : ""} theme, language, signal, tester tools and data back to the project’s defaults">reset</button></div>
+  <div class="sec"><div class="lab">Devices <span id="devname"></span></div><div class="seg devs" id="devices"></div></div>
+  <div class="sec ngrp"><div class="lab">Data</div><div class="seg" id="nmodes"></div></div>
+  <div class="sec"><div class="lab">Tester tools</div><button class="sw" role="switch" id="ntester" aria-label="Tester tools"></button></div>
+  <div class="sec" hidden><div class="lab">Setup</div><button class="sw" role="switch" id="nsetup" aria-label="Setup" title="Runs the project’s setup command for frames with a setup (it may write data)"></button></div>`;
+
 const NOTES_CSS = `
 :root{--pin:#2f6bff;--pinInk:#fff;--claude:#c96442}
 .bar button[aria-pressed=true]{background:var(--on);color:var(--onInk)}
@@ -431,7 +482,7 @@ const NOTES_CSS = `
 body{display:block}main{width:100vw}.stage{padding-top:76px}
 .ntop{position:fixed;z-index:30;top:0;left:0;right:0;height:52px;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--line)}
 .ngone{display:none!important}
-.nperson{display:flex;align-items:center;justify-content:center}.nperson b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nperson{display:flex;align-items:center;justify-content:center}.ntb.nperson{padding:2px;border-color:transparent;background:none}.ntb.nperson:hover,.ntb.nperson[aria-expanded=true]{background:var(--soft)}.nperson b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nperson small{color:var(--sub);font-size:12px;white-space:nowrap}.nav{flex:0 0 auto!important;width:26px!important;height:26px!important;min-width:26px;max-width:26px;border-radius:50%!important;padding:0!important}button[data-p]{align-items:center!important}[data-p] .nav{width:36px!important;height:36px!important;min-width:36px;max-width:36px;font-size:12.5px}.nav{flex:none;width:24px;height:24px;border-radius:50%;background:var(--pin);color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
 .npl button{display:flex;align-items:center;gap:10px;border:0;background:none;border-radius:8px;padding:7px 9px;text-align:left;width:100%}.npl button:hover{background:var(--soft)}
 .npl button span{flex:1;min-width:0}.npl button span b{display:block;font-size:13.5px}.npl button span small{color:var(--sub);font-size:12px}.npl .tick{flex:none;color:var(--pin);font-weight:800}
@@ -462,7 +513,9 @@ body{display:block}main{width:100vw}.stage{padding-top:76px}
 .nflow b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nflow:hover,.nflow[aria-expanded=true]{background:var(--soft);border-color:var(--line)}
 #ntl{flex:1;min-width:0;display:flex;align-items:center;gap:10px}.ndiv{width:1px;height:22px;background:var(--line);flex:none}
 .ntop [hidden]{display:none!important}#head{display:none}
-.ntb.ic{display:flex;align-items:center;gap:6px;padding:6px 9px;color:var(--ink)}.ntb.ic span{font-size:12.5px;font-variant-numeric:tabular-nums}
+.ntb.ic{display:flex;align-items:center;gap:4px;padding:6px 9px;color:var(--ink)}.ntb.ic span{font-size:12.5px;font-variant-numeric:tabular-nums}
+/* an icon before a label sits a touch left, so the button reads balanced (the icon's box has air the text hasn't) */
+.ntb.ic svg:not(:last-child){margin-left:-2px}
 aside.nzp{width:auto;height:auto;padding:6px}.nzp .bar{display:flex}
 .nmh{display:flex;gap:8px;align-items:center;padding:10px 10px 4px}.nmh input{flex:1;min-width:0;margin:0}
 .nmh .pv{margin:0}.nth.nalltile{display:flex;align-items:center;justify-content:center;color:var(--sub)}.nth.nalltile svg{width:28px;height:28px}
@@ -486,6 +539,8 @@ aside.nzp{width:auto;height:auto;padding:6px}.nzp .bar{display:flex}
 aside{position:fixed;z-index:29;top:60px;height:auto;max-height:calc(100vh - 72px);border:1px solid var(--line);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.16);display:none}
 aside.open{display:flex}aside:has(.picker.on){height:min(680px,calc(100vh - 72px))}.nlist{min-height:0}aside .foot,aside .grow{display:none}
 aside.nside{width:380px}
+${VIEW_CSS}
+
 .nfoot{padding:12px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}.nfoot .nsend{width:100%}.nfoot small{color:var(--sub);font-size:11.5px;text-align:center}
 .nzp .bar{position:static;transform:none;box-shadow:none;border:1px solid var(--line);border-radius:9px;padding:2px 4px;background:var(--panel);width:auto}
 .ntoast{position:fixed;z-index:40;top:64px;left:50%;transform:translateX(-50%);background:var(--on);color:var(--onInk);border-radius:10px;padding:12px 20px;font-size:14px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;transition:opacity .25s;pointer-events:none}.ntoast.on{opacity:1}
@@ -513,7 +568,7 @@ aside.nside{width:380px}
    grouped under one name */
 .nwho{font-size:11px;font-weight:700;color:var(--sub);margin:8px 0 2px;display:flex;align-items:center;gap:6px}.nwho:first-child{margin-top:0}
 .nwho.me{align-self:flex-end}.nwho i{width:18px;height:18px;border-radius:50%;background:var(--claude);color:#fff;font-style:normal;font-size:10px;display:flex;align-items:center;justify-content:center}
-.nreset{width:100%;border:1px solid var(--line);background:none;border-radius:8px;padding:7px 10px;color:var(--sub);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}.nreset:hover{background:var(--soft);color:var(--ink)}
+
 .nmsg{max-width:82%;padding:7px 11px;border-radius:14px;font-size:13px;line-height:1.4;overflow-wrap:anywhere}
 .nmd>*{margin:0}.nmd>*+*{margin-top:7px}.nmd ul,.nmd ol{padding-left:18px}.nmd li+li{margin-top:2px}.nmd code{font:12px ui-monospace,Menlo,monospace;background:color-mix(in srgb,currentColor 12%,transparent);padding:1px 4px;border-radius:4px}.nmd pre{background:color-mix(in srgb,currentColor 10%,transparent);padding:8px 10px;border-radius:8px;overflow:auto}.nmd pre code{background:none;padding:0}.nmd a{color:inherit;text-decoration:underline}
 .nmsg.me{align-self:flex-end;background:var(--pin);color:#fff;border-bottom-right-radius:4px}
@@ -550,7 +605,7 @@ const notesHtml = (logo?: string | null, name?: string) => `<div class="ntop" id
   <span class="ndiv" id="nstdiv" hidden></span><button class="nscr" id="nst" aria-expanded="false" title="Choose a state" hidden></button></div>
   <button class="ntb nperson" id="nperson" aria-expanded="false" title="Signed in as" aria-label="Signed in as" hidden></button>
   <span class="nstgtag" id="nstg" title="Frames show this environment's build, signed in to its gateway" hidden></span>
-  <button class="ntb ic" id="nview" aria-expanded="false" title="View: devices, theme, language, data" aria-label="View"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/></svg></button>
+  <button class="ntb ic" id="nview" aria-expanded="false" title="View: devices, theme, language, data" aria-label="View"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3.5M12.5 7H20M4 17h7.5M16.5 17H20"/><circle cx="10" cy="7" r="2.5"/><circle cx="14" cy="17" r="2.5"/></svg></button>
   <button class="ntb ic" id="nnotes" aria-expanded="false" title="Notes" aria-label="Notes"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg><span id="nncount">0</span></button>
   <button class="ntb ic" id="nzoom" aria-expanded="false" title="Zoom" aria-label="Zoom"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><span id="nzv">100%</span></button></div>
 <aside class="nzp" id="nzoomp"></aside>
@@ -566,6 +621,7 @@ function notesScript(flow: string): string {
   return `const NFLOW=${JSON.stringify(flow).replace(/</g, "\\u003c")};
 let NOTES={notes:[],rounds:[]},NSTR="",NSEL=null,HIDE=false,BUILD,LANG="en",SHIFT=false;
 const LANGS=[["en","English"],["sw","Kiswahili"]];
+${VIEW_ICONS_JS}
 // what each picker picks: a flow, a screen, a state (on its trigger, and on each row of its list)
 const PIC={flow:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.5"/></svg>',screen:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>',state:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7.5l9 4.5 9-4.5z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg>'};
 const CHEV='<svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
@@ -576,7 +632,8 @@ const mem=(k,v)=>{try{if(v===undefined)return localStorage.getItem(PKEY+k);local
 try{HIDE=localStorage.getItem("flex-review-hide")==="1";const l=mem("lang")||localStorage.getItem("flex-review-lang");if(LANGS.some(x=>x[0]===l))LANG=l}catch{}
 if(!Q.has("devices")){const d=mem("devices");if(d!==null){const set=d.split(",").filter(c=>CATS.some(x=>x.c===c));S.devs=new Set(set.length||!d?set:[CATS[0].c])}}
 if(!Q.has("theme")){const t=mem("theme");if(THEMES.includes(t))S.theme=t}
-function remember(){mem("devices",[...S.devs].join(","));mem("theme",S.theme);mem("lang",LANG)}
+if(!Q.has("frame"))S.bare=mem("frame")==="0";
+function remember(){mem("devices",[...S.devs].join(","));mem("theme",S.theme);mem("lang",LANG);mem("frame",S.bare?"0":"1")}
 /* the language every frame shows, as the theme is: each link's lang= set to it (added where a link has none); the
    flow's own links stay as they are */
 const withLang=(u,l)=>/[?&]lang=[^&]*/.test(u)?u.replace(/([?&])lang=[^&]*/,"$1lang="+l):u+(u.includes("?")?"&":"?")+"lang="+l;
@@ -638,30 +695,26 @@ function setLang(l,quiet){LANG=l;mem("lang",l);relink();langSeg();if(!quiet)go()
 function setMode(m){MODE=m;mem("mode",m);cookie();relink();modeSeg();go()}
 function setTester(t){TESTER=t;mem("tester",String(t));testerFilter();relink();modeSeg();go()}
 function setSignal(v){SIGNAL=v;mem("signal",String(v));relink();sigSeg();go()}
-function sigSeg(){seg(document.getElementById("nsignal"),[[1,"On"],[0,"Off"]],(x)=>x[0]===SIGNAL,(x)=>setSignal(x[0]),(x)=>'<span class="ic">'+x[1]+"</span>")}
+function sigSeg(){const b=document.querySelector("#nsignal button");b.setAttribute("aria-pressed",!!SIGNAL);b.innerHTML=WIFI(!!SIGNAL);b.title=SIGNAL?"Signal on (click: every frame offline)":"No signal (click: back online)";b.setAttribute("aria-label",b.title);b.onclick=()=>setSignal(SIGNAL?0:1)}
 const envLabel=(k)=>k==="static"||k==="demo"||!k?"Static":(ENVS.find(e=>e.key===k)||{label:k}).label;
 function modeSeg(){seg(document.getElementById("nmodes"),[["static","Static"],...ENVS.map(e=>[e.key,e.label])],(x)=>x[0]===MODE,(x)=>setMode(x[0]),(x)=>'<span class="ic">'+String(x[1]).replace(/</g,"&lt;")+"</span>");
   if(!ENVS.length)document.querySelectorAll("#nmodes button").forEach(b=>{b.disabled=true;b.title="No environments in .flex/project.json"});
-  seg(document.getElementById("ntester"),[[0,"Off"],[1,"On"]],(x)=>x[0]===TESTER,(x)=>setTester(x[0]),(x)=>'<span class="ic">'+x[1]+"</span>");
+  sw(document.getElementById("ntester"),!!TESTER,(v)=>setTester(v?1:0));
   const t=document.getElementById("nstg");if(t){t.hidden=MODE==="static";t.textContent=envLabel(MODE);t.dataset.env=MODE}}
-function langSeg(){seg(document.getElementById("nlangs"),LANGS,(x)=>x[0]===LANG,(x)=>setLang(x[0]),(x)=>'<span class="ic">'+x[1]+"</span>")}
-document.getElementById("themes").closest(".sec").insertAdjacentHTML("afterend",'<div class="sec"><div class="lab">Signal</div><div class="seg" id="nsignal"></div></div><div class="sec"><div class="lab">Language</div><div class="seg" id="nlangs"></div></div>');
+function langSeg(){vchoice(document.getElementById("nlangs"),LANGS.map(x=>x[0]),LANG,(l)=>setLang(l),(l)=>FLAG[l],(l)=>LANGS.find(x=>x[0]===l)[1])}
 sigSeg();
 langSeg();
-document.getElementById("nlangs").closest(".sec").insertAdjacentHTML("afterend",'<div class="sec"><div class="lab">Data</div><div class="seg" id="nmodes"></div></div><div class="sec"><div class="lab">Tester tools</div><div class="seg" id="ntester"></div></div>');
 modeSeg();
 if(STATIC)document.getElementById("nmodes").closest(".sec").style.display="none";
 /* Setup (a flow with setup frames, live only): the project's setup command may write data, so it runs only when allowed,
    for this server's session (flex review --allow-setup, or this switch); off, those frames say so */
 let SETUPON=false;
-function setupSeg(){const el=document.getElementById("nsetup");if(!el)return;seg(el,[[false,"Off"],[true,"On"]],(x)=>x[0]===SETUPON,async(x)=>{
-  try{const r=await fetch(NRS+"/api/setup-allow",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({on:x[0]})});SETUPON=!!(await r.json()).on}catch{}
-  setupSeg();document.querySelectorAll("#stage iframe").forEach(f=>{if(f.src.includes("/api/setup-frame")){f.dataset.hyd="";f.src=f.src}});hydrateAll();snaps(true)},(x)=>'<span class="ic">'+x[1]+"</span>")}
-if(SETUPN.size&&!STATIC){document.getElementById("nmodes").closest(".sec").insertAdjacentHTML("afterend",'<div class="sec"><div class="lab">Setup</div><div class="seg" id="nsetup" title="Runs the project’s setup command for frames with a setup (it may write data)"></div></div>');
-  setupSeg();fetch(NRS+"/api/setup-allow",{cache:"no-store"}).then(r=>r.json()).then(j=>{SETUPON=!!j.on;setupSeg()}).catch(()=>{})}
+function setupSeg(){const el=document.getElementById("nsetup");if(!el)return;sw(el,SETUPON,async(on)=>{
+  try{const r=await fetch(NRS+"/api/setup-allow",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({on})});SETUPON=!!(await r.json()).on}catch{}
+  setupSeg();document.querySelectorAll("#stage iframe").forEach(f=>{if(f.src.includes("/api/setup-frame")){f.dataset.hyd="";f.src=f.src}});hydrateAll();snaps(true)})}
+if(SETUPN.size&&!STATIC){document.getElementById("nsetup").closest(".sec").hidden=false;setupSeg();fetch(NRS+"/api/setup-allow",{cache:"no-store"}).then(r=>r.json()).then(j=>{SETUPON=!!j.on;setupSeg()}).catch(()=>{})}
 // back to the project's defaults: what this page remembers (devices, theme, language, signal, tester tools, data, the
 // pickers' display) is forgotten and the page loads again without its address's view settings
-document.getElementById("ntester").closest(".sec").insertAdjacentHTML("afterend",'<div class="sec"><button class="nreset" id="nreset" title="Devices, theme, language, signal, tester tools and data back to the project’s defaults">Reset to defaults</button></div>');
 document.getElementById("nreset").onclick=async()=>{
   // the setups run again when next wanted
   if(!STATIC)await fetch(NR+"/api/setup-reset",{method:"POST"}).catch(()=>{});
@@ -741,7 +794,7 @@ const snapKey=(r)=>r.screen+"."+r.key+"."+r.theme+"."+LANG+"."+MODE+".t"+TESTER+
 // a snapshot whose frame's "expect" wasn't on the page: kept, flagged (the app's shared data may have moved on)
 const movedB=(s)=>s&&s.moved?'<b class="nmoved" title="'+esc(s.moved).replace(/"/g,"&quot;")+'">data moved?</b>':"";
 const snapIn=(k,none)=>SNAPS[k]&&SNAPS[k].url?'<img src="'+SNAPS[k].url+'" alt="">'+movedB(SNAPS[k]):'<span class="nshim">'+(none||(STATIC?"Open for the live app":"Capturing…"))+"</span>";
-THUMB=(r)=>{const k=snapKey(r);return FRAMES[r.frame].replace(/<iframe src="__SRC__" title="" loading="lazy" style="([^"]*)"><\\/iframe>/,(m,st)=>
+THUMB=(r)=>{const k=snapKey(r);return FR(r).replace(/<iframe src="__SRC__" title="" loading="lazy" style="([^"]*)"><\\/iframe>/,(m,st)=>
   '<div class="nsnapw'+(SNAPS[k]&&SNAPS[k].url?"":" nwait")+(r.theme==="dark"?" dk":"")+'" data-snap="'+esc(k)+'" style="'+(st.includes("position:absolute")?"":"position:relative;")+st.replace(/background:#fff;?/,"")+'">'+snapIn(k,STATIC&&SETUPN.has(r.screen)?"No snapshot of this view":"")+"</div>")};
 // a published copy: a frame with a setup can't run it (no server), so on its own it is its snapshot
 if(STATIC){Object.assign(SNAPS,Object.fromEntries(Object.entries(STATIC.snaps).map(([k,u])=>[k,{url:u,fresh:true}])));const L0=LIVE1;LIVE1=(r)=>SETUPN.has(r.screen)?THUMB(r):L0(r)}
@@ -1040,9 +1093,10 @@ function staticFallback(){if(!VIEWS||oneView())return;let re=false;
   if(!VIEWS.signals.includes(SIGNAL)){SIGNAL=VIEWS.signals[0];re=true}
   if(re){relink();langSeg();sigSeg()}}
 function staticControls(){if(!VIEWS)return;const one=oneView();
-  const show=(id,vals,ok)=>{const bs=[...document.querySelectorAll("#"+id+" button")];let n=0;bs.forEach((b,i)=>{const on=one||ok(vals[i]);b.style.display=on?"":"none";if(on)n++});
-    const sec=document.getElementById(id).closest(".sec");if(sec)sec.style.display=n>1?"":"none"};
-  show("themes",THEMES,(v)=>VIEWS.themes.includes(v));show("nlangs",LANGS.map(x=>x[0]),(v)=>VIEWS.langs.includes(v));show("nsignal",[1,0],(v)=>VIEWS.signals.includes(v))}
+  const show=(id,vals,ok)=>{const bs=[...document.querySelectorAll("#"+id+" button")],n=vals.filter(v=>one||ok(v)).length;if(bs.length===vals.length)bs.forEach((b,i)=>{b.style.display=one||ok(vals[i])?"":"none"});
+    document.getElementById(id).style.display=n>1?"":"none"};
+  show("themes",THEMES,(v)=>VIEWS.themes.includes(v));show("nlangs",LANGS.map(x=>x[0]),(v)=>VIEWS.langs.includes(v));
+  document.getElementById("nsignal").style.display=one||VIEWS.signals.length>1?"":"none"}
 if(VIEWS){const go0=go;go=function(){staticFallback();go0()}}
 /* the "Signed in as" button (left of View): the person of the screen open, or in a grid the one picked (else the
    flow's default); its menu lists who the screens in view offer. Hidden where the screen open is signed out */
@@ -1137,6 +1191,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .tb.due::after{content:"";position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--pin);border:2px solid var(--panel)}
 .panel{position:fixed;z-index:6;top:60px;right:12px;width:340px;max-height:calc(100vh - 72px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.16);display:none}
 .panel.open{display:block}.sec{padding:14px 16px;border-bottom:1px solid var(--line)}.sec:last-child{border-bottom:0}.lab{font-size:12.5px;font-weight:700;margin-bottom:8px}
+${VIEW_CSS}
 .seg{display:flex;background:var(--soft);border-radius:9px;padding:3px;gap:2px}.seg button{flex:1;border:0;background:transparent;border-radius:7px;padding:7px 6px;font-size:12.5px;font-weight:600;color:var(--sub)}
 .seg button[aria-pressed=true]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .nf h4{margin:0 0 6px;font-size:13px}.nf a{display:flex;gap:8px;padding:6px 8px;border-radius:8px;color:inherit;text-decoration:none}.nf a:hover{background:var(--soft)}
@@ -1155,9 +1210,9 @@ main{padding:28px 28px 48px}main h1{margin:0 0 18px;font-size:20px}
 .stg{font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:#5b5fc7;border-radius:6px;padding:3px 8px}.stg[data-env=staging]{background:#d9480f}.stg[data-env=local]{background:#0d8a6a}.seg button:disabled{opacity:.45;cursor:not-allowed}.err{color:#d33;font-size:12.5px;white-space:pre-wrap;padding:16px}
 </style></head><body>
 <div class="top">${o.logo ? `<img src="${o.logo}" alt="">` : '<div class="mark">F</div>'}<span class="div"></span><b>${o.name.replace(/</g, "&lt;")}</b><span class="grow"></span><span class="stg" id="stg" hidden>Staging</span>
-<button class="tb" id="view" aria-expanded="false" title="View: devices, theme, language" aria-label="View">${ic('<path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/>')}</button>
+<button class="tb" id="view" aria-expanded="false" title="View: devices, theme, language" aria-label="View">${ic('<path d="M4 7h3.5M12.5 7H20M4 17h7.5M16.5 17H20"/><circle cx="10" cy="7" r="2.5"/><circle cx="14" cy="17" r="2.5"/>')}</button>
 <button class="tb" id="notes" aria-expanded="false" title="Notes" aria-label="Notes">${ic('<path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>')}<span id="ncount">0</span></button></div>
-<div class="panel" id="pview"><div class="sec"><div class="lab">Devices</div><div class="seg" id="devs"></div></div><div class="sec"><div class="lab">Theme</div><div class="seg" id="themes"></div></div><div class="sec"><div class="lab">Signal</div><div class="seg" id="signals"></div></div><div class="sec"><div class="lab">Language</div><div class="seg" id="langs"></div></div><div class="sec"><div class="lab">Data</div><div class="seg" id="modes"></div></div><div class="sec"><div class="lab">Tester tools</div><div class="seg" id="testers"></div></div></div>
+<div class="panel vp" id="pview">${viewPanel()}</div>
 <div class="panel" id="pnotes"></div>
 <main><div class="cards" id="cards"></div></main>
 <script>
@@ -1169,15 +1224,26 @@ const CATS=[];for(const c of ["phone","tablet","land","laptop","window"]){const 
 const NAME={phone:"Phone",tablet:"Tablet",land:"Tablet landscape",laptop:"Laptop",window:"Window"};
 let cat=(mem("devices")||"").split(",")[0];if(!CATS.some(d=>d.cat===cat))cat=(CATS.find(d=>d.cat==="phone")||CATS[0]||{}).cat;
 let theme=mem("theme")==="dark"?"dark":"light",lang=mem("lang")==="sw"?"sw":"en",mode=(ENVS.some(e=>e.key===mem("mode"))?mem("mode"):"static"),tester=mem("tester")==="1"?"1":"0",signal=mem("signal")==="0"?"0":"1",DATA=null,STR="";
-function seg(el,items,on,pick){el.innerHTML="";for(const [v,l] of items){const b=document.createElement("button");b.textContent=l;b.setAttribute("aria-pressed",on(v));b.onclick=()=>{pick(v);controls();load()};el.appendChild(b)}}
+// a choice: [value, label, its name when the label is an icon or short]
+function seg(el,items,on,pick){el.innerHTML="";for(const [v,l,t] of items){const b=document.createElement("button");b.innerHTML=l;if(t){b.title=t;b.setAttribute("aria-label",t)}b.setAttribute("aria-pressed",on(v));b.onclick=()=>{pick(v);controls();load()};el.appendChild(b)}}
+function sw(el,on,pick){el.setAttribute("aria-checked",on);el.onclick=()=>{pick(!on);controls();load()}}
+const SVG=(d)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">'+d+"</svg>";
+${VIEW_ICONS_JS}
+// back to the project's defaults, as a flow's View does: what this browser remembers for the project is forgotten
+document.getElementById("nreset").onclick=async()=>{if(!STATICD)await fetch(R+"/api/setup-reset",{method:"POST"}).catch(()=>{});
+  try{Object.keys(localStorage).filter(k=>k.startsWith(PKEY)||k==="flex-review-lang"||k==="flex-review-picker").forEach(k=>localStorage.removeItem(k));sessionStorage.clear()}catch{}
+  document.cookie="flex_mode=static;path=/;max-age=31536000";location.href=location.pathname};
+const ICON={phone:SVG('<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>'),tablet:SVG('<rect x="4.5" y="2.5" width="15" height="19" rx="2.5"/><path d="M11 18.5h2"/>'),land:SVG('<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M18 11v2"/>'),
+  laptop:SVG('<rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/>'),window:SVG('<rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M3 8.5h18"/>'),
+  light:SVG('<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>'),dark:SVG('<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>')};
 function controls(){
-  seg(document.getElementById("devs"),CATS.map(d=>[d.cat,NAME[d.cat]]),(v)=>v===cat,(v)=>{cat=v;mem("devices",v)});
-  seg(document.getElementById("themes"),[["light","Light"],["dark","Dark"]],(v)=>v===theme,(v)=>{theme=v;mem("theme",v)});
-  seg(document.getElementById("langs"),[["en","English"],["sw","Kiswahili"]],(v)=>v===lang,(v)=>{lang=v;mem("lang",v)});
-  seg(document.getElementById("modes"),[["static","Static"],...ENVS.map(e=>[e.key,e.label])],(v)=>v===mode,(v)=>{mode=v;mem("mode",v)});
+  seg(document.getElementById("devices"),CATS.map(d=>[d.cat,ICON[d.cat]||NAME[d.cat],NAME[d.cat]]),(v)=>v===cat,(v)=>{cat=v;mem("devices",v)});
+  vchoice(document.getElementById("themes"),["light","dark"],theme,(v)=>{theme=v;mem("theme",v);controls();load()},(v)=>ICON[v],(v)=>v==="light"?"Light":"Dark");
+  vchoice(document.getElementById("nlangs"),["en","sw"],lang,(v)=>{lang=v;mem("lang",v);controls();load()},(v)=>FLAG[v],(v)=>v==="en"?"English":"Kiswahili");
+  seg(document.getElementById("nmodes"),[["static","Static"],...ENVS.map(e=>[e.key,e.label])],(v)=>v===mode,(v)=>{mode=v;mem("mode",v)});
   if(!ENVS.length)document.querySelectorAll("#modes button").forEach(b=>{b.disabled=true;b.title="No environments in .flex/project.json"});
-  seg(document.getElementById("signals"),[["1","On"],["0","Off"]],(v)=>v===signal,(v)=>{signal=v;mem("signal",v)});
-  seg(document.getElementById("testers"),[["0","Off"],["1","On"]],(v)=>v===tester,(v)=>{tester=v;mem("tester",v)});
+  {const b=document.querySelector("#nsignal button"),on=signal==="1";b.setAttribute("aria-pressed",on);b.innerHTML=WIFI(on);b.title=on?"Signal on (click: every frame offline)":"No signal (click: back online)";b.setAttribute("aria-label",b.title);b.onclick=()=>{signal=on?"0":"1";mem("signal",signal);controls();load()}}
+  sw(document.getElementById("ntester"),tester==="1",(v)=>{tester=v?"1":"0";mem("tester",tester)});
   const t=document.getElementById("stg");t.hidden=mode==="static";t.dataset.env=mode;t.textContent=(ENVS.find(e=>e.key===mode)||{label:""}).label}
 const when=(a)=>{const d=new Date(a);return d.toDateString()===new Date().toDateString()?d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):d.toLocaleString([],{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})};
 const q=()=>"?devices="+cat+"&theme="+theme;
@@ -1192,7 +1258,7 @@ function draw(){
   document.getElementById("pnotes").innerHTML=fl.filter(f=>f.notes.length).map(f=>'<div class="sec nf"><h4>'+esc(f.title)+"</h4>"
     +f.notes.map(n=>'<a href="'+esc(f.href)+q()+"#note="+encodeURIComponent(n.id)+'"><i>'+n.n+"</i><span>"+esc(n.text.split("\\n")[0])+"<br><small>"+esc(n.label)+"</small></span></a>").join("")+"</div>").join("")||'<div class="sec none">No open notes.</div>'}
 // a published copy: the flows and their covers as exported, nothing to ask a server
-if(STATICD){document.body.classList.add("static");document.getElementById("notes").style.display="none";document.getElementById("modes").closest(".sec").style.display="none"}
+if(STATICD){document.body.classList.add("static");document.getElementById("notes").style.display="none";document.getElementById("nmodes").closest(".sec").style.display="none"}
 async function load(){if(STATICD){const k=(CATS.find(d=>d.cat===cat)||{}).key||"";
     DATA={flows:STATICD.map(f=>({name:f.name,title:f.title,href:f.href,screens:f.screens["t"+tester],open:0,notes:[],lastRound:null,static:true,cover:f.covers[k]||null}))};draw();return}
   try{const r=await fetch(R+"/api/home?device="+((CATS.find(d=>d.cat===cat)||{}).key||"")+"&theme="+theme+"&lang="+lang+"&mode="+mode+"&tester="+tester+"&signal="+signal,{cache:"no-store"});if(!r.ok)return;const j=await r.json(),s=JSON.stringify(j);if(s===STR)return;STR=s;DATA=j;draw()}catch{}}

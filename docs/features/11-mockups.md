@@ -57,6 +57,9 @@ laptop sidebar. Serve it with `python3 -m http.server 8102 -d samples/screens`.
 - **← / →** move at the level shown: all screens → between lists (a flow review's flows); one screen → its list's
   screens; one state → its screen's states. Past an end they roll into the next item up, and wrap at the last list.
 - **Device selection** works as in Finder: a click picks one device, Shift-click a range, ⌘-click adds or removes one.
+- **Device frame** (a toggle in the View panel's header row): off, each screen shows as the app's window alone, without the device's body, status
+  bar, notch or camera. A phone or tablet's page is cropped to its safe areas, so its snapshot and its live frame agree.
+  It is kept in the address (`frame=0`) and, on a flow review, remembered per project.
 
 ![One screen, its "No trails yet" state, on a phone and a laptop](../media/mockups-live.png)
 

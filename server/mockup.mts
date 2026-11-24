@@ -164,6 +164,7 @@ if (opt("--canvas") !== undefined) {
             ? '<iframe src="__SRC__" title="" loading="lazy" style="display:block;width:100%;height:100%;border:0;background:#fff"></iframe>'
             : `<iframe src="__SRC__" title="" loading="lazy" style="position:absolute;left:0;right:0;top:${d.top}px;height:calc(100% - ${d.top + d.bottom}px);width:100%;border:0;background:#fff"></iframe>`;
           frames[key] = figure(d, "__SRC__", status, v, name, null, status === "dark").replace('<img src="__SRC__" alt="">', win);
+          frames[key + "#bare"] = bareFrame(d, d.touch);
         }
         const sep = l.path.includes("?") ? "&" : "?";
         rows.push({ file: "", screen: name, device: d.label, key: d.key, theme, finish: v.finish, status, scale: 1, page: null, frame: key,
@@ -317,6 +318,15 @@ function figure(d: Dev, img: string, status: string, v: { finish: string; style:
   return `<figure class="${cls}" style="margin:0${v.style === "outline" ? ";color:#1a1618" : ""}"><div class="${f}__screen">${shot}${under}${bar}</div>${extra}</figure>`;
 }
 
+/** the review's frame with the device turned off (the View's Frame switch): the app's window alone, no body, bars,
+ *  notch or camera, at the screen's size less its status and home bars. A page laid out inside safe areas of its own
+ *  (\`cropped\`: a phone or tablet given insets) is cropped to them, so its snapshot and its live frame still agree. The
+ *  iframe keeps the framed one's attributes: the canvas swaps it for a snapshot by matching them. */
+function bareFrame(d: Dev, cropped: boolean): string {
+  const at = cropped ? `top:-${d.top}px;height:${d.h}px` : "top:0;height:100%";
+  return `<figure class="flexbare" style="margin:0;position:relative;overflow:hidden;width:${d.w}px;height:${d.h - d.top - d.bottom}px;border-radius:${d.touch ? 16 : 8}px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.08),0 2px 10px rgba(0,0,0,.06)"><iframe src="__SRC__" title="" loading="lazy" style="position:absolute;left:0;right:0;${at};width:100%;border:0;background:#fff"></iframe></figure>`;
+}
+
 async function compose(d: Dev, png: Buffer, status: string, scale: number, v: { finish: string; style: string }, title: string, band: string | null, navDark?: boolean): Promise<Buffer> {
   const base = d.family === "mac" || d.family === "pc";
   const pad = flag("shadow") ? 70 : base ? 40 : 12;
@@ -356,7 +366,10 @@ for (const d of devices) {
       const win = inset
         ? `<div style="position:absolute;inset:0;background:${band ?? (status === "light" ? "#111" : "#fff")}"></div><iframe src="__SRC__" title="" loading="lazy" style="position:absolute;left:0;right:0;top:${d.top}px;height:calc(100% - ${d.top + d.bottom}px);width:100%;border:0;background:#fff"></iframe>`
         : '<iframe src="__SRC__" title="" loading="lazy" style="display:block;width:100%;height:100%;border:0;background:#fff"></iframe>';
-      if (flag("review") && !frames[frameKey]) frames[frameKey] = figure(d, "__SRC__", status, v, opt("--title") ?? it.name, band, nav).replace('<img src="__SRC__" alt="">', win);
+      if (flag("review") && !frames[frameKey]) {
+        frames[frameKey] = figure(d, "__SRC__", status, v, opt("--title") ?? it.name, band, nav).replace('<img src="__SRC__" alt="">', win);
+        frames[frameKey + "#bare"] = bareFrame(d, d.touch && !inset);
+      }
       // the finish and style join the name only when this run renders more than one of them
       const tag = many ? `-${v.style === "frame" ? v.finish : v.style}` : "";
       const file = join(outDir, `${it.name}-${d.key}${tag}${it.kind === "page" ? "-" + theme : ""}.png`);
