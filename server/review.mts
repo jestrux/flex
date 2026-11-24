@@ -16,8 +16,9 @@
 // in the left panel when that screen is open; ↑ ↓ step through them. index.json sets the order, labels and the first
 // number (0 for an app-shell screen 00). The whole folder opens with a double-click: no server.
 
+import { SYSTEM_CSS, systemScript } from "./system.mts";
 export type ReviewRow = { file: string; screen: string; device: string; key: string; theme: string; finish: string; status: string; scale: number; page?: string | null; frame?: string; href?: string };
-export type ReviewIndex = { numberFrom?: number; screens: { name: string; label?: string; defaultLabel?: string; axes?: { name: string; label: string; toggle: boolean; options: { name: string; label: string }[] }[]; states: { name: string; label: string }[] }[] };
+export type ReviewIndex = { numberFrom?: number; screens: { name: string; label?: string; defaultLabel?: string; tags?: string[]; keywords?: string[]; axes?: { name: string; label: string; toggle: boolean; options: { name: string; label: string }[] }[]; states: { name: string; label: string; tags?: string[]; keywords?: string[] }[] }[] };
 export type ReviewExtra = { frames?: Record<string, string>; css?: string; index?: ReviewIndex | null; canvas?: boolean; notes?: { flow: string; logo?: string | null; name?: string } };
 
 export function reviewPage(all: ReviewRow[], title: string, extra: ReviewExtra = {}): string {
@@ -116,7 +117,8 @@ main{flex:1;position:relative;height:100vh;overflow:auto;background-color:var(--
 .card .live.lt{border-radius:6px;flex:none}.live .lz{position:absolute;left:0;top:0;transform-origin:0 0}
 .multi .live+.cap{margin-top:18px}
 ${extra.css ?? ""}
-${extra.notes ? NOTES_CSS : ""}
+${extra.canvas ? SYSTEM_CSS : ""}
+${extra.notes ? NOTES_CSS + CMDK_CSS : ""}
 </style></head><body>
 <aside class="vp">
   <div class="head" id="head"></div>
@@ -183,7 +185,9 @@ const src=(r)=>encodeURI(r.file);
 // a screen as a picture: its PNG, or on a canvas the device frame running the app (lazy: a frame loads when it shows)
 /* a canvas's small picture of a screen: its device frame running the app (flex review: a snapshot instead) */
 /* a row's frame: the device around the app, or (Frame off, where the run has one) the app's window alone */
-const FR=(r)=>(S.bare&&FRAMES[r.frame+"#bare"])||FRAMES[r.frame];
+${extra.canvas ? systemScript() : "const SYS=(r,h)=>h;"}
+/* (a step that is the OS's own UI, a flow's "system": drawn over the app, server/system.mts) */
+const FR=(r)=>SYS(r,(S.bare&&FRAMES[r.frame+"#bare"])||FRAMES[r.frame]);
 const HASBARE=ROWS.some(r=>FRAMES[r.frame+"#bare"]);
 let THUMB=(r)=>FR(r).replace("__SRC__",liveSrc(r));
 /* a screen opened on its own: its device frame running the app (flex review's published copy: a frame with a setup is its snapshot) */
@@ -331,7 +335,7 @@ function stage(){
     const all=[{name:"",label:entry(S.screen).defaultLabel||"Default"},...states(S.screen)];
     st0.style.alignItems="flex-start";
     st.innerHTML='<div class="rows">'+devs.map(x=>{const fs=all.map(z=>({z,r:row(z.name?S.screen+"@"+z.name:S.screen,x.k,S.theme)})).filter(o=>o.r)
-      .map(o=>'<figure data-st="'+o.z.name+'">'+pic(o.r)+'<div class="cap">'+o.z.label.replace(/</g,"&lt;")+"</div></figure>").join("");
+      .map(o=>'<figure data-st="'+o.z.name+'">'+pic(o.r)+'<div class="cap">'+o.z.label.replace(/</g,"&lt;")+CHIPS(o.z.name?o.z.tags:entry(S.screen).tags)+"</div></figure>").join("");
       return fs?'<section class="dsec">'+(devs.length>1?'<h3>'+ICON[x.c]+NAME[x.c]+'</h3>':'')+'<div class="grid" style="--cell:'+({phone:"220px",tablet:"280px",land:"360px",laptop:"400px"}[x.c]||"300px")+'">'+fs+"</div></section>":""}).join("")+"</div>";
     fitLive(st);
     st.querySelectorAll("figure[data-st]").forEach(f=>f.onclick=()=>{S.state=f.dataset.st;S.stmode="one";go()});
@@ -368,7 +372,7 @@ function stage(){
     return}
   // each device in turn, its screens following one grid (cell width by the device's kind)
   st.innerHTML='<div class="rows">'+devs.map(x=>{
-    const figOf=(sc)=>{const r=row(sc,x.k,S.theme);return r?'<figure data-s="'+r.screen+'">'+pic(r)+'<div class="cap"><span class="num">'+num(r.screen)+"</span>"+lbl(r.screen)+stCount(r.screen)+"</div></figure>":""};
+    const figOf=(sc)=>{const r=row(sc,x.k,S.theme);return r?'<figure data-s="'+r.screen+'">'+pic(r)+'<div class="cap"><span class="num">'+num(r.screen)+"</span>"+lbl(r.screen)+stCount(r.screen)+CHIPS(entry(r.screen).tags)+"</div></figure>":""};
     // an opened used flow: its screens; else the host's items, a used flow as one tile (its first screen's picture)
     const fs=S.sub?SCREENS.filter(sc=>grp(sc)===S.sub).map(figOf).join(""):ITEMS().map((it,i)=>{if(!it.g)return figOf(it.s);
       const r=row(it.ss[0],x.k,S.theme);return r?'<figure data-g="'+it.g.replace(/"/g,"&quot;")+'">'+pic(r)+'<div class="cap"><span class="num">'+inum(i)+"</span>"+it.g.replace(/</g,"&lt;")+'<small class="cst">'+it.ss.length+" screen"+(it.ss.length===1?"":"s")+"</small></div></figure>":""}).join("");
@@ -393,6 +397,8 @@ let LISTSTEP=null;
    screen's states, then the next screen (all its states) */
 /* a screen's caption, under its name: how many states it has, as the flow cards say how many screens */
 const stCount=(sc)=>{const n=states(sc).length+1;return '<small class="cst">'+n+" state"+(n===1?"":"s")+"</small>"};
+/* a screen's or state's tags as chips under its caption (flex review's; elsewhere none) */
+let CHIPS=(ts)=>"";
 function step(d){
   if(S.screens!=="one"&&S.sub){const its=ITEMS(),i=its.findIndex(it=>it.g===S.sub)+d;
     if(i>=0&&i<its.length){openItem(its[i]);return}if(LISTSTEP){LISTSTEP(d);return}openItem(its[(i+its.length)%its.length]);return}
@@ -426,6 +432,7 @@ addEventListener("resize",()=>{stage();Z=1;zoomLabel();AFTER()});
 document.getElementById("main").addEventListener("wheel",(e)=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();zoom(Z*Math.exp(-e.deltaY*0.01),e.clientX,e.clientY)},{passive:false});
 let G0=1;addEventListener("gesturestart",(e)=>{e.preventDefault();G0=Z});addEventListener("gesturechange",(e)=>{e.preventDefault();zoom(G0*e.scale,e.clientX,e.clientY)});
 addEventListener("keydown",(e)=>{if(!(e.metaKey||e.ctrlKey))return;if(e.key==="="||e.key==="+"){e.preventDefault();zoom(Z*1.25)}else if(e.key==="-"){e.preventDefault();zoom(Z/1.25)}else if(e.key==="0"){e.preventDefault();zoom(1)}});
+${extra.notes ? cmdkScript('location.pathname.slice(0,location.pathname.indexOf("/f/"))', 'typeof FLEXSTATIC!=="undefined"&&!!FLEXSTATIC') : ""}
 ${extra.notes ? notesScript(extra.notes.flow) : ""}
 go();
 </script></body></html>`;
@@ -466,13 +473,332 @@ const VIEW_CSS = `.vp{width:264px;padding:6px 0}
 .vp .sw{width:30px;height:18px;border-radius:9px;border:0;background:color-mix(in srgb,var(--sub) 45%,transparent);position:relative;padding:0;flex:none;cursor:pointer}
 .vp .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .15s}
 .vp .sw[aria-checked=true]{background:var(--on)}.vp .sw[aria-checked=true]::after{left:14px}
+.vp .vzoom .bar{position:static;transform:none;display:flex;align-items:center;background:var(--soft);border:0;border-radius:7px;padding:2px;gap:1px;box-shadow:none;width:auto}
+.vp .vzoom .bar button,.vp .vzoom .bar b{height:24px;min-width:28px;padding:0 8px;border:0;background:transparent;border-radius:5px;font:inherit;font-size:11.5px;font-weight:600;color:var(--sub);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.vp .vzoom .bar b{color:var(--ink);font-variant-numeric:tabular-nums;cursor:default}.vp .vzoom .bar button:hover{background:var(--panel);color:var(--ink)}.vp .vzoom .sep{display:none}
 .vp .nreset{width:auto;border:0;background:none;padding:2px 0;color:var(--sub);font:inherit;font-size:12px;font-weight:400;text-decoration:underline;text-underline-offset:2px;cursor:pointer}.vp .nreset:hover{color:var(--ink)}`;
 /** the View panel's rows (the page puts them in its popover, class "vp"); frame and setup rows start hidden */
 const viewPanel = (o: { frame?: boolean } = {}) => `<div class="sec vtop"><div class="vic"><div class="seg" id="themes"></div><div class="seg" id="nlangs"></div><div class="seg" id="nsignal"><button></button></div>${o.frame ? `<div class="seg" id="nframe" hidden><button></button></div>` : ""}</div><button class="nreset" id="nreset" title="Devices,${o.frame ? " frame," : ""} theme, language, signal, tester tools and data back to the project’s defaults">reset</button></div>
   <div class="sec"><div class="lab">Devices <span id="devname"></span></div><div class="seg devs" id="devices"></div></div>
+  ${o.frame ? `<div class="sec"><div class="lab">Zoom</div><div class="vzoom" id="nvzoom"></div></div>` : ""}
+  <div class="sec"><div class="lab">Compact search</div><button class="sw" role="switch" id="ncompact" aria-label="Compact search" title="⌘/ shows only its search box until you type"></button></div>
   <div class="sec ngrp"><div class="lab">Data</div><div class="seg" id="nmodes"></div></div>
   <div class="sec"><div class="lab">Tester tools</div><button class="sw" role="switch" id="ntester" aria-label="Tester tools"></button></div>
   <div class="sec" hidden><div class="lab">Setup</div><button class="sw" role="switch" id="nsetup" aria-label="Setup" title="Runs the project’s setup command for frames with a setup (it may write data)"></button></div>`;
+
+/* ── ⌘K, the board's command bar (home and flow pages): one search over the project's flows, screens and states, and
+   its people and tags. The page asks flex review for the index (/api/search) each time it opens and matches it here:
+   hand-written fuzzy scoring, no library, so the board works offline. A centred card over a blurred backdrop, results
+   as one list ranked by best match (Recent and Flows before anything is typed), ↑↓ ⌥↑↓ ↵ ⇧↵ (a peek of every screen and state found) and Esc. ── */
+/** a tag's chip (⌘K's rows, the pickers, the canvas's captions): its colour as text on a tint of it */
+const TAG_CSS = `.ftag{display:inline-flex;align-items:center;flex:none;font-size:10.5px;font-weight:650;line-height:1;letter-spacing:.01em;padding:3px 7px 3px;border-radius:999px;white-space:nowrap;
+  color:var(--tc);background:color-mix(in srgb,var(--tc) 12%,transparent)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .ftag{color:color-mix(in srgb,var(--tc) 55%,#fff);background:color-mix(in srgb,var(--tc) 22%,transparent)}}
+:root[data-theme=dark] .ftag{color:color-mix(in srgb,var(--tc) 55%,#fff);background:color-mix(in srgb,var(--tc) 22%,transparent)}
+.ftags{display:inline-flex;flex-wrap:wrap;gap:3px;align-items:center}.cap .ftags{display:flex;justify-content:center;margin-top:5px}.cap .ftag{display:inline-flex;font:600 10px/1 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif;color:var(--tc);padding:3px 6px}
+.nsl button .ftags{flex:none;margin-left:auto;align-self:center}.nsl.g button .ftags{display:none}`;
+const CMDK_CSS = `${TAG_CSS}
+.kx{position:fixed;inset:0;z-index:200;display:none;align-items:flex-start;justify-content:center;padding:8vh 12px 0}.kx.on{display:flex}
+.kx .kb{position:absolute;inset:0;background:rgba(14,13,18,.42);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.kc{position:relative;width:560px;max-width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:0 28px 70px rgba(0,0,0,.32);overflow:visible;display:flex;flex-direction:column;font:500 14px/1.4 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif}
+.ki{display:flex;align-items:center;gap:10px;padding:0 14px 0 16px;border-bottom:1px solid var(--line);border-radius:14px 14px 0 0}.ki>svg{flex:none;color:var(--sub)}
+.ki input{flex:1;min-width:0;border:0;background:none;outline:none;color:var(--ink);font:inherit;font-size:15.5px;padding:15px 0}.ki input::placeholder{color:var(--sub)}
+.kc kbd{font:600 10.5px/1 ui-monospace,Menlo,monospace;color:var(--sub);background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:3px 5px;min-width:18px;text-align:center;display:inline-block}
+.kl{max-height:60vh;overflow-y:auto;padding:2px 0 8px;overscroll-behavior:contain}
+.ks{display:flex;justify-content:space-between;align-items:baseline;padding:12px 16px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--sub)}
+.ks button{border:0;background:none;padding:0;font:inherit;font-size:11px;letter-spacing:0;text-transform:none;color:var(--sub);cursor:pointer}.ks button:hover{color:var(--ink)}
+.kr{display:flex;gap:10px;align-items:center;width:100%;height:40px;border:0;background:none;text-align:left;padding:0 10px;margin:0 6px;width:calc(100% - 12px);border-radius:8px;color:var(--ink);cursor:pointer;font:inherit}
+.kr:hover{background:color-mix(in srgb,var(--soft) 55%,transparent)}.kr[aria-selected=true]{background:var(--soft)}
+.kr .kic{flex:none;width:22px;height:22px;border-radius:6px;color:var(--sub);display:flex;align-items:center;justify-content:center}.kr .kic svg{width:16px;height:16px}.kr[aria-selected=true] .kic{color:var(--ink)}
+.kr b{flex:none;max-width:60%;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kr .kp{flex:1;min-width:0;font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kr .kp i{font-style:normal;opacity:.6;margin:0 3px}
+.kr .kacc{flex:none;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub)}
+.kr .kdot{width:8px;height:8px;border-radius:50%;background:var(--tc)}.kr .kdots{display:flex;gap:4px}
+.kr .kas{font-size:11.5px;font-weight:600;color:var(--sub);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
+.kr .kk{min-width:42px;text-align:right}
+.kc mark{background:color-mix(in srgb,#f5b800 38%,transparent);color:inherit;border-radius:3px;padding:0 1px;margin:0 -1px}
+.kn0{padding:28px 16px;text-align:center;color:var(--sub)}
+.kf{display:flex;align-items:center;gap:2px;padding:6px 8px 6px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--sub);min-height:42px}
+.kf .kwhere{margin-right:8px;flex:1;min-width:0;display:flex;align-items:center;gap:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kf .kwhere svg{flex:none;width:14px;height:14px}.kf .kwhere i{font-style:normal;opacity:.6;margin:0 3px}
+.kf .kmsg{color:var(--ink);font-weight:600}
+.kf .kact{flex:none;display:flex;align-items:center;gap:6px;border:0;background:none;color:var(--ink);font:inherit;font-weight:600;padding:4px 6px;border-radius:6px;cursor:pointer}.kf .kact:hover{background:var(--soft)}
+.kf .kact.k2{color:var(--sub);font-weight:500}.kf .ksep{width:1px;height:16px;background:var(--line)}
+.kfil{flex:none;position:relative;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:0;background:none;color:var(--sub);border-radius:8px;cursor:pointer}
+.kfil:hover,.kfil[aria-expanded=true]{background:var(--soft);color:var(--ink)}.kfil.on{color:var(--ink)}.kfil svg{width:17px;height:17px}.kfdot{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--pin,#2f6bff);box-shadow:0 0 0 2px var(--panel)}.kfil .kdot{width:8px;height:8px;border-radius:50%;background:var(--tc);flex:none}
+.kdd{position:absolute;z-index:3;right:12px;top:52px;width:250px;max-height:340px;display:none;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,.2);overflow:hidden}.kdd.on{display:flex}
+.kdd input{border:0;border-bottom:1px solid var(--line);background:none;outline:none;color:var(--ink);font:inherit;font-size:13px;padding:10px 12px}
+.kdd .kdl{overflow-y:auto;padding:4px 0}.kdd .ks{padding:8px 12px 3px}
+.kdd button{display:flex;align-items:center;gap:8px;width:calc(100% - 8px);margin:0 4px;border:0;background:none;color:var(--ink);font:inherit;font-size:13px;text-align:left;padding:6px 8px;border-radius:6px;cursor:pointer}
+.kdd.kact2{top:auto;bottom:50px;right:10px;width:290px;max-height:min(380px,70vh)}.kdd.kact2 input{border-bottom:0;border-top:1px solid var(--line)}.kdd .kon kbd{margin-left:2px}
+.kscope{flex:none;display:none;align-items:center;gap:6px;max-width:46%;font-size:13px;font-weight:600;color:var(--ink);background:var(--soft);border-radius:6px;padding:4px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kscope.on{display:inline-flex}.kscope svg{width:13px;height:13px;color:var(--sub)}.kscope .kdot{width:8px;height:8px;border-radius:50%;background:var(--tc)}.kscope i{font-style:normal;color:var(--sub);margin:0 2px}
+.kfil kbd{font:600 10px/1 ui-monospace,Menlo,monospace;color:var(--sub);background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:2px 4px;margin-left:-2px}
+.kc.kcompact .kl,.kc.kcompact .kf{display:none}.kc.kcompact .ki{border-bottom:0}
+.kr .kacc svg{width:13px;height:13px;color:var(--sub)}.kr .kcnt{font-size:12.5px;color:var(--sub);font-variant-numeric:tabular-nums}
+.kdd button:hover{background:color-mix(in srgb,var(--soft) 55%,transparent)}.kdd button[aria-selected=true]{background:var(--soft)}.kdd button .kdot{width:8px;height:8px;border-radius:50%;background:var(--tc);flex:none}.kdd button svg{width:14px;height:14px;color:var(--sub);flex:none}.kdd button .kon{margin-left:auto;color:var(--sub)}
+.kbtn kbd{font:600 10.5px/1 ui-monospace,Menlo,monospace;color:var(--sub);border:1px solid var(--line);border-radius:5px;padding:2px 4px;margin-left:2px}`;
+/** the top bar's ⌘K button */
+const CMDK_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>';
+const cmdkButton = (cls: string) => `<button class="${cls} kbtn" id="ncmdk" title="Search screens (⌘/)" aria-label="Search (⌘/)">${CMDK_ICON}<span>Search</span><kbd>⌘/</kbd></button>`;
+/** the page script's ⌘K, after its own: root, where the review's paths start (a JS expression); off, a published copy
+ *  (no server, no index). On a flow page, cmdkHere(item, person) (the notes script's) opens what is in this flow in
+ *  place. (String.raw: the client's regexes as written, no doubled backslashes; no backticks or template holes in it) */
+function cmdkScript(root: string, off: string): string {
+  return String.raw`
+let FTAGS=typeof FLEXTAGS!=="undefined"&&FLEXTAGS?FLEXTAGS:{};
+/* a tag as a chip: the project's colour for it (else Flex's default; a tag in neither, neutral) */
+function tagChip(t){const d=FTAGS[t],c=d&&/^(#[0-9a-f]{3,8}|[a-z]+|(rgb|hsl)a?\([\d\s.,%/-]*\))$/i.test(d.color||"")?d.color:"#8a8794";
+  return '<span class="ftag" style="--tc:'+c+'" title="#'+String(t).replace(/[&<>"]/g,"")+'">'+String(d&&d.label||t).replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</span>"}
+const KCMDK=(function(ROOT,OFF){
+  const btn=document.getElementById("ncmdk");
+  if(OFF){if(btn)btn.style.display="none";return null}
+  const PK="flex-review:"+ROOT+":",kmem=(k,v)=>{try{if(v===undefined)return localStorage.getItem(PK+k);localStorage.setItem(PK+k,v)}catch{return null}};
+  const esc=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"),low=(s)=>String(s==null?"":s).toLowerCase();
+  const SV=(d)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+d+"</svg>";
+  const IC={flow:SV('<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.5"/>'),screen:SV('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>'),
+    state:SV('<path d="M12 3 3 7.5l9 4.5 9-4.5z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>'),person:SV('<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>'),recent:SV('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),pin:SV('<path d="M12 17v4.5"/><path d="M8.5 3.5h7l-1 5.5 3 3.5v1.5h-11V12.5l3-3.5z"/>'),
+    peek:SV('<path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>'),all:SV('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>'),link:SV('<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>'),open:SV('<path d="M5 12h13M13 6l6 6-6 6"/>')};
+  const box=document.createElement("div");box.className="kx";
+  box.innerHTML='<div class="kb"></div><div class="kc" role="dialog" aria-modal="true" aria-label="Search the board"><div class="ki">'+SV('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>').replace("<svg ",'<svg width="19" height="19" ')
+    +'<span class="kscope" title="The filter (Backspace removes it)"></span><input type="text" placeholder="Search flows, screens, states and people" autocomplete="off" spellcheck="false" aria-label="Search"><button class="kfil" aria-haspopup="listbox" aria-expanded="false" title="Filter (⌘P)" aria-label="Filter"></button></div>'
+    +'<div class="kdd" role="dialog" aria-label="Filter"><input type="text" placeholder="Show…" autocomplete="off" spellcheck="false"><div class="kdl" role="listbox"></div></div>'
+    +'<div class="kdd kact2" role="dialog" aria-label="Actions"><div class="kdl" role="listbox"></div><input type="text" placeholder="Search actions…" autocomplete="off" spellcheck="false"></div>'
+    +'<div class="kl" role="listbox"></div><div class="kf"><span class="kwhere"></span></div></div>';
+  document.body.appendChild(box);
+  const inp=box.querySelector(".ki input"),list=box.querySelector(".kl"),foot=box.querySelector(".kf"),fil=box.querySelector(".kfil"),dd=box.querySelector(".kdd"),ddi=dd.querySelector("input"),ddl=dd.querySelector(".kdl"),ad=box.querySelector(".kact2"),adi=ad.querySelector("input"),adl=ad.querySelector(".kdl");
+  let D=null,Q="",SEL=0,SEL0=false,ROWS=[],ALL=[],W=[],T=0,FETCH=null;
+  /* the footer says what ↵ does to the selected row (as Raycast's action bar); a message, when there is one, instead */
+  let MSG="";const say=(t)=>{MSG=t||"";foot.innerHTML=footer()};
+  /* the filter (⌘P): one kind, tag or person, or none; the results and, with nothing typed, the list follow it */
+  let FILT=null;
+  /* where the search starts: the screen open, else its flow. Nothing typed, the list goes outward from there (this
+     screen and its states, this flow's screens, then Pinned and the flows); typed, nearer matches rank higher */
+  let AT=null,SCOPE=0;
+  function anchor(){const c=typeof cmdkCtx==="function"?cmdkCtx():null;if(!c||!D)return null;
+    const fl=D.items.find(x=>x.kind==="flow"&&x.flow===c.flow),sc=c.screen?D.items.find(x=>x.kind==="screen"&&x.flow===c.flow&&x.screen===c.screen):null;
+    // a screen another flow brings in ("use") is that flow's: its states are listed there
+    return fl?{flow:c.flow,label:fl.label,screen:sc?{flow:sc.via||sc.flow,screen:sc.screen,label:sc.label,item:sc}:null,state:c.state}:null}
+  const scopeEl=box.querySelector(".kscope");
+  function drawScope(){}
+  const pname=(p)=>((D&&D.people[p])||{}).name||p;
+  /* how well a word fits a text: 1 all of it, .9 its start, .75 a word's start, .5 inside a word, .25 its letters in
+     order from a word's start (seq: labels only); a word of one letter only at a start */
+  function fit(w,t,seq){t=low(t);if(!t||!w)return 0;if(t===w)return 1;let b=0;
+    for(let i=t.indexOf(w);i>=0;i=t.indexOf(w,i+1)){const x=i===0?.9:/[\p{L}\p{N}]/u.test(t[i-1])?(w.length>1?.5:0):.75;if(x>b)b=x;if(b>=.75)break}
+    return b||!seq||w.length<2?b:seqAt(w,t)?.25:0}
+  /* a word's letters in order from a word's start ("wlt" in "wallet"; not "ver" scattered through "invalid number"):
+     where they are, or null */
+  function seqAt(w,t){for(let i=0;i<t.length;i++){if(t[i]!==w[0]||(i>0&&/[\p{L}\p{N}]/u.test(t[i-1])))continue;const ks=[i];for(let k=i+1;k<t.length&&ks.length<w.length;k++)if(t[k]===w[ks.length])ks.push(k);if(ks.length===w.length)return ks}return null}
+  const tagLabel=(t)=>((D.tags||{})[t]||{}).label||t;
+  /** the query: words (AND), #tags (AND, a tag's start will do), @people (a word is only ever a word: ⌘P filters) */
+  function parse(q){const P={tags:[],who:[],words:[]};
+    for(const tok of q.trim().split(/\s+/).filter(Boolean)){const l=low(tok);if(l[0]==="#"&&l.length>1)P.tags.push(l.slice(1));else if(l[0]==="@"&&l.length>1)P.who.push(l.slice(1));else if(l!=="#"&&l!=="@")P.words.push(l)}
+    // @x: the people whose slug or name starts so
+    P.whoSets=P.who.map(x=>Object.keys(D.people||{}).filter(p=>low(p).startsWith(x)||fit(x,pname(p))>=.75));
+    return P}
+  const hasTag=(it,x,exact)=>it.tags.some(t=>low(t)===x||low(tagLabel(t))===x||(!exact&&(low(t).startsWith(x)||low(tagLabel(t)).startsWith(x))));
+  /** an item's score for the query, or null: each word must fit somewhere (label > keywords > its name in the flow file
+   *  > tags > people > the path > description); the label being the whole query, then its start, comes
+   *  first; a screen seen through another flow's "use", and the peek, rank a little lower than the screen at home */
+  function score(it,P){
+    if(!P.tags.every(x=>hasTag(it,x,P.exact)))return null;
+    let who=null;for(const set of P.whoSets){const p=it.people.find(x=>set.includes(x));if(!p)return null;who=p}
+    let s=0;
+    for(const w of P.words){let b=0,by=null;
+      const tr=(v,wt,seq,min,p)=>{const f=fit(w,v,seq);if(min&&f<min)return;const x=f*wt;if(x>b){b=x;by=p||null}};
+      tr(it.label,100,true);tr(it.kind==="state"?it.state:it.kind==="screen"?it.screen:it.flow,60);for(const k of it.keywords)tr(k,70);for(const t of it.tags){tr(t,50);tr(tagLabel(t),50)}
+      for(const p of it.people){tr(pname(p),40,false,.75,p);tr(p,40,false,.9,p)}
+      tr(it.crumbs.join(" "),15);tr(it.description,20);
+      if(!b)return null;s+=b;if(by&&!who)who=by}
+    const q=P.words.join(" "),L=low(it.label);
+    if(q){if(L===q)s+=300;else if(L.startsWith(q))s+=150;if(it.keywords.some(k=>low(k)===q))s+=120}
+    if(it.via)s*=.85;if(it.temp)s*=.8;
+    return {s:s||1,who}}
+  /* the text with the words marked: each at a word's start if it is one, else where it is, else (seq) its letters */
+  function hl(t,ws,seq){t=String(t==null?"":t);const L=low(t),on=[];
+    for(const w of ws){if(!w)continue;let at=-1;for(let k=L.indexOf(w);k>=0;k=L.indexOf(w,k+1)){if(k===0||!/[\p{L}\p{N}]/u.test(L[k-1])){at=k;break}if(at<0)at=k}
+      if(at>=0){for(let k=at;k<at+w.length;k++)on[k]=1;continue}
+      if(seq)(seqAt(w,L)||[]).forEach(k=>{on[k]=1})}
+    let o="",m=false;for(let k=0;k<t.length;k++){const x=!!on[k];if(x!==m){o+=m?"</mark>":"<mark>";m=x}o+=esc(t[k])}return o+(m?"</mark>":"")}
+  /* a line of the description: around the first word found in it */
+  function snip(d,ws){d=String(d||"").replace(/\s+/g," ").trim();if(!d)return "";const L=low(d);let at=-1;for(const w of ws){const i=L.indexOf(w);if(i>=0&&(at<0||i<at))at=i}
+    let st=0;if(at>48){st=d.lastIndexOf(" ",at-28)+1;if(st<=0)st=at-28}return (st>0?"…":"")+hl(d.slice(st,st+180),ws,false)}
+  const keyOf=(it)=>[it.kind,it.flow,it.screen||"",it.state||""].join("|");
+  const recents=()=>{try{return JSON.parse(kmem("cmdk-recent")||"[]")}catch{return []}};
+  /* pinned results: first in the list before anything is typed (Actions › Pin) */
+  const pinned=()=>{try{return JSON.parse(kmem("cmdk-pins")||"[]")}catch{return []}};
+  const isPinned=(it)=>pinned().includes(keyOf(it));
+  const togglePin=(it)=>{const k=keyOf(it),p=pinned();kmem("cmdk-pins",JSON.stringify(p.includes(k)?p.filter(x=>x!==k):[k,...p]))};
+  function remember(it,who){const k=keyOf(it),r=recents().filter(x=>x.k!==k);r.unshift({k,who:who||null});kmem("cmdk-recent",JSON.stringify(r.slice(0,10)))}
+  function run(){
+    ROWS=[];ALL=[];const secs=[];
+    if(!D){list.innerHTML='<div class="kn0">Loading…</div>';return}
+    if(SCOPE<0){AT=anchor();SCOPE=AT?(AT.screen?2:1):0;drawScope()}
+    const byKey=new Map(D.items.map(it=>[keyOf(it),it]));
+    // everything, each screen and state once at home (not its copies in other flows or the peek), best match first;
+    // the filter keeps one kind, the recent ones, or what has a tag or is seen as a person
+    const kind=FILT&&FILT.k==="kind"?FILT.v:null;
+    const ok=(it)=>!it.via&&!it.temp&&(!kind||it.kind===kind)&&(!FILT||FILT.k==="kind"||(FILT.k==="tag"?it.tags.includes(FILT.v)&&it.kind!=="flow":FILT.k==="person"?it.people.includes(FILT.v)&&it.kind!=="flow":true));
+    const asWho=FILT&&FILT.k==="person"?FILT.v:null;
+    // nearer things first: this screen's own, then this flow's
+    const near=(it)=>!AT||!SCOPE?1:SCOPE>1&&AT.screen&&it.flow===AT.screen.flow&&it.screen===AT.screen.screen?1.35:it.flow===AT.flow||(AT.screen&&it.flow===AT.screen.flow)?1.15:1;
+    if(FILT&&FILT.k==="recent"){W=[];const P=Q.trim()?parse(Q):null;if(P)W=P.words;
+      ALL=recents().map(x=>({it:byKey.get(x.k),who:x.who})).filter(x=>x.it&&(!P||score(x.it,P)));if(ALL.length)secs.push([null,ALL])}
+    else if(!Q.trim()){W=[];
+      // nothing typed: outward from where the search starts (this screen and its states, this flow's other screens),
+      // then Pinned and the flows; filtered, all of a kind, a tag's or a person's
+      const pins=FILT?[]:pinned().map(k=>byKey.get(k)).filter(Boolean).map(it=>({it,pin:true}));
+      const sc=!FILT&&AT&&SCOPE>1?AT.screen:null;
+      if(sc){const here=[sc.item,...D.items.filter(x=>x.kind==="state"&&x.flow===sc.flow&&x.screen===sc.screen&&!x.via&&!x.temp)].map(it=>({it,ctx:true}));secs.push([sc.label,here])}
+      if(!FILT&&AT&&SCOPE>0){const sib=D.items.filter(x=>x.kind==="screen"&&x.flow===AT.flow&&!(sc&&x===sc.item)).map(it=>({it,ctx:true}));if(sib.length)secs.push([AT.label,sib])}
+      ALL=D.items.filter(FILT?ok:(it)=>it.kind==="flow"&&!it.temp).map(it=>({it,who:asWho}));
+      if(FILT)ALL.sort((a,b)=>near(b.it)-near(a.it)||a.it.i-b.it.i);
+      if(pins.length)secs.push(["Pinned",pins]);
+      if(ALL.length)secs.push([FILT?null:"Flows",ALL.slice(0,300)])}
+    else{
+      const P=parse(Q);W=P.words;
+      const hits=[];for(const it of D.items){if(!ok(it))continue;const r=score(it,P);if(r)hits.push({it,s:r.s*near(it),who:r.who||asWho})}
+      // people whose name the words are: ↵ keeps what is seen as them
+      if(!FILT&&P.words.length&&!P.who.length)for(const p of Object.keys(D.people||{})){if(!P.words.every(w=>fit(w,pname(p))>=.75||low(p).startsWith(w)))continue;
+        const n=D.items.filter(it=>it.kind!=="flow"&&!it.via&&it.people.includes(p)).length;if(n)hits.push({person:p,n,s:400})}
+      hits.sort((a,b)=>b.s-a.s||((a.it&&a.it.i)||0)-((b.it&&b.it.i)||0));ALL=hits.filter(h=>h.it);
+      if(hits.length)secs.push([null,hits.slice(0,60)])}
+    let html="";
+    secs.forEach(([t,rows,x],si)=>{if(t)html+='<div class="ks"><span>'+t+"</span>"+(x||"")+"</div>";for(const r of rows){r.sec=si;r.i=ROWS.length;ROWS.push(r);html+=row(r)}});
+    if(!ROWS.length)html='<div class="kn0">'+(Q.trim()?"Nothing matches “"+esc(Q.trim())+"”":FILT&&FILT.k==="recent"?"Nothing opened yet":"Nothing here")+(FILT?" in "+esc(filName(FILT)):"")+"</div>";
+    box.querySelector(".kc").classList.toggle("kcompact",kmem("cmdk-compact")==="1"&&!Q.trim()&&!FILT);
+    // ↵ starts on the best match: the first row
+    if(Q.trim()&&!SEL0)SEL=0;
+    list.innerHTML=html;if(SEL>=ROWS.length)SEL=0;mark(true);
+  }
+  const KIND={flow:"Flow",screen:"Screen",state:"State",person:"Person"};
+  /* where a result is: its flow (a screen), its screen (a state), its screen count (a flow); in full for the footer */
+  function whereOf(r,full){const it=r.it;
+    if(it.kind==="flow")return full?esc(it.label):"";
+    const at=it.crumbs[it.crumbs.length-1]||"";return full?[...it.crumbs,it.label].map(esc).join("<i>›</i>"):low(at)===low(it.label)?"":esc(at)}
+  /* how many it holds, on the right: a flow's screens, a screen's states, a person's screens and states */
+  function countOf(r){if(r.person)return r.n;const it=r.it;
+    if(it.kind==="flow")return D.items.filter(x=>x.kind==="screen"&&x.flow===it.flow).length+" screens";
+    if(it.kind==="screen"){const n=D.items.filter(x=>x.kind==="state"&&x.flow===it.flow&&x.screen===it.screen&&!!x.via===!!it.via).length;return n?n+(n===1?" state":" states"):""}
+    return ""}
+  /* a result on one line (as Raycast): its icon, its name, where it is (not under a heading that already says so); on
+     the right a pin when pinned and its count */
+  function row(r){
+    const cnt=countOf(r),tail=(r.it&&isPinned(r.it)?IC.pin:"")+(cnt!==""?'<span class="kcnt">'+cnt+"</span>":"");
+    if(r.person){const p=D.people[r.person]||{};return '<button class="kr" role="option" data-i="'+r.i+'"><span class="kic">'+IC.person+"</span><b>"+hl(pname(r.person),W)+'</b><span class="kp">'+esc(p.role||"")+'</span><span class="kacc">'+tail+"</span></button>"}
+    const it=r.it;
+    return '<button class="kr" role="option" data-i="'+r.i+'"><span class="kic">'+IC[it.kind]+"</span><b>"+hl(it.label,W,true)+'</b><span class="kp">'+(r.ctx?"":whereOf(r))+"</span>"
+      +(tail?'<span class="kacc">'+tail+"</span>":"")+"</button>"}
+  const tagColor=(t)=>{const d=(D.tags||{})[t];return d&&/^(#[0-9a-f]{3,8}|[a-z]+)$/i.test(d.color||"")?d.color:"#8a8794"};
+  /* the footer (as Raycast's action bar): where the selected row is, then what ↵ does to it and its Actions (⌘K) */
+  function footer(){const r=ROWS[SEL];
+    const left=MSG?'<span class="kmsg">'+esc(MSG)+"</span>":r?(r.person?IC.person+"<span>"+esc(pname(r.person))+"</span>":IC[r.it.kind]+"<span>"+whereOf(r,true)+"</span>"):"";
+    return '<span class="kwhere">'+left+"</span>"+(r?'<button class="kact" data-act="open">'+primary(r)+" <kbd>↵</kbd></button>"
+      +(r.person?"":'<button class="kact k2" data-act="actions">Actions <kbd>⌘</kbd><kbd>K</kbd></button>'):"")}
+  const primary=(r)=>r.person?"Show what they see":"Open "+KIND[r.it.kind]+(r.who?" as "+esc(pname(r.who).split(/\s+/)[0]):"");
+  foot.addEventListener("click",(e)=>{const b=e.target.closest("[data-act]");if(!b)return;if(b.dataset.act==="open")pick(ROWS[SEL]);else openActions()});
+  function mark(scroll){if(!MSG)foot.innerHTML=footer();list.querySelectorAll(".kr").forEach(b=>{const on=+b.dataset.i===SEL;b.setAttribute("aria-selected",on);
+    if(on&&scroll){const r=ROWS[SEL],first=r&&(SEL===0||ROWS[SEL-1].sec!==r.sec);(first&&b.previousElementSibling||b).scrollIntoView({block:"nearest"});if(first)b.scrollIntoView({block:"nearest"})}})}
+  // hovering only marks a row; the selection (what ↵ opens, what the footer says) moves with the keys or a click
+  list.addEventListener("click",(e)=>{const b=e.target.closest(".kr");if(b)pick(ROWS[+b.dataset.i])});
+  /* open a result: a flow's page, a screen on all its states, a state on its own (in place on this flow's page, else by
+     its link); a person's result also signs the board in as them for that flow (what the page remembers) */
+  function pick(r){if(!r)return;
+    if(r.person){inp.value="";Q="";setFilter({k:"person",v:r.person});return}
+    const it=r.it,who=r.who||null;remember(it,who);
+    if(who)kmem("person:"+it.flow,who);
+    if(it.tester)kmem("tester","1");
+    if(typeof cmdkHere==="function"&&cmdkHere(it,who)){close();return}
+    location.href=it.href}
+  /* ⇧↵: a peek of every screen and state found (each once, from its own flow; a screen's states found together as one
+     ref), as flex review peek makes one, then opened */
+  async function peekAll(){
+    const m=new Map();for(const h of ALL){const it=h.it;if(it.kind==="flow"||!it.src)continue;const e=m.get(it.src)||{all:false,st:[]};if(it.kind==="screen")e.all=true;else if(!e.st.includes(it.state))e.st.push(it.state);m.set(it.src,e)}
+    const refs=[...m].map(([s,e])=>e.all||!e.st.length?s:s+"@"+e.st.join(","));
+    if(!refs.length){say(Q.trim()?"No screens or states to peek at":"Type to find screens first");return}
+    peek(refs,Q.trim())}
+  async function peek(refs,what){say("Making a peek of "+refs.length+"…");
+    try{const r=await fetch(ROOT+"/api/peek",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({refs,title:"⌘/: "+what})}),j=await r.json();
+      if(!r.ok)throw new Error(j.error||"HTTP "+r.status);location.href=j.href}catch(e){say("No peek: "+e.message)}}
+  inp.addEventListener("input",()=>{clearTimeout(T);T=setTimeout(()=>{Q=inp.value;SEL=0;SEL0=false;say("");run()},80)});
+  inp.addEventListener("keydown",(e)=>{
+    if((e.metaKey||e.ctrlKey)&&low(e.key)==="p"){e.preventDefault();openFilter();return}
+    if((e.metaKey||e.ctrlKey)&&low(e.key)==="k"){e.preventDefault();openActions();return}
+    if(e.key==="Backspace"&&!inp.value&&FILT){e.preventDefault();setFilter(null);return}
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(!ROWS.length)return;const d=e.key==="ArrowDown"?1:-1;
+      if(e.altKey){const st=ROWS.filter((r,i)=>i===0||ROWS[i-1].sec!==r.sec).map(r=>r.i);SEL=d>0?(st.find(s=>s>SEL)??st[0]):([...st].reverse().find(s=>s<SEL)??st[st.length-1])}
+      else SEL=(SEL+d+ROWS.length)%ROWS.length;SEL0=true;mark(true);return}
+    if(e.key==="Enter"){e.preventDefault();if(Q!==inp.value){clearTimeout(T);Q=inp.value;SEL=0;SEL0=false;run()}if(e.shiftKey)peekAll();else pick(ROWS[SEL]);return}
+    if(e.key==="Escape"){e.preventDefault();if(inp.value){inp.value="";Q="";SEL=0;SEL0=false;say("");run()}else if(FILT)setFilter(null);else close()}});
+  /* ⌘P: the filter, as Raycast's dropdown beside the search: a kind, a tag (the project's colours) or a person; typing
+     narrows the list, ↵ picks, Esc goes back to the search. Backspace in an empty search clears it */
+  const KICON={flow:IC.flow,screen:IC.screen,state:IC.state};
+  const filName=(f)=>f.k==="kind"?KIND[f.v]+"s":f.k==="recent"?"Recent":f.k==="tag"?tagLabel(f.v):pname(f.v);
+  function filOpts(){const used=[...new Set(D.items.flatMap(it=>it.tags))].sort((a,b)=>tagLabel(a).localeCompare(tagLabel(b)));
+    const ppl=Object.keys(D.people||{}).filter(p=>D.items.some(it=>it.people.includes(p)));
+    return [["Show",[{k:null,label:"All",icon:"all"},{k:"recent",label:"Recent",icon:"recent"},{k:"kind",v:"screen",label:"Screens",icon:"screen"},{k:"kind",v:"state",label:"States",icon:"state"},{k:"kind",v:"flow",label:"Flows",icon:"flow"}]],
+      ["Tags",used.map(v=>({k:"tag",v,label:tagLabel(v)}))],["People",ppl.map(v=>({k:"person",v,label:pname(v)}))]]}
+  let DSEL=0,DROWS=[];
+  function drawFil(){const q=low(ddi.value.trim());let h="";DROWS=[];
+    for(const [t,os] of filOpts()){const m=os.filter(o=>!q||low(o.label).includes(q));if(!m.length)continue;if(t)h+='<div class="ks"><span>'+t+"</span></div>";
+      for(const o of m){const on=FILT?o.k===FILT.k&&(o.v||null)===(FILT.v||null):!o.k;h+='<button role="option" data-d="'+DROWS.length+'">'+(o.k==="tag"?'<span class="kdot" style="--tc:'+tagColor(o.v)+'"></span>':o.icon?IC[o.icon]:o.k==="person"?IC.person:"")+"<span>"+esc(o.label)+"</span>"+(on?'<span class="kon">✓</span>':"")+"</button>";DROWS.push(o)}}
+    ddl.innerHTML=h||'<div class="kn0">No such filter</div>';if(DSEL>=DROWS.length)DSEL=0;ddl.querySelectorAll("button").forEach(b=>b.setAttribute("aria-selected",+b.dataset.d===DSEL));
+    const s=ddl.querySelector('[aria-selected="true"]');if(s)s.scrollIntoView({block:"nearest"})}
+  function drawFilBtn(){fil.innerHTML=SV('<path d="M3.5 6h17M7 12h10M10 18h4"/>')+(FILT?'<span class="kfdot"></span>':"");fil.classList.toggle("on",!!FILT);
+    scopeEl.classList.toggle("on",!!FILT);scopeEl.innerHTML=FILT?(FILT.k==="tag"?'<span class="kdot" style="--tc:'+tagColor(FILT.v)+'"></span>':FILT.k==="person"?IC.person:FILT.k==="recent"?IC.recent:IC[FILT.v]||"")+"<span>"+esc(filName(FILT))+"</span>":""}
+  function openFilter(){if(!D)return;ad.classList.remove("on");dd.classList.add("on");fil.setAttribute("aria-expanded","true");ddi.value="";DSEL=0;drawFil();ddi.focus()}
+  function closeFilter(quiet){dd.classList.remove("on");fil.setAttribute("aria-expanded","false");if(!quiet)inp.focus()}
+  function setFilter(f){FILT=f&&f.k?{k:f.k,v:f.v||null}:null;drawFilBtn();closeFilter();SEL=0;SEL0=false;run()}
+  fil.addEventListener("click",(e)=>{e.preventDefault();dd.classList.contains("on")?closeFilter():openFilter()});
+  ddi.addEventListener("input",()=>{DSEL=0;drawFil()});
+  ddi.addEventListener("keydown",(e)=>{
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(DROWS.length){DSEL=(DSEL+(e.key==="ArrowDown"?1:-1)+DROWS.length)%DROWS.length;drawFil()}return}
+    if(e.key==="Enter"){e.preventDefault();if(DROWS[DSEL])setFilter(DROWS[DSEL]);return}
+    if(e.key==="Escape"||((e.metaKey||e.ctrlKey)&&low(e.key)==="p")){e.preventDefault();closeFilter()}});
+  ddl.addEventListener("click",(e)=>{const b=e.target.closest("button");if(b)setFilter(DROWS[+b.dataset.d])});
+  box.querySelector(".kc").addEventListener("mousedown",(e)=>{if(dd.classList.contains("on")&&!dd.contains(e.target)&&!fil.contains(e.target))closeFilter();
+    if(ad.classList.contains("on")&&!ad.contains(e.target)&&!e.target.closest("[data-act]"))closeActions()});
+  drawFilBtn();
+  // the View panel's Compact search: only the search box until something is typed (as Raycast's compact mode)
+  const cps=document.getElementById("ncompact");
+  if(cps){const draw=()=>cps.setAttribute("aria-checked",kmem("cmdk-compact")==="1");draw();cps.onclick=(e)=>{e.preventDefault();kmem("cmdk-compact",kmem("cmdk-compact")==="1"?"0":"1");draw()}}
+  /* ⌘K: the selected row's actions (as Raycast): open it (as whom), its states or its screen, pin, peek it, peek all
+     that was found, copy its link. Typing narrows them, ↵ runs one, Esc or ⌘K goes back to the search */
+  let ASEL=0,AROWS=[];
+  function actionsFor(r){const it=r.it,a=[{label:primary(r),icon:IC.open,key:"↵",run:()=>pick(r)}];
+    if(it.kind==="screen")for(const st of D.items.filter(x=>x.kind==="state"&&x.flow===it.flow&&x.screen===it.screen&&!x.via&&!x.temp))a.push({label:st.label,icon:IC.state,run:()=>pick({it:st,who:r.who})});
+    if(it.kind==="state"){const sc=D.items.find(x=>x.kind==="screen"&&x.flow===it.flow&&x.screen===it.screen&&!x.via&&!x.temp);if(sc)a.push({label:"Open its screen",icon:IC.screen,run:()=>pick({it:sc,who:r.who})})}
+    a.push({label:isPinned(it)?"Unpin":"Pin",icon:IC.pin,run:()=>{togglePin(it);closeActions();run()}});
+    if(it.kind!=="flow"&&it.src)a.push({label:"Peek this "+KIND[it.kind].toLowerCase(),icon:IC.peek,run:()=>peek([it.kind==="state"?it.src+"@"+it.state:it.src],it.label)});
+    if(Q.trim()&&ALL.some(h=>h.it.kind!=="flow"))a.push({label:"Peek all "+ALL.length+" found",icon:IC.peek,key:"⇧↵",run:peekAll});
+    a.push({label:"Copy link",icon:IC.link,run:()=>{const u=new URL(it.href,location.href).href;(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>say("Link copied"),()=>say(u));closeActions()}});
+    return a}
+  function drawActions(){const q=low(adi.value.trim()),r=ROWS[SEL];AROWS=r?actionsFor(r).filter(a=>!q||low(a.label).includes(q)):[];if(ASEL>=AROWS.length)ASEL=0;
+    adl.innerHTML=AROWS.map((a,i)=>'<button role="option" data-a="'+i+'" aria-selected="'+(i===ASEL)+'">'+a.icon+"<span>"+esc(a.label)+"</span>"+(a.key?'<span class="kon">'+a.key.split("").map(k=>"<kbd>"+k+"</kbd>").join("")+"</span>":"")+"</button>").join("")||'<div class="kn0">No such action</div>'}
+  function openActions(){if(!ROWS[SEL]||ROWS[SEL].person)return;closeFilter(true);ad.classList.add("on");adi.value="";ASEL=0;drawActions();adi.focus()}
+  function closeActions(){ad.classList.remove("on");inp.focus()}
+  adi.addEventListener("input",()=>{ASEL=0;drawActions()});
+  adi.addEventListener("keydown",(e)=>{
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(AROWS.length){ASEL=(ASEL+(e.key==="ArrowDown"?1:-1)+AROWS.length)%AROWS.length;drawActions()}return}
+    if(e.key==="Enter"){e.preventDefault();const a=AROWS[ASEL];if(a)a.run();return}
+    if(e.key==="Escape"||((e.metaKey||e.ctrlKey)&&low(e.key)==="k")){e.preventDefault();closeActions()}});
+  adl.addEventListener("click",(e)=>{const b=e.target.closest("button");if(b)AROWS[+b.dataset.a].run()});
+  // the page's own keys (Esc's ladder, ←/→, zoom, Shift's notes) stay out of it while it is open
+  for(const k of ["keydown","keyup","keypress"])box.addEventListener(k,(e)=>e.stopPropagation());
+  box.querySelector(".kb").addEventListener("mousedown",(e)=>{e.preventDefault();close()});
+  const isOpen=()=>box.classList.contains("on");
+  function load(){FETCH=fetch(ROOT+"/api/search",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{if(!j)return;j.items.forEach((it,i)=>{it.i=i});D=j;FTAGS=Object.assign({},FTAGS,j.tags||{});if(isOpen())run()}).catch(()=>{if(!D)list.innerHTML='<div class="kn0">Can’t reach flex review</div>'});return FETCH}
+  function open(){if(isOpen())return;
+    // whatever else is open on the page (a picker, a panel, a note's thread) closes first
+    try{if(typeof closeMenu==="function")closeMenu();if(typeof drop==="function")drop(null);if(typeof THREAD!=="undefined"&&THREAD&&typeof closeThread==="function")closeThread()}catch{}
+    box.classList.add("on");inp.value="";Q="";SEL=0;SEL0=false;SCOPE=-1;AT=null;say("");run();load();setTimeout(()=>inp.focus(),0)}
+  function close(){box.classList.remove("on");ad.classList.remove("on");dd.classList.remove("on");fil.setAttribute("aria-expanded","false");clearTimeout(T);inp.blur()}
+  const toggle=()=>isOpen()?close():open();
+  addEventListener("keydown",(e)=>{if((e.metaKey||e.ctrlKey)&&!e.altKey&&!e.shiftKey&&e.key==="/"){e.preventDefault();e.stopImmediatePropagation();toggle()}},true);
+  if(btn)btn.onclick=()=>open();
+  return {open,close,toggle,isOpen}
+})(${root},${off});
+`;
+}
 
 const NOTES_CSS = `
 :root{--pin:#2f6bff;--pinInk:#fff;--claude:#c96442}
@@ -514,6 +840,7 @@ body{display:block}main{width:100vw}.stage{padding-top:76px}
 #ntl{flex:1;min-width:0;display:flex;align-items:center;gap:10px}.ndiv{width:1px;height:22px;background:var(--line);flex:none}
 .ntop [hidden]{display:none!important}#head{display:none}
 .ntb.ic{display:flex;align-items:center;gap:4px;padding:6px 9px;color:var(--ink)}.ntb.ic span{font-size:12.5px;font-variant-numeric:tabular-nums}
+.npeek{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a5a00;background:#fff1cc;border-radius:5px;padding:2px 6px;vertical-align:2px}
 /* an icon before a label sits a touch left, so the button reads balanced (the icon's box has air the text hasn't) */
 .ntb.ic svg:not(:last-child){margin-left:-2px}
 aside.nzp{width:auto;height:auto;padding:6px}.nzp .bar{display:flex}
@@ -605,10 +932,9 @@ const notesHtml = (logo?: string | null, name?: string) => `<div class="ntop" id
   <span class="ndiv" id="nstdiv" hidden></span><button class="nscr" id="nst" aria-expanded="false" title="Choose a state" hidden></button></div>
   <button class="ntb nperson" id="nperson" aria-expanded="false" title="Signed in as" aria-label="Signed in as" hidden></button>
   <span class="nstgtag" id="nstg" title="Frames show this environment's build, signed in to its gateway" hidden></span>
+  ${cmdkButton("ntb ic")}
   <button class="ntb ic" id="nview" aria-expanded="false" title="View: devices, theme, language, data" aria-label="View"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3.5M12.5 7H20M4 17h7.5M16.5 17H20"/><circle cx="10" cy="7" r="2.5"/><circle cx="14" cy="17" r="2.5"/></svg></button>
   <button class="ntb ic" id="nnotes" aria-expanded="false" title="Notes" aria-label="Notes"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg><span id="nncount">0</span></button>
-  <button class="ntb ic" id="nzoom" aria-expanded="false" title="Zoom" aria-label="Zoom"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><span id="nzv">100%</span></button></div>
-<aside class="nzp" id="nzoomp"></aside>
 <div class="ntoast" id="ntoast">Frames updated</div><div class="ntoast" id="nrec">Reconnecting…</div>
 <aside class="nside" id="nside">
   <div class="ntools"><label><input type="checkbox" id="nhide"> Hide resolved</label><span id="nsync"></span></div>
@@ -892,7 +1218,7 @@ function fillThread(){
   const t=document.getElementById("nthread"),n=THREAD&&NOTES.notes.find(x=>x.id===THREAD);
   if(!t)return;if(!n){closeThread();return}
   seen(n);
-  const shot=n.crop?'<a href="'+NR+'/shots/'+encodeURIComponent(NFLOW)+"/"+n.screenshot.split("/").pop()+'" target="_blank" title="The screen as captured"><img class="ncrop" src="'+NR+'/shots/'+encodeURIComponent(NFLOW)+"/"+n.crop.split("/").pop()+'" alt=""></a>'
+  const shot=n.crop?'<a href="'+NR+'/shots/'+encodeURIComponent(n.flow||NFLOW)+"/"+n.screenshot.split("/").pop()+'" target="_blank" title="The screen as captured"><img class="ncrop" src="'+NR+'/shots/'+encodeURIComponent(n.flow||NFLOW)+"/"+n.crop.split("/").pop()+'" alt=""></a>'
     :n.captureError?'<div class="nerr">No screenshot: '+esc(n.captureError)+"</div>":'<div class="nwait">Capturing the screen…</div>';
   t.querySelector("header").innerHTML='<span class="npin'+(n.resolved?" done":n.round==null?" draft":"")+'">'+n.n+'</span><div class="nwhere"><b>'+esc(lbl(n.screen))+"</b><small>"+esc(where(n))+"</small></div>"
     +(n.round==null?'<button class="nhb ndel" title="Delete this draft">Delete</button>':"")+'<button class="nhb nres">'+(n.resolved?"Reopen":"Resolve")+'</button><button class="nx" title="Close (Esc)" aria-label="Close">×</button>';
@@ -979,7 +1305,9 @@ function hookFrame(f,r,o){if(STATIC)return;
     const st=d.createElement("style");st.textContent="html.flex-shift,html.flex-shift *{cursor:crosshair!important}html.flex-alt,html.flex-alt *{cursor:default!important}";d.documentElement.appendChild(st);
     d.documentElement.classList.toggle("flex-shift",SHIFT);d.documentElement.classList.toggle("flex-alt",ALT);
     d.addEventListener("mousemove",(e)=>{const b=f.getBoundingClientRect(),w=d.defaultView;PT={x:b.left+e.clientX/w.innerWidth*b.width,y:b.top+e.clientY/w.innerHeight*b.height}},true);
-    d.addEventListener("keydown",(e)=>{if(e.key==="Shift")setShift(true);if(e.key==="Alt")setAlt(true)},true);d.addEventListener("keyup",(e)=>{if(e.key==="Shift")setShift(false);if(e.key==="Alt")setAlt(false)},true);
+    d.addEventListener("keydown",(e)=>{if(e.key==="Shift")setShift(true);if(e.key==="Alt")setAlt(true)},true);
+    // ⌘K from inside a frame (it has the focus once clicked): the board's command bar, not the app's
+    d.addEventListener("keydown",(e)=>{if(KCMDK&&(e.metaKey||e.ctrlKey)&&!e.altKey&&!e.shiftKey&&e.key==="/"){e.preventDefault();e.stopImmediatePropagation();KCMDK.toggle()}},true);d.addEventListener("keyup",(e)=>{if(e.key==="Shift")setShift(false);if(e.key==="Alt")setAlt(false)},true);
     // Shift-click leaves a note, ⌥-click copies the screen: either way the app never sees the click
     const eat=(e)=>{if(!e.shiftKey&&!e.altKey)return;e.preventDefault();e.stopImmediatePropagation()};
     for(const t of ["pointerup","mousedown","mouseup","click"])d.addEventListener(t,eat,true);
@@ -1027,7 +1355,7 @@ function pickMenu(bid,items,pick,searchAt,ic){
       el.style.width=g?"460px":"360px";l.className="nsl"+(g?" g":"");l.style.setProperty("--min",({phone:120,tablet:150,land:190,laptop:190}[kind(thumbKey())]||150)+"px");
       const its=items().filter(x=>x.all||!t||x.label.toLowerCase().includes(t)||(x.num||"").includes(t));
       l.innerHTML=its.map(x=>'<button class="'+(x.cur?"cur":"")+'" data-v="'+esc(x.value)+'">'+(g?tileArt(x):'<span class="num nic">'+(x.all?UI.all:(ic||""))+"</span>")
-        +'<span class="nlab">'+'<span class="nlw"><span class="nlt" title="'+esc(x.label).replace(/"/g,"&quot;")+'">'+esc(x.label)+"</span>"+(x.sub?"<small>"+esc(x.sub)+"</small>":"")+"</span></span>"+(x.open?'<em title="Open notes">'+x.open+"</em>":"")+"</button>").join("");
+        +'<span class="nlab">'+'<span class="nlw"><span class="nlt" title="'+esc(x.label).replace(/"/g,"&quot;")+'">'+esc(x.label)+"</span>"+(x.sub?"<small>"+esc(x.sub)+"</small>":"")+"</span></span>"+(x.tags&&x.tags.length?'<span class="ftags">'+x.tags.map(tagChip).join("")+"</span>":"")+(x.open?'<em title="Open notes">'+x.open+"</em>":"")+"</button>").join("");
       l.querySelectorAll("button").forEach(b=>b.onclick=()=>{closeMenu();pick(b.dataset.v)});
       const c=l.querySelector(".cur");if(c&&!t)c.scrollIntoView({block:"center"});
       // under its button, kept inside the window whatever its width
@@ -1049,25 +1377,24 @@ document.getElementById("nflowb").onclick=()=>{pickMenu("nflowb",()=>[{all:true,
   Promise.all([loadFlows(),loadHome()]).then(()=>{if(MENU==="nflowb"&&MENUREF)MENUREF()})};
 document.getElementById("nscr").onclick=()=>pickMenu("nscr",()=>[{all:true,value:"*",label:"All screens",cur:S.screens!=="one"&&!S.sub},
   ...ITEMS().flatMap(it=>it.g?[{name:it.ss[0],value:"g:"+it.g,label:it.g,sub:it.ss.length+" screens",cur:S.sub===it.g&&S.screens!=="one"}]:[]),
-  ...SCREENS.map(s=>{const ns=states(s).length+1,g=entry(s).group;return {name:s,value:s,label:lbl(s).replace(/&lt;/g,"<"),sub:(g?g+" · ":"")+ns+" state"+(ns===1?"":"s"),cur:S.screens==="one"&&s===S.screen,open:openOn(s)}})],
+  ...SCREENS.map(s=>{const ns=states(s).length+1,g=entry(s).group;return {name:s,value:s,label:lbl(s).replace(/&lt;/g,"<"),sub:(g?g+" · ":"")+ns+" state"+(ns===1?"":"s"),cur:S.screens==="one"&&s===S.screen,open:openOn(s),tags:entry(s).tags}})],
   (v)=>{if(v==="*"){S.screens="all";S.sub="";go();return}if(v.startsWith("g:")){openGroup(v.slice(2));return}openScreen(v)},10,PIC.screen);
 document.getElementById("nst").onclick=()=>pickMenu("nst",()=>[{all:true,value:"*",label:"All states",cur:S.stmode==="all"},
-  ...[{name:"",label:entry(S.screen).defaultLabel||"Default"},...states(S.screen)].map(x=>({name:x.name?S.screen+"@"+x.name:S.screen,value:x.name,label:x.label,cur:S.stmode!=="all"&&S.state===x.name,open:openOn(S.screen,x.name)}))],
+  ...[{name:"",label:entry(S.screen).defaultLabel||"Default"},...states(S.screen)].map(x=>({name:x.name?S.screen+"@"+x.name:S.screen,value:x.name,label:x.label,cur:S.stmode!=="all"&&S.state===x.name,open:openOn(S.screen,x.name),tags:x.tags}))],
   (v)=>{if(v==="*"){S.stmode="all";go();return}S.state=v;S.stmode="one";go()},10,PIC.state);
 // the page's own header (head()) draws these instead
 head=function(){
   const one=S.screens==="one",sts=one?states(S.screen):[],st=one&&S.state?sts.find(x=>x.name===S.state):null;
-  document.getElementById("nflowt").textContent=TITLE;document.getElementById("nflowic").innerHTML=PIC.flow;
+  document.getElementById("nflowt").innerHTML=esc(TITLE)+(NFLOW==="_peek"?' <span class="npeek" title="A peek: screens from other flows, here until dismissed on the home page (flex review peek --clear). Notes go to each screen\u2019s own flow">Temporary</span>':"");document.getElementById("nflowic").innerHTML=PIC.flow;
   document.getElementById("nscr").innerHTML='<span class="pic">'+PIC.screen+"</span>"+(one?"<b>"+(S.sub?esc(S.sub)+" › ":"")+lbl(S.screen)+"</b>":S.sub?"<b>"+esc(S.sub)+"</b><i>"+SCREENS.filter(x=>grp(x)===S.sub).length+"</i>":"<b>All screens</b><i>"+ITEMS().length+"</i>")+CHEV;
   document.getElementById("nst").hidden=document.getElementById("nstdiv").hidden=!sts.length;
   if(sts.length)document.getElementById("nst").innerHTML='<span class="pic">'+PIC.state+"</span><b>"+(S.stmode==="all"?"All states":esc(st?st.label:(entry(S.screen).defaultLabel||"Default")))+"</b>"+CHEV};
 // the View panel keeps devices, theme and language: screens and states are picked from the top bar
 document.getElementById("smode").closest(".sec").classList.add("ngone");document.getElementById("statesec").classList.add("ngone");
 head();
-// the zoom: its controls (the page's own bar) in a panel, the button showing the zoom
-document.getElementById("nzoomp").appendChild(document.getElementById("bar"));
-const zl0=zoomLabel;zoomLabel=function(){zl0();document.getElementById("nzv").textContent=Math.round(Z*100)+"%"};
-const DROPS={nview:document.querySelector("aside:not(.nside):not(.nzp)"),nnotes:document.getElementById("nside"),nzoom:document.getElementById("nzoomp")};
+// the zoom: its controls (the page's own bar) a row of the View panel; ⌘+ ⌘− ⌘0 and pinching do the rest
+document.getElementById("nvzoom").appendChild(document.getElementById("bar"));
+const DROPS={nview:document.querySelector("aside:not(.nside)"),nnotes:document.getElementById("nside")};
 let SWALLOW=false;
 function drop(k){if(k)closeMenu();for(const [b,el] of Object.entries(DROPS)){const on=b===k;el.classList.toggle("open",on);document.getElementById(b).setAttribute("aria-expanded",on)
     if(on){const r=document.getElementById(b).getBoundingClientRect();el.style.top=r.bottom+8+"px";el.style.left="auto";el.style.right=Math.max(12,innerWidth-r.right)+"px"}}
@@ -1166,6 +1493,19 @@ function hydrate(f,r){
     const a=acts();if(a==="pending"){ok=false;if(Date.now()-T00<60000)t0=Date.now()}
     if(ok||Date.now()-t0>8000)done();else setTimeout(tick,100)};
   tick()}
+/* the tags as chips: in the canvas's captions and the screen and state pickers' rows */
+CHIPS=(ts)=>ts&&ts.length?'<span class="ftags">'+ts.map(tagChip).join("")+"</span>":"";
+/* ⌘K opening something of this flow: in place, as the pickers do (no reload), signed in as the person it was found
+   for and with tester tools on for a tester-only one; anything else it opens by its link */
+/* where the board is, for ⌘/ to start from: this flow, the screen open (and its state) */
+function cmdkCtx(){const one=S.screens==="one";return {flow:NFLOW,screen:one?S.screen:null,state:one&&S.stmode!=="all"?S.state||null:null}}
+function cmdkHere(it,who){if(it.flow!==NFLOW||STATIC)return false;
+  if(it.kind!=="flow"&&!ALLSCREENS.includes(it.screen))return false;
+  if(who&&who!==PERSON){PERSON=who;mem("person:"+NFLOW,PERSON);relink()}
+  if(it.tester&&!TESTER){TESTER=1;mem("tester","1");testerFilter();relink();modeSeg()}
+  if(it.kind==="flow"){S.screens="all";S.sub="";go();return true}
+  if(it.kind==="screen"){openScreen(it.screen);return true}
+  S.screen=it.screen;S.sub=grp(it.screen);S.state=it.state;S.screens="one";S.stmode="one";go();return true}
 if(STATIC)poll();else{setInterval(poll,3000);poll()}`;
 }
 
@@ -1206,10 +1546,14 @@ main{padding:28px 28px 48px}main h1{margin:0 0 18px;font-size:20px}
 .cover .wait{width:62%;height:100%;border-radius:14px 14px 0 0;background:linear-gradient(100deg,#e9e7ee 35%,#f6f5f8 50%,#e9e7ee 65%) 0 0/300% 100% #e9e7ee;animation:sh 1.6s linear infinite}
 @keyframes sh{from{background-position:100% 0}to{background-position:0 0}}
 .meta{padding:12px 14px 14px;display:grid;gap:3px}.meta b{font-size:15px;display:flex;align-items:center;gap:8px}.meta b em{font-style:normal;font-size:11px;font-weight:700;background:var(--pin);color:#fff;border-radius:10px;padding:1px 7px}
-.meta small{color:var(--sub);font-size:12.5px}.static .cover .wait{animation:none}
+.meta small{color:var(--sub);font-size:12.5px}
+.card.peek{border-color:#f0c36a}.tmp{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a5a00;background:#fff1cc;border-radius:5px;padding:2px 6px}
+.meta .px{margin-left:auto;border:0;background:none;color:var(--sub);font-size:18px;line-height:1;padding:0 2px;cursor:pointer}.meta .px:hover{color:var(--ink)}.static .cover .wait{animation:none}
+${CMDK_CSS}
 .stg{font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:#5b5fc7;border-radius:6px;padding:3px 8px}.stg[data-env=staging]{background:#d9480f}.stg[data-env=local]{background:#0d8a6a}.seg button:disabled{opacity:.45;cursor:not-allowed}.err{color:#d33;font-size:12.5px;white-space:pre-wrap;padding:16px}
 </style></head><body>
 <div class="top">${o.logo ? `<img src="${o.logo}" alt="">` : '<div class="mark">F</div>'}<span class="div"></span><b>${o.name.replace(/</g, "&lt;")}</b><span class="grow"></span><span class="stg" id="stg" hidden>Staging</span>
+${cmdkButton("tb")}
 <button class="tb" id="view" aria-expanded="false" title="View: devices, theme, language" aria-label="View">${ic('<path d="M4 7h3.5M12.5 7H20M4 17h7.5M16.5 17H20"/><circle cx="10" cy="7" r="2.5"/><circle cx="14" cy="17" r="2.5"/>')}</button>
 <button class="tb" id="notes" aria-expanded="false" title="Notes" aria-label="Notes">${ic('<path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>')}<span id="ncount">0</span></button></div>
 <div class="panel vp" id="pview">${viewPanel()}</div>
@@ -1249,14 +1593,17 @@ const when=(a)=>{const d=new Date(a);return d.toDateString()===new Date().toDate
 const q=()=>"?devices="+cat+"&theme="+theme;
 function draw(){
   const fl=DATA.flows;
-  document.getElementById("cards").innerHTML=fl.map(f=>'<a class="card" href="'+esc(f.href)+q()+'">'
+  document.getElementById("cards").innerHTML=fl.map(f=>'<a class="card'+(f.peek?" peek":"")+'" href="'+esc(f.href)+q()+'">'
     +(f.error?'<div class="err">'+esc(f.error)+"</div>":'<div class="cover">'+(f.cover?'<img src="'+esc(f.cover)+'" alt="">':'<div class="wait"></div>')+"</div>")
-    +'<div class="meta"><b>'+esc(f.title)+(f.open?'<em title="Open notes">'+f.open+"</em>":"")+"</b><small>"+(f.screens!=null?f.screens+" screen"+(f.screens===1?"":"s"):"")+"</small><small>"
+    +'<div class="meta"><b>'+esc(f.title)+(f.peek?'<span class="tmp" title="A peek: screens from other flows (flex review peek). Notes go to each screen\u2019s own flow">Temporary</span><button class="px" data-px title="Dismiss this peek" aria-label="Dismiss this peek">\u00d7</button>':"")+(f.open?'<em title="Open notes">'+f.open+"</em>":"")+"</b><small>"+(f.screens!=null?f.screens+" screen"+(f.screens===1?"":"s"):"")+"</small><small>"
     +(f.static?"":f.lastRound?"Last round sent "+when(f.lastRound.sentAt):f.notes.length?"Nothing sent yet":"No notes yet")+"</small></div></a>").join("")||'<div class="none">No flows here.</div>';
   const all=fl.reduce((n,f)=>n+f.notes.length,0),nb=document.getElementById("notes");
   document.getElementById("ncount").textContent=all;nb.classList.toggle("due",fl.some(f=>f.unsent));
   document.getElementById("pnotes").innerHTML=fl.filter(f=>f.notes.length).map(f=>'<div class="sec nf"><h4>'+esc(f.title)+"</h4>"
     +f.notes.map(n=>'<a href="'+esc(f.href)+q()+"#note="+encodeURIComponent(n.id)+'"><i>'+n.n+"</i><span>"+esc(n.text.split("\\n")[0])+"<br><small>"+esc(n.label)+"</small></span></a>").join("")+"</div>").join("")||'<div class="sec none">No open notes.</div>'}
+// the peek's ×: gone (its card's link isn't followed)
+document.getElementById("cards").addEventListener("click",async(e)=>{if(!e.target.closest("[data-px]"))return;e.preventDefault();e.stopPropagation();
+  await fetch(R+"/api/peek",{method:"DELETE"}).catch(()=>{});STR="";load()});
 // a published copy: the flows and their covers as exported, nothing to ask a server
 if(STATICD){document.body.classList.add("static");document.getElementById("notes").style.display="none";document.getElementById("nmodes").closest(".sec").style.display="none"}
 async function load(){if(STATICD){const k=(CATS.find(d=>d.cat===cat)||{}).key||"";
@@ -1269,5 +1616,6 @@ for(const b of Object.keys(P))document.getElementById(b).onclick=()=>open(docume
 addEventListener("keydown",(e)=>{if(e.key==="Escape")open(null)});
 addEventListener("mousedown",(e)=>{if(!e.target.closest(".panel,.tb"))open(null)});
 controls();load();if(!STATICD)setInterval(load,3000);
+${cmdkScript("R", "!!STATICD")}
 </script></body></html>`;
 }

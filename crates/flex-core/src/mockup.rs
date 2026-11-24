@@ -13,6 +13,8 @@ const DEVICES: &str = include_str!("../../../server/devices.mts");
 /// the review page (--review), imported by mockup.mts
 const REVIEW: &str = include_str!("../../../server/review.mts");
 const EMBED: &str = include_str!("../../../server/embed.mts");
+/// the OS's own screens the review board draws over a frame (a flow's "system"), imported by review.mts
+const SYSTEM: &str = include_str!("../../../server/system.mts");
 /// `flex review`: the canvas served, with notes
 const FLOW_REVIEW: &str = include_str!("../../../server/flow-review.mts");
 const FRAMES: [(&str, &str); 6] = [
@@ -32,6 +34,7 @@ pub fn command(args: &[String]) -> Result<Command, ProjectError> {
     for (name, body) in FRAMES { support_script(name, body)?; }
     support_script("devices.mts", DEVICES)?;
     support_script("review.mts", REVIEW)?;
+    support_script("system.mts", SYSTEM)?;
     support_script("embed.mts", EMBED)?;
     let script = support_script("mockup.mts", SCRIPT)?;
     let mut c = Command::new(&tsx);
@@ -60,7 +63,7 @@ pub fn review_command(args: &[String]) -> Result<Command, ProjectError> {
     let tsx = pipeline.join("node_modules/.bin/tsx");
     if !tsx.exists() { return Err(ProjectError::PipelineNotInstalled(pipeline)); }
     for (name, body) in FRAMES { support_script(name, body)?; }
-    for (name, body) in [("devices.mts", DEVICES), ("review.mts", REVIEW), ("embed.mts", EMBED), ("mockup.mts", SCRIPT), ("screens.mts", SCREENS)] { support_script(name, body)?; }
+    for (name, body) in [("devices.mts", DEVICES), ("review.mts", REVIEW), ("system.mts", SYSTEM), ("embed.mts", EMBED), ("mockup.mts", SCRIPT), ("screens.mts", SCREENS)] { support_script(name, body)?; }
     let script = support_script("flow-review.mts", FLOW_REVIEW)?;
     let mut c = Command::new(&tsx);
     c.arg(&script).args(args).current_dir(&pipeline).env("PATH", login_path()).env("FLEX_PIPELINE", &pipeline);

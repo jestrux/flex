@@ -50,7 +50,9 @@ if (!inputs.length) fail("name a screens.json or URLs: flex screens <screens.jso
 type Status = "light" | "dark";
 type Screen = { name: string; url: string; path?: string; status?: Status | Record<string, Status>; devices?: string[] };
 type Axis = { name: string; label: string; toggle?: boolean; params?: Record<string, string>; options?: { name: string; label: string; params?: Record<string, string> }[] };
-type Entry = { name: string; label?: string; defaultLabel?: string; group?: string; axes?: { name: string; label: string; toggle: boolean; options: { name: string; label: string }[] }[]; states: { name: string; label: string }[] };
+type Entry = { name: string; label?: string; defaultLabel?: string; group?: string; system?: unknown; tags?: string[]; keywords?: string[]; axes?: { name: string; label: string; toggle: boolean; options: { name: string; label: string }[] }[]; states: { name: string; label: string; system?: unknown; tags?: string[]; keywords?: string[] }[] };
+/** "tags" and "keywords" (flex review's chips and ⌘K), passed through when they are lists of words */
+const words = (o: any) => Object.fromEntries((["tags", "keywords"] as const).flatMap((k) => { const v = Array.isArray(o?.[k]) ? o[k].filter((x: unknown) => typeof x === "string" && x) : []; return v.length ? [[k, v]] : []; }));
 const index: Entry[] = [];
 let numberFrom = 1;
 let base = opt("--base"), devKeys: string[] | undefined, label = "web";
@@ -76,14 +78,15 @@ for (const a of inputs) {
     if (s.name.includes("@")) fail(`${a}: "${s.name}": a screen's name can't contain @ (it separates a screen from its states)`);
     if (!okStatus(s.status)) fail(`${a}: "${s.name}" status is light, dark, or { device: light|dark }`);
     screens.push({ name: s.name, status: s.status, devices: s.devices, url: url(s.path), path: s.path });
-    const entry: Entry = { name: s.name, label: s.label, defaultLabel: s.defaultLabel, states: [], ...(s.group ? { group: s.group } : {}) };
+    // "system": the OS's own UI over this screen or state (flex review draws it, server/system.mts), passed through as given
+    const entry: Entry = { name: s.name, label: s.label, defaultLabel: s.defaultLabel, states: [], ...(s.group ? { group: s.group } : {}), ...(s.system ? { system: s.system } : {}), ...words(s) };
     for (const st of s.states ?? []) {
       // a state without a path of its own opens at its screen's (its setup, storage or actions make it the state)
       if (!st.name) fail(`${a}: every state of "${s.name}" needs a name`);
       const sp: string = st.path ?? s.path;
       if (!okStatus(st.status)) fail(`${a}: "${s.name}@${st.name}" status is light, dark, or { device: light|dark }`);
       screens.push({ name: `${s.name}@${st.name}`, status: st.status ?? s.status, devices: st.devices ?? s.devices, url: url(sp), path: sp });
-      entry.states.push({ name: st.name, label: st.label ?? st.name });
+      entry.states.push({ name: st.name, label: st.label ?? st.name, ...(st.system ? { system: st.system } : {}), ...words(st) });
     }
     const axes: Axis[] = s.axes ?? [];
     if (axes.length) {

@@ -82,6 +82,19 @@ enum ReviewCmd {
         #[arg(long)]
         all: bool,
     },
+    /// Look at a few screens together: a temporary flow of screens from any of the project's flows, first on the board
+    /// (marked Temporary) until dismissed there, replaced by the next peek, or cleared. Never committed (it lives in
+    /// .flex/cache/); a note made on it goes to the flow its screen comes from. Prints its link
+    Peek {
+        /// what to show: a flow (a glob works: safari-*), flow/screen (with its states), or flow/screen@state[,state]
+        refs: Vec<String>,
+        /// its title on the board (default "Peek")
+        #[arg(long)]
+        title: Option<String>,
+        /// remove the peek
+        #[arg(long)]
+        clear: bool,
+    },
     /// Check flows before the author sees them: a resnap that answers yes or no. Every frame of each flow's default
     /// view (--all: every theme, language and signal) is taken again, setup and actions and all; each frame that failed
     /// (an error page, a failed setup or action, a missing selector) is listed, and it exits 1 if any did or a flow
@@ -1632,6 +1645,14 @@ fn run() -> Result<()> {
             for (k, v) in [("--screen", screen), ("--state", state), ("--jobs", jobs.map(|j| j.to_string()))] { if let Some(v) = v { a.push(k.into()); a.push(v); } }
             if allow_setup { a.push("--allow-setup".into()); }
             if all { a.push("--all".into()); }
+            let st = flex_core::mockup::review_command(&a)?.env("FLEX_REVIEW_CWD", std::env::current_dir()?).status()?;
+            if !st.success() { exit(st.code().unwrap_or(1)); }
+        }
+        Cmd::Review { cmd: Some(ReviewCmd::Peek { refs, title, clear }), .. } => {
+            let mut a: Vec<String> = vec!["peek".into()];
+            a.extend(refs);
+            if let Some(t) = title { a.push("--title".into()); a.push(t); }
+            if clear { a.push("--clear".into()); }
             let st = flex_core::mockup::review_command(&a)?.env("FLEX_REVIEW_CWD", std::env::current_dir()?).status()?;
             if !st.success() { exit(st.code().unwrap_or(1)); }
         }

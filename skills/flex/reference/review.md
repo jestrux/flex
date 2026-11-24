@@ -94,7 +94,8 @@ Found by walking up from the flow or the working folder. Thrive's, with setup:
     "baraka": { "name": "Baraka Temu", "role": "Manager (Kheri's)" }
   },
   "setup": { "command": "bun helpers/flex-setup.ts", "cwd": "..", "ttl": 600 },
-  "clock": "2026-10-15T09:00:00+03:00"
+  "clock": "2026-10-15T09:00:00+03:00",
+  "tags": { "kyc": { "label": "KYC", "color": "#9333ea" }, "map": null }
 }
 ```
 
@@ -112,6 +113,10 @@ A flow's own `base`, `devices`, `logo` win over the project's. Fields Flex doesn
   delay. One selector for the whole project, so pick one every screen has.
 - **Signed-out products** (a public site): `"person": null` on the flows, `"people": {}` or omitted. If the app has no
   sign-out parameter, `"signoutParam": null`, or every link gets `signout=1`.
+- **`tags`**: the chips flows can put on screens and states. Flex's defaults are always there (`form`, `list`,
+  `detail`, `dashboard`, `map`, `prompt`, `sheet`, `share`, `success`, `error`, `empty`, `offline`, `system`,
+  `public`, `payment`); the project's map adds its own custom tags (`{ "label", "color" }`), relabels or recolours a
+  default, or turns one off (`null`). A tag in neither shows neutral and is reported once.
 - **Secrets** are `$VARS` from the process environment, else the `env` file beside `.flex/` (git-ignored). Never a
   password or token in a flow, the page, or a bundled `EXPO_PUBLIC_*` / `NEXT_PUBLIC_*` variable.
 
@@ -239,6 +244,9 @@ One file per flow, `.flex/flows/<flow>.json`. Thrive's `learning.json`, trimmed:
 | `signal` | screen, state | `false`: always offline (`offline=1`) |
 | `publish` | flow | `"all"`: export every theme, language and signal |
 | `use` | screen entry | `"account"`: all of `account.json` as one item of this flow, shown and opened like a screen (its tile opens on its screens, each with its states); `"account/register"`: one of its screens as it is. Either may take its own `label` (a whole flow's: the item's title) |
+| `system` | screen, state | the OS's own UI over the app: `"contacts"`, `{ "show": "permission", "for": "contacts" }` (see System screens) |
+| `keywords` | flow, screen, state | words people search for that the label doesn't say (`["invite", "share link"]`); ⌘K ranks a keyword hit above a fuzzy one. A state is found by its screen's too |
+| `tags` | flow, screen, state | from the project's tags (`["form", "sheet"]`): chips in ⌘K, the pickers and the canvas captions, and `#form` in ⌘K. A state shows its own, then its screen's |
 
 Rules:
 
@@ -263,8 +271,47 @@ Rules:
   `people`, `setup`, `storage`, `actions` and `clock` unless they set their own, so they run exactly as at home, and
   editing the home flow updates every flow that uses it. Uses can nest; a loop, a missing flow or screen, or two
   screens of one name is an error. **Notes stay with the flow they were left in** (the host), not the used screen's.
+- **Write for search (⌘K):** the label says what is on the screen ("Invite a member", not "Step 3"); every screen gets
+  a one-line `description`; `keywords` carry the words people use that the label doesn't (the product's slang, the
+  old name, the API's: "msisdn", "transfer"); `tags` come from the project's list, a few per screen (what kind of
+  screen it is: form, list, sheet; what it shows: error, empty, success). Add a tag to the project's `tags` rather
+  than inventing one per flow.
 - `"publish": "all"` only on a flow the author has reviewed: it multiplies snapshots by themes × languages × signal.
 - Cross-reference in `_doc` which flow carries what this one leaves out.
+
+## System screens
+
+A step that is the OS's UI, not the app's (a permission prompt, the system contact picker), is not built in the app:
+the board draws it over the app's frame. Put `"system"` on the screen or state (a state doesn't inherit its screen's):
+
+- `"contacts"` (or `{ "show": "contacts" }`): the contact picker. iOS: a page sheet over the app pushed back and
+  dimmed, Cancel and "Contacts", a search field, the contacts by family name in lettered sections, the A–Z index. iPad:
+  the same as a centred form sheet. Android: full screen, Material 3, "Choose a contact" with back and search, round
+  initial avatars, by given name.
+- `{ "show": "permission", "for": "contacts" | "photos" | "camera" | "location" | "notifications" }`: the dialog.
+  iOS: the centred alert ("“NCAA” Would Like to Access Your Contacts", the usage text, Don’t Allow / Allow; location
+  and photos stacked with their three choices). Android: the Material 3 dialog, icon, "Allow **NCAA** to access your
+  contacts?", stacked Allow / Don’t allow (location with Precise / Approximate; camera, photos their own choices).
+  Android shows no usage text.
+
+Drawn by device: iPhone and iPad the iOS look, Android Material 3; a laptop or window nothing. It follows the board's
+theme, language (the OS words built in for en and sw) and Device frame switch, and shows on live frames, snapshots
+and published copies. Notes and ⌥-copy are of the app underneath: Shift-click works on it, but the note's screenshot
+and the copied picture are the app's snapshot, without the overlay. An unknown kind draws nothing and is reported
+once (by flex review and in the page's console).
+
+The project gives the words and people, all optional:
+
+```json
+"system": {
+  "appName": "NCAA",                         // default: the project's "name"
+  "contacts": [{ "name": "Neema Mwakyusa", "phones": ["+255754330218"], "photo": null }],   // default: 12 generic
+  "permissions": { "contacts": { "en": "NCAA fills in who you’re adding from your contacts.", "sw": "…" } }
+}
+```
+
+`permissions.<for>` is the app's usage text (its Info.plist string) per language, falling back to `en`, or one string;
+a `photo` is a URL the avatar shows instead of the initial.
 
 ## Serving
 
@@ -306,6 +353,33 @@ What the author does there, so you can tell them:
   window alone, no body, status bar, notch or camera, cropped to the safe areas so snapshots and live frames agree)
   with **reset** at its right; then Devices; then Data, Tester tools, Setup. Each viewer's choices are remembered per
   project (the address's `frame=0` too).
+- **Command bar (⌘/, or Search in the top bar; home and flow pages):** as Raycast. It searches everything: flows, screens, states and
+  people, one list ranked by best match (each screen and state once, at home); ⌘P's filter keeps one kind (Screens,
+  States, Flows), Recent, or what has a tag or is seen as a person (↵ on a person sets that filter). Each result is one
+  line: its icon, its name, where it is (its flow; a state's screen), and on the right a pin when pinned and its count
+  (a flow's screens, a screen's states, a person's screens and states). Before anything is typed:
+  Pinned, then the flows. **It starts where you are:** on a screen, nothing typed, the list goes outward: that screen
+  and its states, the flow's other screens, then Pinned and the flows; typed (or filtered), this screen's matches rank
+  above this flow's, above the rest. The filter is a filter icon (three lines) beside the search (a dot when one is on); the filter
+  in use shows as a chip at the search's start, and Backspace in an empty search removes it. Words narrow together, label first, then `keywords`, tags, people, description,
+  forgiving a missing letter. The footer shows where the selected row is, then **Open ↵** ("Open Screen as Rehema" when
+  found through a person) and **Actions ⌘K**: its states (or its screen), Pin, Peek this screen, Peek all found (⇧↵),
+  Copy link. ↑↓ move, Esc clears the search, then the filter, then closes. `#form` and `@rehema` in the search work as filters too. **Compact
+  search** (View panel) shows only the search box until something is typed. Off on a published copy (no server).
+- **On the board:** ⌘K, search, ⇧↵ makes the same peek of what it found (`POST /<project>/api/peek`).
+- **When:** whenever the conversation is about some screens across flows (what a change touches, the screens a
+  question is about, a before and after). Make the peek and give the author its link, rather than listing files.
+- **What it takes:** `flow` (the whole flow, one tile; a glob works), `flow/screen` (with all its states), or
+  `flow/screen@state[,state]` (only those states, with the default). Names are the flow file's and the screen's.
+- **Where:** `.flex/cache/peek/_peek.json`: never committed, not one of the project's flows. A running `flex review`
+  shows it first on the home page, marked **Temporary**, with a × to dismiss it; it opens at `/<project>/f/_peek/`.
+  One peek at a time: the next replaces it.
+- **Notes go to the screens' own flows** (unlike a flow's `use`, where they stay with the host): a note made on the
+  peek is in that screen's `<flow>.notes.json`, and Send sends each of those flows' rounds. `flex review wait <flow>`
+  as usual.
+- Two flows' screens of one name: the later is named `<flow>-<screen>` on the peek. Two whole flows sharing a screen
+  name are refused: name one's screens one by one.
+- Under the hood a peek is a flow of `use`s; a `use` may also take `"as"` (another name) and `"only"` (those states).
 
 ## On a deck slide
 
@@ -414,7 +488,7 @@ flex review wait learning --since 3 --timeout 1800   # exit 3 at the timeout
   (`"2026-11-22T18:42:16.137Z"`): frames reload, setup results and older snapshots are retaken.
 - A flow file edit rebuilds its page on the next load; snapshots whose link changed are retaken.
 - Data changed under the board (a re-seed): `flex review resnap`, not a rebuild.
-- The board remembers each viewer's view. If it looks wrong to the author, View › **Reset to defaults**.
+- The board remembers each viewer's view. If it looks wrong to the author, View › **reset**.
 - Notes and snapshots are kept per data mode, tester setting, signal and person.
 
 ## Publishing

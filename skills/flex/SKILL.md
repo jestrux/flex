@@ -112,6 +112,8 @@ states (not a film). The app must run in a browser: a web app, or a React Native
    in `.flex/flows/<flow>.json`: screens in the person's path, states in the record's life. A different person is never
    a state. A step several flows share is written once and pulled in with `{ "use": "<flow>" }` (one item, opened like a screen onto its
    screens and their states) or `{ "use": "<flow>/<screen>" }`, never copied.
+   A step that is the OS's own UI (a permission prompt, the contact picker) is `"system"` on that screen or state,
+   drawn by the board over the app, never built in the app (reference/review.md, System screens).
 4. **Safety:** setup runs only with `--allow-setup`, so the author approves its writes first. Seed once out of band,
    throwaway users only; links and actions read-only, never a reset or a submit. `flex review resnap` after any re-seed.
 5. **Check every frame lands** on every device, as each person listed: `flex review resnap <flow> --allow-setup`, then
@@ -120,6 +122,13 @@ states (not a film). The app must run in a browser: a web app, or a React Native
    `flex review wait <flow>` for the round.
 7. **Reply and fix:** replies in `<flow>.notes.json`, rebuild, stamp the notes file's `build`.
 8. **Publish:** `flex review export <site>/screen-canvas --prefix /screen-canvas --capture`.
+
+**Peek** when talking about a few screens across flows (which ones a change touches, a before/after, a question):
+`flex review peek planning/register verify/verify@q1,confirm joining --title "Buttons in the footer"` puts them on the
+board together, first and marked Temporary, and prints the link. Give the author that link instead of a list of files.
+
+**⌘/** on the board searches the screens (⌘P: states, flows, a tag, a person; ⌘K: a result's actions): give each screen a label that
+says what's on it, a `description`, `keywords` for the words people use instead, and `tags` from the project's list.
 
 Many flows: one lane per group of flows, editing only their flow files. Everything else (setup, safety, devices,
 isolation, checking, Expo traps): [reference/review.md](reference/review.md).

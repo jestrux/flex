@@ -57,9 +57,20 @@ laptop sidebar. Serve it with `python3 -m http.server 8102 -d samples/screens`.
 - **← / →** move at the level shown: all screens → between lists (a flow review's flows); one screen → its list's
   screens; one state → its screen's states. Past an end they roll into the next item up, and wrap at the last list.
 - **Device selection** works as in Finder: a click picks one device, Shift-click a range, ⌘-click adds or removes one.
+- **Peek** (`flex review peek <flow | flow/screen | flow/screen@state>… --title t`): a temporary flow of screens from
+  any flows, first on the board's home and marked Temporary until dismissed (×), replaced, or `--clear`ed. It lives in
+  `.flex/cache/`, so it's never committed; a note made on it goes to the screen's own flow.
+- **Command bar** (⌘/ on a flow review's home and flow pages): as Raycast, one ranked list of one-line results over
+  flows, screens, states and people (⌘P filters to a kind, recent, a tag or a person), starting where you are (this screen's states, this flow's screens), a filter icon (its chip at the search's start), Pinned, a footer with Open ↵ and Actions ⌘K (states,
+  pin, peek, peek all, copy link). Tags (`"tags"` on a flow, screen or state; the project's own beside Flex's
+  defaults, in `project.json`) colour the filter and the canvas captions.
+- **Zoom** lives in the View panel (⌘+ ⌘− ⌘0 and pinching as before); **Compact search** there too.
 - **Device frame** (a toggle in the View panel's header row): off, each screen shows as the app's window alone, without the device's body, status
   bar, notch or camera. A phone or tablet's page is cropped to its safe areas, so its snapshot and its live frame agree.
   It is kept in the address (`frame=0`) and, on a flow review, remembered per project.
+- **System screens** (a flow review's `"system"` on a screen or state): the OS's own UI drawn over the app's frame in
+  CSS, the iOS contact picker or permission alert on an iPhone or iPad, Material 3's on Android, nothing on a laptop.
+  It follows the theme, language and Device frame; notes and ⌥-copy are of the app underneath (`server/system.mts`).
 
 ![One screen, its "No trails yet" state, on a phone and a laptop](../media/mockups-live.png)
 
