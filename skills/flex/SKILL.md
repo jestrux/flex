@@ -129,6 +129,8 @@ board together, first and marked Temporary, and prints the link. Give the author
 
 **⌘/** on the board searches the screens (⌘P: states, flows, a tag, a person; ⌘K: a result's actions): give each screen a label that
 says what's on it, a `description`, `keywords` for the words people use instead, and `tags` from the project's list.
+Modifiers in the search ("home as a visitor dark sw") open a result as someone, in a theme, language, device, offline
+or with tester tools: give each person a `role` the author would type.
 
 Many flows: one lane per group of flows, editing only their flow files. Everything else (setup, safety, devices,
 isolation, checking, Expo traps): [reference/review.md](reference/review.md).

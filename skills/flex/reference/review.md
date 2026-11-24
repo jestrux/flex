@@ -364,7 +364,18 @@ What the author does there, so you can tell them:
   in use shows as a chip at the search's start, and Backspace in an empty search removes it. Words narrow together, label first, then `keywords`, tags, people, description,
   forgiving a missing letter. The footer shows where the selected row is, then **Open ↵** ("Open Screen as Rehema" when
   found through a person) and **Actions ⌘K**: its states (or its screen), Pin, Peek this screen, Peek all found (⇧↵),
-  Copy link. ↑↓ move, Esc clears the search, then the filter, then closes. `#form` and `@rehema` in the search work as filters too. **Compact
+  Copy link. ↑↓ move, Esc clears the search, then the chips, then the filter, then closes. `#form` and `@rehema` in the search work as filters too.
+  **Modifiers** (a lexicon, no AI), taken out of the search words: `as <person | role>` (a name or slug's start, else
+  the people whose `role` says it: "as a visitor", "as tour operator"), `dark`, `light`, `sw`/`swahili`/`kiswahili`/`in
+  swahili`, `en`/`english`/`in english`, `on ipad`/`on tablet`, `on phone`/`on iphone`/`on android`, `on laptop`/`on
+  mac`/`on desktop`, `landscape`, `offline`/`no signal`, `online`, `tester`. "as" counts only when someone follows it;
+  a lone word some label starts ("light" with a Lighting screen) stays a search word. Each shows as a chip at the
+  search's start (dashed while being typed; lifted out of the text once a word follows it); Backspace in an empty
+  search removes the last. A role, or an unfinished "as reh", **fans out**: one row per person per screen that offers
+  them (`people`), the person on the right; a screen offering none of them isn't listed. ↵ opens the result with the
+  person, theme, language, device, signal and tester tools set as the View panel would (in place on this flow, else
+  remembered for the next page), and the footer says so: "Open Screen as Sofia · Dark · Swahili ↵". Letters in order
+  ("rjctd") only count for a word that fits nothing properly. **Compact
   search** (View panel) shows only the search box until something is typed. Off on a published copy (no server).
 - **On the board:** ⌘K, search, ⇧↵ makes the same peek of what it found (`POST /<project>/api/peek`).
 - **When:** whenever the conversation is about some screens across flows (what a change touches, the screens a

@@ -62,7 +62,9 @@ laptop sidebar. Serve it with `python3 -m http.server 8102 -d samples/screens`.
   `.flex/cache/`, so it's never committed; a note made on it goes to the screen's own flow.
 - **Command bar** (⌘/ on a flow review's home and flow pages): as Raycast, one ranked list of one-line results over
   flows, screens, states and people (⌘P filters to a kind, recent, a tag or a person), starting where you are (this screen's states, this flow's screens), a filter icon (its chip at the search's start), Pinned, a footer with Open ↵ and Actions ⌘K (states,
-  pin, peek, peek all, copy link). Tags (`"tags"` on a flow, screen or state; the project's own beside Flex's
+  pin, peek, peek all, copy link). Modifiers in the search (`as Sofia`, `as a visitor`, `dark`, `sw`, `on iPad`,
+  `offline`, `tester`) show as chips and ↵ opens the result with them set, as the View panel would; a role fans out one
+  row per person. Tags (`"tags"` on a flow, screen or state; the project's own beside Flex's
   defaults, in `project.json`) colour the filter and the canvas captions.
 - **Zoom** lives in the View panel (⌘+ ⌘− ⌘0 and pinching as before); **Compact search** there too.
 - **Device frame** (a toggle in the View panel's header row): off, each screen shows as the app's window alone, without the device's body, status

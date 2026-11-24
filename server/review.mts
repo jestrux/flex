@@ -502,7 +502,7 @@ const CMDK_CSS = `${TAG_CSS}
 .kx .kb{position:absolute;inset:0;background:rgba(14,13,18,.42);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
 .kc{position:relative;width:560px;max-width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:0 28px 70px rgba(0,0,0,.32);overflow:visible;display:flex;flex-direction:column;font:500 14px/1.4 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif}
 .ki{display:flex;align-items:center;gap:10px;padding:0 14px 0 16px;border-bottom:1px solid var(--line);border-radius:14px 14px 0 0}.ki>svg{flex:none;color:var(--sub)}
-.ki input{flex:1;min-width:0;border:0;background:none;outline:none;color:var(--ink);font:inherit;font-size:15.5px;padding:15px 0}.ki input::placeholder{color:var(--sub)}
+.ki input{flex:1;min-width:140px;border:0;background:none;outline:none;color:var(--ink);font:inherit;font-size:15.5px;padding:15px 0}.ki input::placeholder{color:var(--sub)}
 .kc kbd{font:600 10.5px/1 ui-monospace,Menlo,monospace;color:var(--sub);background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:3px 5px;min-width:18px;text-align:center;display:inline-block}
 .kl{max-height:60vh;overflow-y:auto;padding:2px 0 8px;overscroll-behavior:contain}
 .ks{display:flex;justify-content:space-between;align-items:baseline;padding:12px 16px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--sub)}
@@ -519,18 +519,23 @@ const CMDK_CSS = `${TAG_CSS}
 .kc mark{background:color-mix(in srgb,#f5b800 38%,transparent);color:inherit;border-radius:3px;padding:0 1px;margin:0 -1px}
 .kn0{padding:28px 16px;text-align:center;color:var(--sub)}
 .kf{display:flex;align-items:center;gap:2px;padding:6px 8px 6px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--sub);min-height:42px}
-.kf .kwhere{margin-right:8px;flex:1;min-width:0;display:flex;align-items:center;gap:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kf .kwhere svg{flex:none;width:14px;height:14px}.kf .kwhere i{font-style:normal;opacity:.6;margin:0 3px}
+.kf .kwhere{margin-right:8px;flex:1 1 0;min-width:0;display:flex;align-items:center;gap:7px;white-space:nowrap;overflow:hidden}.kf .kwhere svg{flex:none;width:14px;height:14px}.kf .kwhere i{font-style:normal;opacity:.6;margin:0 3px}
+.kf .kwhere>span{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kf .kmsg{color:var(--ink);font-weight:600}
-.kf .kact{flex:none;display:flex;align-items:center;gap:6px;border:0;background:none;color:var(--ink);font:inherit;font-weight:600;padding:4px 6px;border-radius:6px;cursor:pointer}.kf .kact:hover{background:var(--soft)}
+.kf .kact{flex:0 0 auto;max-width:64%;min-width:0;display:flex;align-items:center;gap:6px;border:0;background:none;color:var(--ink);font:inherit;font-weight:600;padding:4px 6px;border-radius:6px;cursor:pointer}.kf .kact:hover{background:var(--soft)}
+.kf .kact .kat{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kf .kact kbd{flex:none}
 .kf .kact.k2{color:var(--sub);font-weight:500}.kf .ksep{width:1px;height:16px;background:var(--line)}
 .kfil{flex:none;position:relative;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:0;background:none;color:var(--sub);border-radius:8px;cursor:pointer}
 .kfil:hover,.kfil[aria-expanded=true]{background:var(--soft);color:var(--ink)}.kfil.on{color:var(--ink)}.kfil svg{width:17px;height:17px}.kfdot{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--pin,#2f6bff);box-shadow:0 0 0 2px var(--panel)}.kfil .kdot{width:8px;height:8px;border-radius:50%;background:var(--tc);flex:none}
 .kdd{position:absolute;z-index:3;right:12px;top:52px;width:250px;max-height:340px;display:none;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,.2);overflow:hidden}.kdd.on{display:flex}
 .kdd input{border:0;border-bottom:1px solid var(--line);background:none;outline:none;color:var(--ink);font:inherit;font-size:13px;padding:10px 12px}
-.kdd .kdl{overflow-y:auto;padding:4px 0}.kdd .ks{padding:8px 12px 3px}
+.kdd .kdl{flex:1 1 auto;min-height:0;overflow-y:auto;padding:4px 0}.kdd .ks{padding:8px 12px 3px}
 .kdd button{display:flex;align-items:center;gap:8px;width:calc(100% - 8px);margin:0 4px;border:0;background:none;color:var(--ink);font:inherit;font-size:13px;text-align:left;padding:6px 8px;border-radius:6px;cursor:pointer}
 .kdd.kact2{top:auto;bottom:50px;right:10px;width:290px;max-height:min(380px,70vh)}.kdd.kact2 input{border-bottom:0;border-top:1px solid var(--line)}.kdd .kon kbd{margin-left:2px}
 .kscope{flex:none;display:none;align-items:center;gap:6px;max-width:46%;font-size:13px;font-weight:600;color:var(--ink);background:var(--soft);border-radius:6px;padding:4px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kscope.on{display:inline-flex}.kscope svg{width:13px;height:13px;color:var(--sub)}.kscope .kdot{width:8px;height:8px;border-radius:50%;background:var(--tc)}.kscope i{font-style:normal;color:var(--sub);margin:0 2px}
+.kmods{flex:0 1 auto;min-width:0;display:none;flex-wrap:wrap;align-items:center;gap:4px;padding:8px 0}.kmods.on{display:inline-flex}
+.kmod{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--ink);background:var(--soft);border:1px solid transparent;border-radius:999px;padding:2px 8px;white-space:nowrap;cursor:pointer}
+.kmod small{font-size:11px;font-weight:500;color:var(--sub)}.kmod.live{background:none;border-color:var(--line);border-style:dashed;cursor:default}.kmod:not(.live):hover{text-decoration:line-through}
 .kfil kbd{font:600 10px/1 ui-monospace,Menlo,monospace;color:var(--sub);background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:2px 4px;margin-left:-2px}
 .kc.kcompact .kl,.kc.kcompact .kf{display:none}.kc.kcompact .ki{border-bottom:0}
 .kr .kacc svg{width:13px;height:13px;color:var(--sub)}.kr .kcnt{font-size:12.5px;color:var(--sub);font-variant-numeric:tabular-nums}
@@ -559,12 +564,12 @@ const KCMDK=(function(ROOT,OFF){
     peek:SV('<path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>'),all:SV('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>'),link:SV('<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>'),open:SV('<path d="M5 12h13M13 6l6 6-6 6"/>')};
   const box=document.createElement("div");box.className="kx";
   box.innerHTML='<div class="kb"></div><div class="kc" role="dialog" aria-modal="true" aria-label="Search the board"><div class="ki">'+SV('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>').replace("<svg ",'<svg width="19" height="19" ')
-    +'<span class="kscope" title="The filter (Backspace removes it)"></span><input type="text" placeholder="Search flows, screens, states and people" autocomplete="off" spellcheck="false" aria-label="Search"><button class="kfil" aria-haspopup="listbox" aria-expanded="false" title="Filter (⌘P)" aria-label="Filter"></button></div>'
+    +'<span class="kscope" title="The filter (Backspace removes it)"></span><span class="kmods"></span><input type="text" placeholder="Search flows, screens, states and people" autocomplete="off" spellcheck="false" aria-label="Search"><button class="kfil" aria-haspopup="listbox" aria-expanded="false" title="Filter (⌘P)" aria-label="Filter"></button></div>'
     +'<div class="kdd" role="dialog" aria-label="Filter"><input type="text" placeholder="Show…" autocomplete="off" spellcheck="false"><div class="kdl" role="listbox"></div></div>'
     +'<div class="kdd kact2" role="dialog" aria-label="Actions"><div class="kdl" role="listbox"></div><input type="text" placeholder="Search actions…" autocomplete="off" spellcheck="false"></div>'
     +'<div class="kl" role="listbox"></div><div class="kf"><span class="kwhere"></span></div></div>';
   document.body.appendChild(box);
-  const inp=box.querySelector(".ki input"),list=box.querySelector(".kl"),foot=box.querySelector(".kf"),fil=box.querySelector(".kfil"),dd=box.querySelector(".kdd"),ddi=dd.querySelector("input"),ddl=dd.querySelector(".kdl"),ad=box.querySelector(".kact2"),adi=ad.querySelector("input"),adl=ad.querySelector(".kdl");
+  const inp=box.querySelector(".ki input"),modsEl=box.querySelector(".kmods"),list=box.querySelector(".kl"),foot=box.querySelector(".kf"),fil=box.querySelector(".kfil"),dd=box.querySelector(".kdd"),ddi=dd.querySelector("input"),ddl=dd.querySelector(".kdl"),ad=box.querySelector(".kact2"),adi=ad.querySelector("input"),adl=ad.querySelector(".kdl");
   let D=null,Q="",SEL=0,SEL0=false,ROWS=[],ALL=[],W=[],T=0,FETCH=null;
   /* the footer says what ↵ does to the selected row (as Raycast's action bar); a message, when there is one, instead */
   let MSG="";const say=(t)=>{MSG=t||"";foot.innerHTML=footer()};
@@ -581,7 +586,8 @@ const KCMDK=(function(ROOT,OFF){
   function drawScope(){}
   const pname=(p)=>((D&&D.people[p])||{}).name||p;
   /* how well a word fits a text: 1 all of it, .9 its start, .75 a word's start, .5 inside a word, .25 its letters in
-     order from a word's start (seq: labels only); a word of one letter only at a start */
+     order from a word's start (seq: labels only, and only for a word that fits nothing properly anywhere); a word of
+     one letter only at a start */
   function fit(w,t,seq){t=low(t);if(!t||!w)return 0;if(t===w)return 1;let b=0;
     for(let i=t.indexOf(w);i>=0;i=t.indexOf(w,i+1)){const x=i===0?.9:/[\p{L}\p{N}]/u.test(t[i-1])?(w.length>1?.5:0):.75;if(x>b)b=x;if(b>=.75)break}
     return b||!seq||w.length<2?b:seqAt(w,t)?.25:0}
@@ -589,25 +595,63 @@ const KCMDK=(function(ROOT,OFF){
      where they are, or null */
   function seqAt(w,t){for(let i=0;i<t.length;i++){if(t[i]!==w[0]||(i>0&&/[\p{L}\p{N}]/u.test(t[i-1])))continue;const ks=[i];for(let k=i+1;k<t.length&&ks.length<w.length;k++)if(t[k]===w[ks.length])ks.push(k);if(ks.length===w.length)return ks}return null}
   const tagLabel=(t)=>((D.tags||{})[t]||{}).label||t;
-  /** the query: words (AND), #tags (AND, a tag's start will do), @people (a word is only ever a word: ⌘P filters) */
+  /* the modifiers (as Kinpay's command bar: a lexicon, no AI), taken out of the search words and applied on ↵ as the
+     View panel would: "as <person | role>", dark/light, a language, a device, offline, tester. Each pattern is tried on
+     one to three words from where it starts, the longest first (so "in swahili" and "on a phone" are one) */
+  const LEX=[[/^dark$/,"theme","dark","Dark"],[/^light$/,"theme","light","Light"],
+    [/^(in )?(swahili|kiswahili)$|^sw$/,"lang","sw","Swahili"],[/^(in )?english$|^en$/,"lang","en","English"],
+    [/^on (an? |the )?(ipad|tablet)$/,"dev","tablet","Tablet"],[/^on (an? |the )?(phone|iphone|android)$/,"dev","phone","Phone"],
+    [/^on (an? |the )?(laptop|mac|macbook|desktop)$/,"dev","laptop","Laptop"],[/^(in )?landscape$/,"dev","land","Landscape"],
+    [/^offline$|^no signal$/,"signal",0,"Offline"],[/^online$/,"signal",1,"Online"],[/^tester$/,"tester",1,"Tester tools"]];
+  const MODK=["who","theme","lang","dev","signal","tester"];
+  /* "as …": the people whose name or slug it starts (a word's start will do), else those whose role says it ("visitor",
+     "tour operator"; a plural too); only people some screen offers */
+  function whoFor(s){const ps=Object.keys(D.people||{}).filter(p=>D.items.some(it=>it.people.includes(p)));
+    const by=ps.filter(p=>low(p).startsWith(s)||fit(s,pname(p))>=.75);if(by.length)return by;
+    const role=(p)=>((D.people[p]||{}).role)||"";return ps.filter(p=>fit(s,role(p))>=.75||(s.length>3&&/s$/.test(s)&&fit(s.slice(0,-1),role(p))>=.75))}
+  /* the modifiers in a query: each with the words it took (from, to: token indices). "as" is one only when what follows
+     it is someone (an article skipped); a lone lexicon word that some label starts a word with stays a search word, so
+     "light" alone still finds "Lighting" */
+  function mods(toks){const out=[];
+    for(let i=0;i<toks.length;i++){const t=toks[i];
+      if(t==="as"&&i+1<toks.length){let j=i+1;if(/^(a|an|the)$/.test(toks[j])&&j+1<toks.length)j++;
+        for(let n=Math.min(3,toks.length-j);n>0;n--){const ph=toks.slice(j,j+n).join(" "),v=whoFor(ph);
+          if(v.length){out.push({k:"who",v,ph,from:i,to:j+n});i=j+n-1;break}}continue}
+      let hit=null;for(let n=Math.min(3,toks.length-i);n>0&&!hit;n--){const ph=toks.slice(i,i+n).join(" ");for(const x of LEX)if(x[0].test(ph)){hit={k:x[1],v:x[2],label:x[3],from:i,to:i+n};break}}
+      if(hit){out.push(hit);i=hit.to-1}}
+    if(out.length===1&&toks.length===1&&out[0].k!=="who"&&!Object.keys(MODS).length&&D.items.some(it=>fit(toks[0],it.label)>=.75))return [];
+    return out}
+  /* the chips lifted out of the search (once a word follows them): kept until Backspace in an empty search or a click */
+  let MODS={},MODNOW={};
+  const modLabel=(m)=>m.k!=="who"?m.label:m.v.length===1?"as "+pname(m.v[0]).split(/\s+/)[0]:"as "+m.ph;
+  /** the query: words (AND), #tags (AND, a tag's start will do), @people (a word is only ever a word: ⌘P filters), and
+   *  the modifiers (P.mods: the chips and those still being typed; P.live: the latter) */
   function parse(q){const P={tags:[],who:[],words:[]};
-    for(const tok of q.trim().split(/\s+/).filter(Boolean)){const l=low(tok);if(l[0]==="#"&&l.length>1)P.tags.push(l.slice(1));else if(l[0]==="@"&&l.length>1)P.who.push(l.slice(1));else if(l!=="#"&&l!=="@")P.words.push(l)}
+    const toks0=q.trim().split(/\s+/).filter(Boolean),ms=D?mods(toks0.map(low)):[],gone=new Set();ms.forEach(m=>{for(let k=m.from;k<m.to;k++)gone.add(k)});
+    P.live=ms;P.mods=Object.assign({},MODS);ms.forEach(m=>{P.mods[m.k]=m});
+    for(const tok of toks0.filter((x,k)=>!gone.has(k))){const l=low(tok);if(l[0]==="#"&&l.length>1)P.tags.push(l.slice(1));else if(l[0]==="@"&&l.length>1)P.who.push(l.slice(1));else if(l!=="#"&&l!=="@")P.words.push(l)}
     // @x: the people whose slug or name starts so
     P.whoSets=P.who.map(x=>Object.keys(D.people||{}).filter(p=>low(p).startsWith(x)||fit(x,pname(p))>=.75));
+    // loose letters-in-order only for a word that fits nothing properly anywhere ("rehema" finds Rehema's screens, not
+    // "Rejected, with remarks")
+    P.loose=new Set(D?P.words.filter(w=>!D.items.some(it=>!it.temp&&best(it,w,false).b>0)):[]);
+    P.any=!!(P.words.length||P.tags.length||P.who.length||P.mods.who);
     return P}
   const hasTag=(it,x,exact)=>it.tags.some(t=>low(t)===x||low(tagLabel(t))===x||(!exact&&(low(t).startsWith(x)||low(tagLabel(t)).startsWith(x))));
   /** an item's score for the query, or null: each word must fit somewhere (label > keywords > its name in the flow file
    *  > tags > people > the path > description); the label being the whole query, then its start, comes
    *  first; a screen seen through another flow's "use", and the peek, rank a little lower than the screen at home */
+  /* a word's best fit in an item, and the person it fit if it was one of theirs */
+  function best(it,w,seq){let b=0,by=null;
+    const tr=(v,wt,seq,min,p)=>{const f=fit(w,v,seq);if(min&&f<min)return;const x=f*wt;if(x>b){b=x;by=p||null}};
+    tr(it.label,100,seq);tr(it.kind==="state"?it.state:it.kind==="screen"?it.screen:it.flow,60);for(const k of it.keywords)tr(k,70);for(const t of it.tags){tr(t,50);tr(tagLabel(t),50)}
+    for(const p of it.people){tr(pname(p),40,false,.75,p);tr(p,40,false,.9,p)}
+    tr(it.crumbs.join(" "),15);tr(it.description,20);return {b,by}}
   function score(it,P){
     if(!P.tags.every(x=>hasTag(it,x,P.exact)))return null;
     let who=null;for(const set of P.whoSets){const p=it.people.find(x=>set.includes(x));if(!p)return null;who=p}
     let s=0;
-    for(const w of P.words){let b=0,by=null;
-      const tr=(v,wt,seq,min,p)=>{const f=fit(w,v,seq);if(min&&f<min)return;const x=f*wt;if(x>b){b=x;by=p||null}};
-      tr(it.label,100,true);tr(it.kind==="state"?it.state:it.kind==="screen"?it.screen:it.flow,60);for(const k of it.keywords)tr(k,70);for(const t of it.tags){tr(t,50);tr(tagLabel(t),50)}
-      for(const p of it.people){tr(pname(p),40,false,.75,p);tr(p,40,false,.9,p)}
-      tr(it.crumbs.join(" "),15);tr(it.description,20);
+    for(const w of P.words){const {b,by}=best(it,w,P.loose.has(w));
       if(!b)return null;s+=b;if(by&&!who)who=by}
     const q=P.words.join(" "),L=low(it.label);
     if(q){if(L===q)s+=300;else if(L.startsWith(q))s+=150;if(it.keywords.some(k=>low(k)===q))s+=120}
@@ -617,7 +661,7 @@ const KCMDK=(function(ROOT,OFF){
   function hl(t,ws,seq){t=String(t==null?"":t);const L=low(t),on=[];
     for(const w of ws){if(!w)continue;let at=-1;for(let k=L.indexOf(w);k>=0;k=L.indexOf(w,k+1)){if(k===0||!/[\p{L}\p{N}]/u.test(L[k-1])){at=k;break}if(at<0)at=k}
       if(at>=0){for(let k=at;k<at+w.length;k++)on[k]=1;continue}
-      if(seq)(seqAt(w,L)||[]).forEach(k=>{on[k]=1})}
+      if(seq&&(seq===true||seq.has(w)))(seqAt(w,L)||[]).forEach(k=>{on[k]=1})}
     let o="",m=false;for(let k=0;k<t.length;k++){const x=!!on[k];if(x!==m){o+=m?"</mark>":"<mark>";m=x}o+=esc(t[k])}return o+(m?"</mark>":"")}
   /* a line of the description: around the first word found in it */
   function snip(d,ws){d=String(d||"").replace(/\s+/g," ").trim();if(!d)return "";const L=low(d);let at=-1;for(const w of ws){const i=L.indexOf(w);if(i>=0&&(at<0||i<at))at=i}
@@ -641,9 +685,12 @@ const KCMDK=(function(ROOT,OFF){
     const asWho=FILT&&FILT.k==="person"?FILT.v:null;
     // nearer things first: this screen's own, then this flow's
     const near=(it)=>!AT||!SCOPE?1:SCOPE>1&&AT.screen&&it.flow===AT.screen.flow&&it.screen===AT.screen.screen?1.35:it.flow===AT.flow||(AT.screen&&it.flow===AT.screen.flow)?1.15:1;
-    if(FILT&&FILT.k==="recent"){W=[];const P=Q.trim()?parse(Q):null;if(P)W=P.words;
-      ALL=recents().map(x=>({it:byKey.get(x.k),who:x.who})).filter(x=>x.it&&(!P||score(x.it,P)));if(ALL.length)secs.push([null,ALL])}
-    else if(!Q.trim()){W=[];
+    const P=parse(Q);MODNOW=P.mods;LW=P.loose;drawMods(P.live);
+    // "as …": the rows it fans out to, one per person it names that the screen offers (none offered, not listed)
+    const AS=P.mods.who?P.mods.who.v:null,fan=(it,s,who)=>AS?AS.filter(p=>it.people.includes(p)).map(p=>({it,s,who:p,as:true})):[{it,s,who}];
+    if(FILT&&FILT.k==="recent"){W=P.words;
+      ALL=recents().map(x=>({it:byKey.get(x.k),who:x.who})).filter(x=>x.it&&(!P.any||score(x.it,P))).flatMap(x=>fan(x.it,0,x.who));if(ALL.length)secs.push([null,ALL])}
+    else if(!P.any){W=[];
       // nothing typed: outward from where the search starts (this screen and its states, this flow's other screens),
       // then Pinned and the flows; filtered, all of a kind, a tag's or a person's
       const pins=FILT?[]:pinned().map(k=>byKey.get(k)).filter(Boolean).map(it=>({it,pin:true}));
@@ -655,22 +702,37 @@ const KCMDK=(function(ROOT,OFF){
       if(pins.length)secs.push(["Pinned",pins]);
       if(ALL.length)secs.push([FILT?null:"Flows",ALL.slice(0,300)])}
     else{
-      const P=parse(Q);W=P.words;
-      const hits=[];for(const it of D.items){if(!ok(it))continue;const r=score(it,P);if(r)hits.push({it,s:r.s*near(it),who:r.who||asWho})}
+      W=P.words;
+      const hits=[];for(const it of D.items){if(!ok(it))continue;const r=score(it,P);if(r)hits.push(...fan(it,r.s*near(it),r.who||asWho))}
       // people whose name the words are: ↵ keeps what is seen as them
-      if(!FILT&&P.words.length&&!P.who.length)for(const p of Object.keys(D.people||{})){if(!P.words.every(w=>fit(w,pname(p))>=.75||low(p).startsWith(w)))continue;
+      if(!FILT&&P.words.length&&!P.who.length&&!AS)for(const p of Object.keys(D.people||{})){if(!P.words.every(w=>fit(w,pname(p))>=.75||low(p).startsWith(w)))continue;
         const n=D.items.filter(it=>it.kind!=="flow"&&!it.via&&it.people.includes(p)).length;if(n)hits.push({person:p,n,s:400})}
       hits.sort((a,b)=>b.s-a.s||((a.it&&a.it.i)||0)-((b.it&&b.it.i)||0));ALL=hits.filter(h=>h.it);
       if(hits.length)secs.push([null,hits.slice(0,60)])}
     let html="";
     secs.forEach(([t,rows,x],si)=>{if(t)html+='<div class="ks"><span>'+t+"</span>"+(x||"")+"</div>";for(const r of rows){r.sec=si;r.i=ROWS.length;ROWS.push(r);html+=row(r)}});
-    if(!ROWS.length)html='<div class="kn0">'+(Q.trim()?"Nothing matches “"+esc(Q.trim())+"”":FILT&&FILT.k==="recent"?"Nothing opened yet":"Nothing here")+(FILT?" in "+esc(filName(FILT)):"")+"</div>";
-    box.querySelector(".kc").classList.toggle("kcompact",kmem("cmdk-compact")==="1"&&!Q.trim()&&!FILT);
+    if(!ROWS.length)html='<div class="kn0">'+(AS?(P.words.length?"Nothing matches “"+esc(P.words.join(" "))+"”":"Nothing")+" "+esc(modLabel(P.mods.who)):Q.trim()?"Nothing matches “"+esc(Q.trim())+"”":FILT&&FILT.k==="recent"?"Nothing opened yet":"Nothing here")+(FILT?" in "+esc(filName(FILT)):"")+"</div>";
+    box.querySelector(".kc").classList.toggle("kcompact",kmem("cmdk-compact")==="1"&&!Q.trim()&&!Object.keys(MODS).length&&!FILT);
     // ↵ starts on the best match: the first row
     if(Q.trim()&&!SEL0)SEL=0;
     list.innerHTML=html;if(SEL>=ROWS.length)SEL=0;mark(true);
   }
   const KIND={flow:"Flow",screen:"Screen",state:"State",person:"Person"};
+  let LW=new Set();
+  /* the chips at the search's start: those lifted (click: removed) and, dashed, those still being typed */
+  function drawMods(live){const lv=new Set(live.map(m=>m.k)),ms=[...MODK.filter(k=>MODS[k]&&!lv.has(k)).map(k=>MODS[k]),...live];
+    modsEl.classList.toggle("on",ms.length>0);
+    modsEl.innerHTML=ms.map(m=>'<span class="kmod'+(MODS[m.k]===m?"":" live")+'" data-k="'+m.k+'"'+(MODS[m.k]===m?' title="Remove"':"")+">"+(m.k==="who"&&m.v.length===1?IC.person.replace("<svg ",'<svg width="11" height="11" '):"")+esc(modLabel(m))+(m.k==="who"&&m.v.length>1?"<small>"+m.v.length+"</small>":"")+"</span>").join("")}
+  modsEl.addEventListener("mousedown",(e)=>{const c=e.target.closest(".kmod:not(.live)");if(!c)return;e.preventDefault();delete MODS[c.dataset.k];SEL=0;SEL0=false;run();inp.focus()});
+  /* a modifier becomes a chip once a word follows it (a lexicon word: once a space does), the caret at the end */
+  function lift(){const v=inp.value;if(!D||inp.selectionStart!==v.length)return false;
+    const toks=v.trim().split(/\s+/).filter(Boolean),ms=mods(toks.map(low)),sp=/\s$/.test(v);
+    const done=ms.filter(m=>m.to<toks.length||(sp&&m.k!=="who"));if(!done.length)return false;
+    const gone=new Set();done.forEach(m=>{MODS[m.k]=m;for(let k=m.from;k<m.to;k++)gone.add(k)});
+    const rest=toks.filter((x,k)=>!gone.has(k)).join(" ");inp.value=rest+(rest&&sp?" ":"");return true}
+  /* what ↵ sets besides the person (the View panel's settings), and how the footer says it */
+  const viewOf=(m)=>({theme:m.theme?m.theme.v:null,lang:m.lang?m.lang.v:null,dev:m.dev?m.dev.v:null,signal:m.signal?m.signal.v:null,tester:m.tester?1:0});
+  const modTail=()=>MODK.slice(1).filter(k=>MODNOW[k]).map(k=>MODNOW[k].label);
   /* where a result is: its flow (a screen), its screen (a state), its screen count (a flow); in full for the footer */
   function whereOf(r,full){const it=r.it;
     if(it.kind==="flow")return full?esc(it.label):"";
@@ -683,31 +745,35 @@ const KCMDK=(function(ROOT,OFF){
   /* a result on one line (as Raycast): its icon, its name, where it is (not under a heading that already says so); on
      the right a pin when pinned and its count */
   function row(r){
-    const cnt=countOf(r),tail=(r.it&&isPinned(r.it)?IC.pin:"")+(cnt!==""?'<span class="kcnt">'+cnt+"</span>":"");
+    const cnt=countOf(r),tail=(r.it&&isPinned(r.it)?IC.pin:"")+(r.as?'<span class="kas">'+esc(pname(r.who))+"</span>":cnt!==""?'<span class="kcnt">'+cnt+"</span>":"");
     if(r.person){const p=D.people[r.person]||{};return '<button class="kr" role="option" data-i="'+r.i+'"><span class="kic">'+IC.person+"</span><b>"+hl(pname(r.person),W)+'</b><span class="kp">'+esc(p.role||"")+'</span><span class="kacc">'+tail+"</span></button>"}
     const it=r.it;
-    return '<button class="kr" role="option" data-i="'+r.i+'"><span class="kic">'+IC[it.kind]+"</span><b>"+hl(it.label,W,true)+'</b><span class="kp">'+(r.ctx?"":whereOf(r))+"</span>"
+    return '<button class="kr" role="option" data-i="'+r.i+'"><span class="kic">'+IC[it.kind]+"</span><b>"+hl(it.label,W,LW)+'</b><span class="kp">'+(r.ctx?"":whereOf(r))+"</span>"
       +(tail?'<span class="kacc">'+tail+"</span>":"")+"</button>"}
   const tagColor=(t)=>{const d=(D.tags||{})[t];return d&&/^(#[0-9a-f]{3,8}|[a-z]+)$/i.test(d.color||"")?d.color:"#8a8794"};
   /* the footer (as Raycast's action bar): where the selected row is, then what ↵ does to it and its Actions (⌘K) */
   function footer(){const r=ROWS[SEL];
     const left=MSG?'<span class="kmsg">'+esc(MSG)+"</span>":r?(r.person?IC.person+"<span>"+esc(pname(r.person))+"</span>":IC[r.it.kind]+"<span>"+whereOf(r,true)+"</span>"):"";
-    return '<span class="kwhere">'+left+"</span>"+(r?'<button class="kact" data-act="open">'+primary(r)+" <kbd>↵</kbd></button>"
+    return '<span class="kwhere">'+left+"</span>"+(r?'<button class="kact" data-act="open"><span class="kat">'+esc(primary(r))+"</span><kbd>↵</kbd></button>"
       +(r.person?"":'<button class="kact k2" data-act="actions">Actions <kbd>⌘</kbd><kbd>K</kbd></button>'):"")}
-  const primary=(r)=>r.person?"Show what they see":"Open "+KIND[r.it.kind]+(r.who?" as "+esc(pname(r.who).split(/\s+/)[0]):"");
+  // "Open Screen as Sofia · Dark · Swahili"
+  const primary=(r)=>{if(r.person)return "Show what they see";const t=modTail();return "Open "+KIND[r.it.kind]+(r.who?" as "+pname(r.who).split(/\s+/)[0]:"")+(t.length?" · "+t.join(" · "):"")};
   foot.addEventListener("click",(e)=>{const b=e.target.closest("[data-act]");if(!b)return;if(b.dataset.act==="open")pick(ROWS[SEL]);else openActions()});
   function mark(scroll){if(!MSG)foot.innerHTML=footer();list.querySelectorAll(".kr").forEach(b=>{const on=+b.dataset.i===SEL;b.setAttribute("aria-selected",on);
     if(on&&scroll){const r=ROWS[SEL],first=r&&(SEL===0||ROWS[SEL-1].sec!==r.sec);(first&&b.previousElementSibling||b).scrollIntoView({block:"nearest"});if(first)b.scrollIntoView({block:"nearest"})}})}
   // hovering only marks a row; the selection (what ↵ opens, what the footer says) moves with the keys or a click
   list.addEventListener("click",(e)=>{const b=e.target.closest(".kr");if(b)pick(ROWS[+b.dataset.i])});
   /* open a result: a flow's page, a screen on all its states, a state on its own (in place on this flow's page, else by
-     its link); a person's result also signs the board in as them for that flow (what the page remembers) */
+     its link); a person's result also signs the board in as them for that flow (what the page remembers), and the
+     modifiers set the View panel's theme, language, devices, signal and tester tools: in place through the page's own
+     setters, else as what the next page remembers (the keys the View panel keeps) */
   function pick(r){if(!r)return;
     if(r.person){inp.value="";Q="";setFilter({k:"person",v:r.person});return}
-    const it=r.it,who=r.who||null;remember(it,who);
+    const it=r.it,who=r.who||null,o=viewOf(MODNOW);remember(it,who);
     if(who)kmem("person:"+it.flow,who);
     if(it.tester)kmem("tester","1");
-    if(typeof cmdkHere==="function"&&cmdkHere(it,who)){close();return}
+    if(typeof cmdkHere==="function"&&cmdkHere(it,who,o)){close();return}
+    if(o.theme)kmem("theme",o.theme);if(o.lang)kmem("lang",o.lang);if(o.dev)kmem("devices",o.dev);if(o.signal!==null)kmem("signal",String(o.signal));if(o.tester)kmem("tester","1");
     location.href=it.href}
   /* ⇧↵: a peek of every screen and state found (each once, from its own flow; a screen's states found together as one
      ref), as flex review peek makes one, then opened */
@@ -719,16 +785,17 @@ const KCMDK=(function(ROOT,OFF){
   async function peek(refs,what){say("Making a peek of "+refs.length+"…");
     try{const r=await fetch(ROOT+"/api/peek",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({refs,title:"⌘/: "+what})}),j=await r.json();
       if(!r.ok)throw new Error(j.error||"HTTP "+r.status);location.href=j.href}catch(e){say("No peek: "+e.message)}}
-  inp.addEventListener("input",()=>{clearTimeout(T);T=setTimeout(()=>{Q=inp.value;SEL=0;SEL0=false;say("");run()},80)});
+  inp.addEventListener("input",()=>{lift();clearTimeout(T);T=setTimeout(()=>{Q=inp.value;SEL=0;SEL0=false;say("");run()},80)});
   inp.addEventListener("keydown",(e)=>{
     if((e.metaKey||e.ctrlKey)&&low(e.key)==="p"){e.preventDefault();openFilter();return}
     if((e.metaKey||e.ctrlKey)&&low(e.key)==="k"){e.preventDefault();openActions();return}
-    if(e.key==="Backspace"&&!inp.value&&FILT){e.preventDefault();setFilter(null);return}
+    // Backspace in an empty search: the last chip (the modifiers, then the filter)
+    if(e.key==="Backspace"&&!inp.value){const k=[...MODK].reverse().find(x=>MODS[x]);if(k){e.preventDefault();delete MODS[k];SEL=0;SEL0=false;run();return}if(FILT){e.preventDefault();setFilter(null);return}}
     if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(!ROWS.length)return;const d=e.key==="ArrowDown"?1:-1;
       if(e.altKey){const st=ROWS.filter((r,i)=>i===0||ROWS[i-1].sec!==r.sec).map(r=>r.i);SEL=d>0?(st.find(s=>s>SEL)??st[0]):([...st].reverse().find(s=>s<SEL)??st[st.length-1])}
       else SEL=(SEL+d+ROWS.length)%ROWS.length;SEL0=true;mark(true);return}
     if(e.key==="Enter"){e.preventDefault();if(Q!==inp.value){clearTimeout(T);Q=inp.value;SEL=0;SEL0=false;run()}if(e.shiftKey)peekAll();else pick(ROWS[SEL]);return}
-    if(e.key==="Escape"){e.preventDefault();if(inp.value){inp.value="";Q="";SEL=0;SEL0=false;say("");run()}else if(FILT)setFilter(null);else close()}});
+    if(e.key==="Escape"){e.preventDefault();if(inp.value){inp.value="";Q="";SEL=0;SEL0=false;say("");run()}else if(Object.keys(MODS).length){MODS={};SEL=0;run()}else if(FILT)setFilter(null);else close()}});
   /* ⌘P: the filter, as Raycast's dropdown beside the search: a kind, a tag (the project's colours) or a person; typing
      narrows the list, ↵ picks, Esc goes back to the search. Backspace in an empty search clears it */
   const KICON={flow:IC.flow,screen:IC.screen,state:IC.state};
@@ -745,8 +812,16 @@ const KCMDK=(function(ROOT,OFF){
     const s=ddl.querySelector('[aria-selected="true"]');if(s)s.scrollIntoView({block:"nearest"})}
   function drawFilBtn(){fil.innerHTML=SV('<path d="M3.5 6h17M7 12h10M10 18h4"/>')+(FILT?'<span class="kfdot"></span>':"");fil.classList.toggle("on",!!FILT);
     scopeEl.classList.toggle("on",!!FILT);scopeEl.innerHTML=FILT?(FILT.k==="tag"?'<span class="kdot" style="--tc:'+tagColor(FILT.v)+'"></span>':FILT.k==="person"?IC.person:FILT.k==="recent"?IC.recent:IC[FILT.v]||"")+"<span>"+esc(filName(FILT))+"</span>":""}
-  function openFilter(){if(!D)return;ad.classList.remove("on");dd.classList.add("on");fil.setAttribute("aria-expanded","true");ddi.value="";DSEL=0;drawFil();ddi.focus()}
-  function closeFilter(quiet){dd.classList.remove("on");fil.setAttribute("aria-expanded","false");if(!quiet)inp.focus()}
+  /* a dropdown kept inside the card (it scrolls instead): the actions above the footer, the filter below the search
+     (and its chips); a card too short for it (one result) grows its list while it is open */
+  const cap=(el)=>{const c=box.querySelector(".kc"),ki=box.querySelector(".ki");list.style.minHeight="";el.style.maxHeight="";
+    if(el===dd)dd.style.top=ki.offsetHeight+4+"px";
+    const top=el===ad?foot.offsetHeight+8:ki.offsetHeight+4+foot.offsetHeight,want=el.scrollHeight;
+    if(c.clientHeight-top-8<want)list.style.minHeight=Math.min(list.offsetHeight+want-(c.clientHeight-top-8),innerHeight*.6)+"px";
+    el.style.maxHeight=Math.min(want,c.clientHeight-top-8)+"px"};
+  const uncap=()=>{list.style.minHeight=""};
+  function openFilter(){if(!D)return;ad.classList.remove("on");dd.classList.add("on");fil.setAttribute("aria-expanded","true");ddi.value="";DSEL=0;drawFil();cap(dd);ddi.focus()}
+  function closeFilter(quiet){dd.classList.remove("on");uncap();fil.setAttribute("aria-expanded","false");if(!quiet)inp.focus()}
   function setFilter(f){FILT=f&&f.k?{k:f.k,v:f.v||null}:null;drawFilBtn();closeFilter();SEL=0;SEL0=false;run()}
   fil.addEventListener("click",(e)=>{e.preventDefault();dd.classList.contains("on")?closeFilter():openFilter()});
   ddi.addEventListener("input",()=>{DSEL=0;drawFil()});
@@ -774,8 +849,8 @@ const KCMDK=(function(ROOT,OFF){
     return a}
   function drawActions(){const q=low(adi.value.trim()),r=ROWS[SEL];AROWS=r?actionsFor(r).filter(a=>!q||low(a.label).includes(q)):[];if(ASEL>=AROWS.length)ASEL=0;
     adl.innerHTML=AROWS.map((a,i)=>'<button role="option" data-a="'+i+'" aria-selected="'+(i===ASEL)+'">'+a.icon+"<span>"+esc(a.label)+"</span>"+(a.key?'<span class="kon">'+a.key.split("").map(k=>"<kbd>"+k+"</kbd>").join("")+"</span>":"")+"</button>").join("")||'<div class="kn0">No such action</div>'}
-  function openActions(){if(!ROWS[SEL]||ROWS[SEL].person)return;closeFilter(true);ad.classList.add("on");adi.value="";ASEL=0;drawActions();adi.focus()}
-  function closeActions(){ad.classList.remove("on");inp.focus()}
+  function openActions(){if(!ROWS[SEL]||ROWS[SEL].person)return;closeFilter(true);ad.classList.add("on");adi.value="";ASEL=0;drawActions();cap(ad);adi.focus()}
+  function closeActions(){ad.classList.remove("on");uncap();inp.focus()}
   adi.addEventListener("input",()=>{ASEL=0;drawActions()});
   adi.addEventListener("keydown",(e)=>{
     if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(AROWS.length){ASEL=(ASEL+(e.key==="ArrowDown"?1:-1)+AROWS.length)%AROWS.length;drawActions()}return}
@@ -790,8 +865,8 @@ const KCMDK=(function(ROOT,OFF){
   function open(){if(isOpen())return;
     // whatever else is open on the page (a picker, a panel, a note's thread) closes first
     try{if(typeof closeMenu==="function")closeMenu();if(typeof drop==="function")drop(null);if(typeof THREAD!=="undefined"&&THREAD&&typeof closeThread==="function")closeThread()}catch{}
-    box.classList.add("on");inp.value="";Q="";SEL=0;SEL0=false;SCOPE=-1;AT=null;say("");run();load();setTimeout(()=>inp.focus(),0)}
-  function close(){box.classList.remove("on");ad.classList.remove("on");dd.classList.remove("on");fil.setAttribute("aria-expanded","false");clearTimeout(T);inp.blur()}
+    box.classList.add("on");inp.value="";Q="";MODS={};SEL=0;SEL0=false;SCOPE=-1;AT=null;say("");run();load();setTimeout(()=>inp.focus(),0)}
+  function close(){box.classList.remove("on");ad.classList.remove("on");uncap();dd.classList.remove("on");fil.setAttribute("aria-expanded","false");clearTimeout(T);inp.blur()}
   const toggle=()=>isOpen()?close():open();
   addEventListener("keydown",(e)=>{if((e.metaKey||e.ctrlKey)&&!e.altKey&&!e.shiftKey&&e.key==="/"){e.preventDefault();e.stopImmediatePropagation();toggle()}},true);
   if(btn)btn.onclick=()=>open();
@@ -1019,8 +1094,8 @@ function testerFilter(){SCREENS.length=0;SCREENS.push(...ALLSCREENS.filter(s=>TE
 testerFilter();relink();
 function setLang(l,quiet){LANG=l;mem("lang",l);relink();langSeg();if(!quiet)go()}
 function setMode(m){MODE=m;mem("mode",m);cookie();relink();modeSeg();go()}
-function setTester(t){TESTER=t;mem("tester",String(t));testerFilter();relink();modeSeg();go()}
-function setSignal(v){SIGNAL=v;mem("signal",String(v));relink();sigSeg();go()}
+function setTester(t,quiet){TESTER=t;mem("tester",String(t));testerFilter();relink();modeSeg();if(!quiet)go()}
+function setSignal(v,quiet){SIGNAL=v;mem("signal",String(v));relink();sigSeg();if(!quiet)go()}
 function sigSeg(){const b=document.querySelector("#nsignal button");b.setAttribute("aria-pressed",!!SIGNAL);b.innerHTML=WIFI(!!SIGNAL);b.title=SIGNAL?"Signal on (click: every frame offline)":"No signal (click: back online)";b.setAttribute("aria-label",b.title);b.onclick=()=>setSignal(SIGNAL?0:1)}
 const envLabel=(k)=>k==="static"||k==="demo"||!k?"Static":(ENVS.find(e=>e.key===k)||{label:k}).label;
 function modeSeg(){seg(document.getElementById("nmodes"),[["static","Static"],...ENVS.map(e=>[e.key,e.label])],(x)=>x[0]===MODE,(x)=>setMode(x[0]),(x)=>'<span class="ic">'+String(x[1]).replace(/</g,"&lt;")+"</span>");
@@ -1499,10 +1574,17 @@ CHIPS=(ts)=>ts&&ts.length?'<span class="ftags">'+ts.map(tagChip).join("")+"</spa
    for and with tester tools on for a tester-only one; anything else it opens by its link */
 /* where the board is, for ⌘/ to start from: this flow, the screen open (and its state) */
 function cmdkCtx(){const one=S.screens==="one";return {flow:NFLOW,screen:one?S.screen:null,state:one&&S.stmode!=="all"?S.state||null:null}}
-function cmdkHere(it,who){if(it.flow!==NFLOW||STATIC)return false;
+/* o: what ⌘/'s modifiers set, as the View panel would (theme, lang, dev: a device category, signal, tester); each
+   setter quiet, so the page draws once, at the end (go remembers devices, theme and language) */
+function cmdkHere(it,who,o){if(it.flow!==NFLOW||STATIC)return false;
   if(it.kind!=="flow"&&!ALLSCREENS.includes(it.screen))return false;
+  o=o||{};
+  if(o.theme&&THEMES.includes(o.theme))S.theme=o.theme;
+  if(o.dev&&CATS.some(x=>x.c===o.dev))S.devs=new Set([o.dev]);
+  if(o.lang&&o.lang!==LANG&&LANGS.some(x=>x[0]===o.lang))setLang(o.lang,true);
+  if(o.signal!=null&&o.signal!==SIGNAL)setSignal(o.signal,true);
   if(who&&who!==PERSON){PERSON=who;mem("person:"+NFLOW,PERSON);relink()}
-  if(it.tester&&!TESTER){TESTER=1;mem("tester","1");testerFilter();relink();modeSeg()}
+  if((it.tester||o.tester)&&!TESTER)setTester(1,true);
   if(it.kind==="flow"){S.screens="all";S.sub="";go();return true}
   if(it.kind==="screen"){openScreen(it.screen);return true}
   S.screen=it.screen;S.sub=grp(it.screen);S.state=it.state;S.screens="one";S.stmode="one";go();return true}
