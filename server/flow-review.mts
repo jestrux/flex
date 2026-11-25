@@ -1746,6 +1746,13 @@ async function resnapRun() {
   if (RFLOW && !fs.length) fail(`no flow ${RFLOW} in ${target}`);
   WORKERS = Math.max(1, +(opt("--jobs") ?? 4));
   let marked = 0, removed = 0, later = 0, missing = 0, broken = 0;
+  // each capture asked for (check: every one must be written by the end, whatever stopped it: an error page, a page
+  // that never loaded, the app's server gone)
+  const asked: { f: Flow; file: string; label: string }[] = [], tAsk = Date.now();
+  const take = (f: Flow, n: string, d: string, theme: string, lang: string, variant: string) => {
+    // (not fresh: a capture is wanted; its job may have left the queue already, a worker having started it)
+    if (!snapshot(f, n, d, theme, lang, 2, variant).fresh) asked.push({ f, file: snapName(n, d, theme, lang, sigFix(f, n, variant)), label: `${f.name}/${n} ${d}${theme === "light" ? "" : " " + theme}${lang === "en" ? "" : " " + lang}` });
+  };
   for (const f of fs) {
     try { build(f); } catch (e) { console.error(`!! ${f.name}: ${(e as Error).message.split("\n")[0]}`); broken++; continue; }
     const names = new Set(Object.keys(indexes.get(f.name)!.links)), m = manifest(f);
@@ -1758,7 +1765,7 @@ async function resnapRun() {
       if (state !== undefined && (i < 0 ? "" : n.slice(i + 1)) !== state) continue;
       m[k].build = `stale:${Date.now()}`; marked++;
       if (envOf(variant.split(".")[0])) { later++; continue; }
-      snapshot(f, n, d, theme, lang, 2, variant);
+      take(f, n, d, theme, lang, variant);
     }
     // and those never taken: every frame of the default view (--all: every theme, language and signal)
     for (const c of viewFrames(f, flag("all"))) {
@@ -1767,7 +1774,7 @@ async function resnapRun() {
       if (state !== undefined && (i < 0 ? "" : c.n.slice(i + 1)) !== state) continue;
       if (m[file] && existsSync(join(snapDir(f), file))) continue;
       if (jobs.has(`snap:${f.name}:${file}`)) continue;
-      snapshot(f, c.n, c.d, c.theme, c.lang, 2, c.v); missing++;
+      take(f, c.n, c.d, c.theme, c.lang, c.v); missing++;
     }
     saveManifest(f);
   }
@@ -1778,6 +1785,12 @@ async function resnapRun() {
   for (let i = 1; i < WORKERS; i++) void work();
   while (jobs.size || working) { await sleep(1000); process.stderr.write(`\r  ${Math.max(0, wanted - jobs.size - working)} of ${wanted}`); }
   if (wanted) process.stderr.write(`\r  ${wanted} of ${wanted}\n`);
+  // not written, though not said as an error page either (a capture that threw: the page never loaded, the app's
+  // server gone): as not taken
+  for (const a of asked) {
+    const key = `${a.f.name}:${a.file}`, m = manifest(a.f)[a.file];
+    if (!notTaken.has(key) && !(m && m.at >= tAsk && existsSync(join(snapDir(a.f), a.file)))) notTaken.set(key, { label: a.label, why: "not written (the capture failed: see above)", at: Date.now() });
+  }
   const no = [...notTaken.values()];
   out(`took ${wanted - no.length} in ${Math.round((Date.now() - t0) / 1000)} s${no.length ? `; ${no.length} not taken: ${no.slice(0, 5).map((x) => `${x.label} (${x.why.split("\n")[0]})`).join(", ")}${no.length > 5 ? ", …" : ""}` : ""}`);
   await browser?.close().catch(() => {});
