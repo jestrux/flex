@@ -287,7 +287,8 @@ Rules:
   opens on its own states. Joining reads Invite link → Account prompt → Join the visit. The
   used screens bring their own flow's `person`,
   `people`, `setup`, `storage`, `actions` and `clock` unless they set their own, so they run exactly as at home, and
-  editing the home flow updates every flow that uses it. Uses can nest; a loop, a missing flow or screen, or two
+  editing the home flow updates every flow that uses it. A use may take `"devices"`: the used screens show on those
+  only. Uses can nest; a loop, a missing flow or screen, or two
   screens of one name is an error. **Notes stay with the flow they were left in** (the host), not the used screen's.
 - **Write for search (⌘K):** the label says what is on the screen ("Invite a member", not "Step 3"); every screen gets
   a one-line `description`; `keywords` carry the words people use that the label doesn't (the product's slang, the

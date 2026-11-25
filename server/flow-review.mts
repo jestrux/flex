@@ -120,7 +120,8 @@ function unknownFields(file: string, kind: keyof typeof KNOWN, o: any, where = "
    A screen entry { "use": "account" } brings in every screen of account.json (beside this flow), with its states,
    tagged with that flow's title as their "group": the board shows them as ONE item of this flow, a tile like a
    screen's, that opens on those screens the way a screen opens on its states; { "use":
-   "account/nida" } brings one of its screens as it is. Either may take its own "label" (a whole flow's: its group's). They come with their states, and with what their
+   "account/nida" } brings one of its screens as it is. Either may take its own "label" (a whole flow's: its group's)
+   and "devices" (only those). They come with their states, and with what their
    own flow set for all its screens (person, people, setup, storage, actions, clock) unless they set it themselves, so
    they run exactly as they do at home. Uses can nest; a loop or a name used twice is an error. */
 const FROM_FLOW = ["person", "people", "setup", "storage", "actions", "clock", "clockTicks"];
@@ -136,14 +137,16 @@ function readFlow(file: string, seen: string[] = []): any {
     if (!existsSync(src)) throw new Error(`${basename(file)}: "use": "${s.use}": no flow ${flow}.json beside it`);
     if (here.includes(resolve(src))) throw new Error(`${basename(file)}: "use": "${s.use}" loops back to ${basename(src)}`);
     const u = readFlow(src, here);
+    // the use's own "devices" limits what it brings (a device its screen already left out stays out)
+    const devs = (x: any) => (Array.isArray(s.devices) ? { devices: Array.isArray(x.devices) ? x.devices.filter((d: string) => s.devices.includes(d)) : s.devices } : {});
     const inherit = (x: any) => ({ ...Object.fromEntries(FROM_FLOW.filter((k) => k in u && !(k in x)).map((k) => [k, u[k]])), ...x });
     if (screen) {
       const x = (u.screens ?? []).find((y: any) => y.name === screen);
       if (!x) throw new Error(`${basename(file)}: "use": "${s.use}": ${flow} has no screen "${screen}"`);
       // "as": another name (two flows' screens of one name, side by side); "only": just those of its states
       const only = Array.isArray(s.only) ? s.only : null;
-      out.push({ ...inherit(x), ...(s.as ? { name: s.as } : {}), ...(only ? { states: (x.states ?? []).filter((st: any) => only.includes(st?.name)) } : {}), ...(s.label ? { label: s.label } : {}) });
-    } else for (const x of u.screens ?? []) out.push({ ...inherit(x), group: s.label ?? u.title ?? flow });
+      out.push({ ...inherit(x), ...(s.as ? { name: s.as } : {}), ...(only ? { states: (x.states ?? []).filter((st: any) => only.includes(st?.name)) } : {}), ...(s.label ? { label: s.label } : {}), ...devs(x) });
+    } else for (const x of u.screens ?? []) out.push({ ...inherit(x), group: s.label ?? u.title ?? flow, ...devs(x) });
   }
   const names = new Set<string>();
   for (const x of out) { if (names.has(x?.name)) throw new Error(`${basename(file)}: two screens named "${x.name}" (one of them from a "use")`); names.add(x?.name); }
