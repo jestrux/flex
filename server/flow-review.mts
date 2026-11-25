@@ -662,8 +662,9 @@ async function runActions(page: any, acts: Action[]) {
     try {
       // a <select> takes the option (by value or label) rather than typed text, as the live runner sets its value
       if (a.fill != null) { const el = page.locator(a.fill).first(); await el.waitFor({ timeout: 10000 });
-        if (await el.evaluate((e) => e.tagName === "SELECT")) await el.selectOption(a.value ?? "", { timeout: 10000 }).catch(() => el.selectOption({ label: a.value ?? "" }, { timeout: 10000 }));
-        else await el.fill(a.value ?? "", { timeout: 10000 }); }
+        const value = a.fromText != null ? await textOf(page, a.fromText, a.match) : a.value ?? "";
+        if (await el.evaluate((e) => e.tagName === "SELECT")) await el.selectOption(value, { timeout: 10000 }).catch(() => el.selectOption({ label: value }, { timeout: 10000 }));
+        else await el.fill(value, { timeout: 10000 }); }
       else if (a.click != null) await page.locator(a.click).nth(a.nth ?? 0).click({ timeout: 10000 });
       else if (a.press != null) await page.keyboard.press(a.press);
       else if (a.waitFor != null) await page.locator(a.waitFor).first().waitFor({ timeout: 10000 });
@@ -674,6 +675,21 @@ async function runActions(page: any, acts: Action[]) {
   // what the last one started (a dialog opening, a list scrolling) settles
   await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(500);
+}
+/** a fill's fromText: the element's text (match: a regex, its first group, else the whole match), waited for up to
+ *  10 s (the text may show before the part the match wants) */
+async function textOf(page: any, sel: string, match?: string): Promise<string> {
+  const re = match != null ? new RegExp(match) : null, t0 = Date.now();
+  let last = "";
+  for (;;) {
+    const l = page.locator(sel).first();
+    last = (await l.innerText({ timeout: Math.max(500, 10000 - (Date.now() - t0)) }).catch(() => l.textContent({ timeout: 500 }).catch(() => null))) ?? "";
+    last = last.replace(/\s+/g, " ").trim();
+    const m = re ? re.exec(last) : null;
+    if (re ? m : last) return re ? (m![1] ?? m![0]) : last;
+    if (Date.now() - t0 > 10000) throw new Error(re ? `no match for /${match}/ in ${sel} ("${last.slice(0, 40)}")` : `no text in ${sel}`);
+    await page.waitForTimeout(200);
+  }
 }
 /** shootOnce, an error page tried again a few times (the app may be mid-rebuild: 3, 6, 12 s apart); still one, it
  *  throws ErrorPage and nothing is kept */
@@ -863,8 +879,9 @@ type SetupCookie = { name: string; value: string; path?: string; httpOnly?: bool
 type SetupOut = { url?: string; cookies: SetupCookie[]; localStorage: Record<string, string | null>; sessionStorage: Record<string, string | null>; actions: Action[]; clock?: Clock | null };
 /** a frame's clock: no-arg new Date() and Date.now() at this instant (ms), frozen unless it ticks */
 type Clock = { at: number; ticks: boolean };
-/** a step after the frame's page loads: fill, click (nth), press, waitFor, scroll, wait (a selector: CSS, or text=…) */
-type Action = { fill?: string; value?: string; click?: string; nth?: number; press?: string; waitFor?: string; scroll?: string; wait?: number };
+/** a step after the frame's page loads: fill, click (nth), press, waitFor, scroll, wait (a selector: CSS, or text=…).
+ *  A fill types its value, or with fromText the text of that element (match: a regex, its first group or whole match) */
+type Action = { fill?: string; value?: string; fromText?: string; match?: string; click?: string; nth?: number; press?: string; waitFor?: string; scroll?: string; wait?: number };
 const VERBS = ["fill", "click", "press", "waitFor", "scroll", "wait"];
 /** a list of actions as given (a flow's, or a setup's output), checked: each one verb */
 function actionsOf(a: unknown, where: string): Action[] {
@@ -878,6 +895,11 @@ function actionsOf(a: unknown, where: string): Action[] {
     else if (typeof x[v] !== "string" || !x[v]) throw new Error(`${where}: action ${i + 1}: "${v}" needs a ${v === "press" ? "key" : "selector"}`);
     else (out as any)[v] = x[v];
     if (v === "fill") out.value = x.value == null ? "" : String(x.value);
+    if (v === "fill" && x.fromText != null) {
+      if (typeof x.fromText !== "string" || !x.fromText) throw new Error(`${where}: action ${i + 1}: "fromText" needs a selector`);
+      out.fromText = x.fromText;
+      if (x.match != null) { try { new RegExp(String(x.match)); } catch { throw new Error(`${where}: action ${i + 1}: "match" isn't a regular expression`); } out.match = String(x.match); }
+    }
     if (v === "click" && x.nth != null) out.nth = Math.max(0, Math.floor(+x.nth || 0));
     return out;
   });
@@ -1134,13 +1156,19 @@ if(rec&&rec.a&&rec.a.length&&!rec.ran){
   var go=a.dispatchEvent(new KeyboardEvent("keydown",o));
   if(go&&k==="Enter"&&a.tagName==="INPUT"&&a.form){if(a.form.requestSubmit)a.form.requestSubmit();else a.form.submit()}
   a.dispatchEvent(new KeyboardEvent("keyup",o))};
+ /* a fill's fromText: that element's text (match: a regex, its first group or the whole match), waited for up to 10 s */
+ var fromText=function(a,cb){var re=null,t0=Date.now();try{if(a.match!=null)re=new RegExp(a.match)}catch(x){return cb("bad match "+a.match)}
+  (function go(){var l;try{l=find(a.fromText)}catch(x){return cb("bad selector "+a.fromText)}var tx=l[0]?norm(l[0].innerText||l[0].textContent||""):"",m=re&&re.exec(tx);
+   if(re?m:tx)return cb(null,re?(m[1]!=null?m[1]:m[0]):tx);
+   if(Date.now()-t0>10000)return cb(re?"no match for "+a.match+" in "+a.fromText:"no text in "+a.fromText);setTimeout(go,150)})()};
  var fin=function(err){window.__flexActions=err?"failed: "+err:"done";post({actions:window.__flexActions});if(!err){rec.ran=1;save()}};
  var step=function(){if(i>=A.length)return setTimeout(function(){fin(null)},500);
   var a=A[i],lab="action "+(i+1),next=function(err){if(err)return fin(lab+": "+err);i++;setTimeout(step,120)};
   try{if("wait" in a)return setTimeout(function(){next()},+a.wait||0);
    if("press" in a){press(a.press);return next()}
    el(a.fill||a.click||a.waitFor||a.scroll,"click" in a?a.nth:0,function(err,e){if(err)return next(err);
-    try{if("fill" in a)setVal(e,a.value||"");else if("click" in a)click(e);else if("scroll" in a)e.scrollIntoView({block:"center"});next()}catch(x){next(String(x&&x.message||x))}})}
+    try{if("fill" in a&&a.fromText!=null)return fromText(a,function(err,v){if(err)return next(err);try{setVal(e,v);next()}catch(x){next(String(x&&x.message||x))}});
+     if("fill" in a)setVal(e,a.value||"");else if("click" in a)click(e);else if("scroll" in a)e.scrollIntoView({block:"center"});next()}catch(x){next(String(x&&x.message||x))}})}
   catch(x){next(String(x&&x.message||x))}};
  var start=function(){var last=Date.now(),mo=new MutationObserver(function(){last=Date.now()});mo.observe(document.documentElement,{subtree:true,childList:true,characterData:true});
   (function w(){if(Date.now()-last>=500){mo.disconnect();step()}else setTimeout(w,100)})()};

@@ -204,6 +204,14 @@ On the project, a flow, a screen or a state:
    { "waitFor": "[role=dialog]" }, { "scroll": "text=Waiting for approval" }, { "wait": 300 }]
   ```
 
+  A `fill` can type text read off the page instead of a fixed `value`: `"fromText"` names the element holding it, and
+  `"match"` (optional) is a regex over that element's text, its first group or else the whole match typed. It waits up
+  to 10 s for the text (and the match) to show. For a code the app shows in dev, to get past a code screen:
+
+  ```json
+  { "fill": "[aria-label='Code input']", "fromText": "[data-testid='Dev code']", "match": "(\\d{6})" }
+  ```
+
   Selectors: CSS or `text=…`. Use them for states only interaction reaches: an open dialog, a tab, a typed field, a
   section below the fold. `scroll` brings an element into view; it can't reach inside a nested scroller that doesn't
   move with it, and a long page still crops at the device height. One failing marks the frame; a capture keeps nothing.
