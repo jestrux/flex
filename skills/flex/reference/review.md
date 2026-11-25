@@ -171,8 +171,9 @@ It prints one JSON object on stdout:
 ```
 
 Every key is optional. `url` defaults to the frame's link; `actions` run after the flow's. A non-zero exit or non-JSON
-output shows in the frame with stderr; a capture keeps nothing. Results are reused per (args, person, language, data
-mode) for `ttl`, until the notes file's `build` changes or Reset to defaults.
+output shows in the frame with stderr; a capture keeps nothing. Results are reused per (args, person, language, theme,
+device, data mode) for `ttl`, until the notes file's `build` changes or Reset to defaults: a dark frame and a light one,
+or an iPhone and a Mac, each get their own run.
 
 Writing one (Thrive's `helpers/flex-setup.ts` is the model):
 

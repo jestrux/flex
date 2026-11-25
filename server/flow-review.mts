@@ -857,7 +857,7 @@ function expectOf(f: Flow, name: string): string | null {
    FLEX_STATE, FLEX_PERSON, FLEX_LANG, FLEX_THEME, FLEX_DEVICE, FLEX_BASE, FLEX_MODE and FLEX_SETUP (the args as JSON),
    over the project's env file's vars, and prints JSON: { url?, cookies?: [{ name, value, path?, httpOnly?, secure?,
    sameSite?, maxAge? }], localStorage?, sessionStorage? }. The result is reused for ttl seconds (default 600) per
-   (command, args, person, language, data mode, the flow's build); Reset to defaults forgets them. Nothing of it is
+   (command, args, person, language, theme, device, data mode, the flow's build); Reset to defaults forgets them. Nothing of it is
    logged or written: only the cookies and storage it asks for reach the frame ── */
 type SetupCookie = { name: string; value: string; path?: string; httpOnly?: boolean; secure?: boolean; sameSite?: string; maxAge?: number };
 type SetupOut = { url?: string; cookies: SetupCookie[]; localStorage: Record<string, string | null>; sessionStorage: Record<string, string | null>; actions: Action[]; clock?: Clock | null };
@@ -961,7 +961,8 @@ async function runSetup(f: Flow, name: string, o: { person: string | null; lang:
   if (!fs.args) return decl;
   const args = fs.args, pj = proj(), cfg = pj?.setup;
   if (!pj || !cfg?.command) throw new SetupError(`${name} has "setup", but .flex/project.json has no "setup": { "command" }`);
-  const key = JSON.stringify([cfg.command, cfg.cwd ?? "", args, o.person ?? "", o.lang, o.mode, buildOf(f)]);
+  // (theme and device too: the command gets them, and its output, or what it does, may differ by them)
+  const key = JSON.stringify([cfg.command, cfg.cwd ?? "", args, o.person ?? "", o.lang, o.theme, o.device, o.mode, buildOf(f)]);
   const ttl = (typeof cfg.ttl === "number" && cfg.ttl >= 0 ? cfg.ttl : 600) * 1000, had = setupDone.get(key);
   let out: SetupOut;
   // a failure is said again (not run again) for 15 s live, for the whole ttl in the background: a background capture
@@ -977,7 +978,7 @@ async function runSetup(f: Flow, name: string, o: { person: string | null; lang:
       const vars: Record<string, string> = { ...envVars(o.mode), ...(process.env as Record<string, string>),
         FLEX_FLOW: f.name, FLEX_SCREEN: i < 0 ? name : name.slice(0, i), FLEX_STATE: i < 0 ? "" : name.slice(i + 1), FLEX_PERSON: o.person ?? "",
         FLEX_LANG: o.lang, FLEX_THEME: o.theme, FLEX_DEVICE: o.device, FLEX_BASE: (env?.base ?? f.base).replace(/\/$/, ""), FLEX_MODE: o.mode, FLEX_SETUP: JSON.stringify(args), PATH: userPath() };
-      const who = `${f.name}/${name} person=${o.person ?? "-"} lang=${o.lang} mode=${o.mode}${o.bg ? " (background)" : ""}`;
+      const who = `${f.name}/${name} person=${o.person ?? "-"} lang=${o.lang} theme=${o.theme} device=${o.device} mode=${o.mode}${o.bg ? " (background)" : ""}`;
       logSetup(`setup run: ${cfg.command} for ${who}`);
       run = execSetup(cfg.command, resolve(pj.dir, cfg.cwd ?? "."), vars, name).then((r) => { logSetup(`setup ok: ${who}`); return r; }, (e) => { logSetup(`setup failed: ${who}: ${String(e.message).split("\n")[0]}`); throw e; }).then((r) => { setupDone.set(key, { at: Date.now(), out: r }); setupFailed.delete(key); return r; },
         (e) => { setupFailed.set(key, { at: Date.now(), e }); throw e; })
