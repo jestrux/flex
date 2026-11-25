@@ -290,7 +290,6 @@ async function lightUnder(png: Buffer, d: Dev, theme: string, edge?: "bottom"): 
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 150;
 }
 
-const fill = `style="display:block;width:100%;height:100%;object-fit:cover"`;
 function figure(d: Dev, img: string, status: string, v: { finish: string; style: string }, title: string, band: string | null, navDark = status === "dark"): string {
   const f = d.family, shadow = flag("shadow") ? ` ${f}--shadow` : "", dark = status === "dark";
   const finish = v.style !== "frame" ? ` ${f}--${v.style}` : (f === "android" || f === "pc") && v.finish === "graphite" ? "" : ` ${f}--${v.finish}`;
@@ -298,6 +297,8 @@ function figure(d: Dev, img: string, status: string, v: { finish: string; style:
   const notch = flag("no-notch") ? { iphone: " iphone--no-notch", mac: " mac--no-notch", android: " android--no-camera" }[f as string] ?? "" : "";
   const cls = `${f} ${d.cls} ${finish}${shadow}${notch}`.replace(/\s+/g, " ").trim();
   const shot = `<img src="${img}" alt="">`;
+  // (here, not at the top level: the canvas (--canvas, above) draws its frames before a top-level const below it exists)
+  const fill = `style="display:block;width:100%;height:100%;object-fit:cover"`;
   if (f === "win" || f === "macwin" || f === "plainwin") {
     // the chrome follows the theme unless a finish names it; dark chrome over a dark page
     const chromeDark = v.finish === "dark" || (v.finish === "auto" && status === "light");
